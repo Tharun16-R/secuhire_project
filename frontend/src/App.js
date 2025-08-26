@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import axios from "axios";
 import { Button } from "./components/ui/button";
@@ -9,7 +9,9 @@ import { Badge } from "./components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { Textarea } from "./components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "./components/ui/dialog";
-import { Shield, Users, Eye, Clock, CheckCircle, Building, MapPin, DollarSign, Calendar, Star, ArrowRight, Lock, Zap, Target } from "lucide-react";
+import { Progress } from "./components/ui/progress";
+import { Alert, AlertDescription, AlertTitle } from "./components/ui/alert";
+import { Shield, Users, Eye, Clock, CheckCircle, Building, MapPin, DollarSign, Calendar, Star, ArrowRight, Lock, Zap, Target, Camera, Brain, AlertTriangle, TrendingUp } from "lucide-react";
 import "./App.css";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
