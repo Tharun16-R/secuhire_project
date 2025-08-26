@@ -354,6 +354,9 @@ const Dashboard = () => {
   const [jobs, setJobs] = useState([]);
   const [applications, setApplications] = useState([]);
   const [activeTab, setActiveTab] = useState('jobs');
+  const [showAIInterview, setShowAIInterview] = useState(false);
+  const [selectedApplication, setSelectedApplication] = useState(null);
+  const [selectedJobTitle, setSelectedJobTitle] = useState('');
   const { user, logout } = useAuth();
 
   useEffect(() => {
@@ -387,6 +390,29 @@ const Dashboard = () => {
       alert(error.response?.data?.detail || 'Application failed');
     }
   };
+
+  const startAIInterview = (applicationId, jobTitle) => {
+    setSelectedApplication(applicationId);
+    setSelectedJobTitle(jobTitle);
+    setShowAIInterview(true);
+  };
+
+  const endAIInterview = () => {
+    setShowAIInterview(false);
+    setSelectedApplication(null);
+    setSelectedJobTitle('');
+    fetchDashboardData(); // Refresh data
+  };
+
+  if (showAIInterview) {
+    return (
+      <AIInterviewMonitoring 
+        applicationId={selectedApplication}
+        jobTitle={selectedJobTitle}
+        onEndInterview={endAIInterview}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
