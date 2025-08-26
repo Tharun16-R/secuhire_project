@@ -97,7 +97,7 @@ const LandingPage = () => {
               </div>
               
               <div className="flex items-center space-x-6">
-                <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-4">
+                <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-4" onClick={() => window.location.href = '/auth'}>
                   Start Secure Hiring
                   <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
