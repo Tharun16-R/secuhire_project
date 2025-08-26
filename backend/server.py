@@ -38,6 +38,13 @@ api_router = APIRouter(prefix="/api")
 security = HTTPBearer()
 JWT_SECRET = "secuhire_secret_key_2025"
 
+# Initialize Gemini AI
+gemini_api_key = os.environ.get('GEMINI_API_KEY')
+if gemini_api_key:
+    genai.configure(api_key=gemini_api_key)
+else:
+    logging.warning("GEMINI_API_KEY not configured - AI monitoring will be disabled")
+
 # Define Models
 class User(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
