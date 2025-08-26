@@ -501,7 +501,12 @@ const Dashboard = () => {
             <TabsContent value="applications" className="space-y-6">
               <div className="grid gap-6">
                 {applications.map((item, index) => (
-                  <ApplicationCard key={index} application={item.application} job={item.job} />
+                  <ApplicationCard 
+                    key={index} 
+                    application={item.application} 
+                    job={item.job} 
+                    onStartInterview={startAIInterview}
+                  />
                 ))}
               </div>
             </TabsContent>
