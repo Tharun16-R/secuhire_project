@@ -99,6 +99,24 @@ class InterviewSession(BaseModel):
     status: str = "scheduled"  # scheduled, in_progress, completed, cancelled
     ai_monitoring_enabled: bool = True
 
+class AIAnalysisResult(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    session_id: str
+    frame_id: str
+    timestamp: datetime
+    facial_expression_score: float
+    eye_movement_score: float
+    behavioral_score: float
+    authenticity_confidence: float
+    fraud_risk_level: str
+    red_flags: List[str]
+    recommendations: List[str]
+
+class VideoStreamData(BaseModel):
+    frame_data: str
+    timestamp: str
+    session_id: str
+
 # Helper functions
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
