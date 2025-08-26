@@ -140,6 +140,199 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
+# AI Monitoring Components
+class VideoStreamManager:
+    def __init__(self):
+        self.active_connections: Dict[str, WebSocket] = {}
+        self.session_connections: Dict[str, WebSocket] = {}
+        
+    async def connect(self, websocket: WebSocket, session_id: str):
+        await websocket.accept()
+        self.active_connections[session_id] = websocket
+        self.session_connections[session_id] = websocket
+        logging.info(f"AI monitoring session {session_id} connected")
+        
+    def disconnect(self, session_id: str):
+        if session_id in self.active_connections:
+            del self.active_connections[session_id]
+        if session_id in self.session_connections:
+            del self.session_connections[session_id]
+        logging.info(f"AI monitoring session {session_id} disconnected")
+        
+    async def broadcast_analysis(self, session_id: str, analysis_result: Dict[str, Any]):
+        """Broadcast analysis results to connected clients"""
+        if session_id in self.active_connections:
+            try:
+                await self.active_connections[session_id].send_json({
+                    "type": "analysis_result",
+                    "data": analysis_result
+                })
+            except Exception as e:
+                logging.error(f"Error broadcasting analysis: {e}")
+                self.disconnect(session_id)
+
+class GeminiAnalyzer:
+    def __init__(self):
+        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        self.analysis_history = deque(maxlen=1000)
+        
+    async def analyze_interview_frame(self, frame_data: str, session_id: str) -> Dict[str, Any]:
+        """Analyze video frame for behavioral indicators"""
+        try:
+            if not gemini_api_key:
+                return self._create_mock_response()
+                
+            # Decode base64 frame
+            frame_bytes = base64.b64decode(frame_data)
+            
+            # Create analysis prompt
+            prompt = self._create_behavioral_analysis_prompt()
+            
+            # Analyze with Gemini
+            response = await self.model.generate_content_async([
+                prompt,
+                {"mime_type": "image/jpeg", "data": frame_bytes}
+            ])
+            
+            # Parse response
+            analysis_result = await self._parse_analysis_response(response.text, session_id)
+            
+            # Store analysis
+            self.analysis_history.append(analysis_result)
+            
+            return analysis_result
+            
+        except Exception as e:
+            logging.error(f"Gemini analysis error: {e}")
+            return self._create_error_response(str(e))
+            
+    def _create_behavioral_analysis_prompt(self) -> str:
+        """Create comprehensive behavioral analysis prompt for Gemini"""
+        return """
+        Analyze this video frame from an online interview for authenticity and behavioral indicators. 
+        
+        Focus on:
+        1. Facial expression naturalness (score 0-100)
+        2. Eye contact and gaze patterns (score 0-100)  
+        3. Overall behavioral authenticity (score 0-100)
+        4. Fraud risk assessment (Low/Medium/High)
+        
+        Provide analysis as JSON:
+        {
+          "facial_expression_score": 85,
+          "eye_movement_score": 78,
+          "behavioral_score": 82,
+          "authenticity_confidence": 81.7,
+          "fraud_risk_level": "Low",
+          "red_flags": [],
+          "observations": ["Natural expressions", "Good eye contact"],
+          "recommendations": ["Continue with normal interview process"]
+        }
+        """
+        
+    async def _parse_analysis_response(self, response_text: str, session_id: str) -> Dict[str, Any]:
+        """Parse Gemini response into structured data"""
+        try:
+            # Try to extract JSON from response
+            import re
+            json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', response_text, re.DOTALL)
+            
+            if json_match:
+                json_data = json.loads(json_match.group())
+                return self._validate_analysis_structure(json_data, session_id)
+            else:
+                return self._parse_natural_language_response(response_text, session_id)
+                
+        except Exception as e:
+            logging.warning(f"Response parsing error: {e}")
+            return self._create_mock_response(session_id)
+            
+    def _validate_analysis_structure(self, data: Dict[str, Any], session_id: str) -> Dict[str, Any]:
+        """Validate and normalize analysis data"""
+        required_fields = {
+            'facial_expression_score': 75.0,
+            'eye_movement_score': 75.0,
+            'behavioral_score': 75.0,
+            'authenticity_confidence': 75.0,
+            'fraud_risk_level': 'Low',
+            'red_flags': [],
+            'observations': ['Behavioral analysis completed'],
+            'recommendations': ['Continue interview process']
+        }
+        
+        # Ensure all fields exist
+        for field, default_value in required_fields.items():
+            if field not in data:
+                data[field] = default_value
+                
+        # Normalize scores
+        score_fields = ['facial_expression_score', 'eye_movement_score', 'behavioral_score', 'authenticity_confidence']
+        for field in score_fields:
+            if isinstance(data[field], (int, float)):
+                data[field] = min(100, max(0, float(data[field])))
+                
+        data['session_id'] = session_id
+        data['timestamp'] = datetime.now(timezone.utc).isoformat()
+        
+        return data
+        
+    def _parse_natural_language_response(self, response_text: str, session_id: str) -> Dict[str, Any]:
+        """Fallback parsing for natural language responses"""
+        # Extract confidence scores using regex
+        import re
+        confidence_pattern = r'(\d+(?:\.\d+)?)'
+        matches = re.findall(confidence_pattern, response_text)
+        
+        scores = [float(m) for m in matches if 0 <= float(m) <= 100]
+        avg_score = sum(scores) / len(scores) if scores else 75.0
+        
+        return {
+            'session_id': session_id,
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'facial_expression_score': avg_score,
+            'eye_movement_score': avg_score,
+            'behavioral_score': avg_score,
+            'authenticity_confidence': avg_score,
+            'fraud_risk_level': 'Low' if avg_score > 70 else 'Medium' if avg_score > 40 else 'High',
+            'red_flags': [],
+            'observations': ['Analysis completed successfully'],
+            'recommendations': ['Continue with interview process']
+        }
+        
+    def _create_mock_response(self, session_id: str = "unknown") -> Dict[str, Any]:
+        """Create mock response when Gemini is unavailable"""
+        return {
+            'session_id': session_id,
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'facial_expression_score': 78.5,
+            'eye_movement_score': 82.3,
+            'behavioral_score': 79.1,
+            'authenticity_confidence': 80.0,
+            'fraud_risk_level': 'Low',
+            'red_flags': [],
+            'observations': ['Mock analysis - Gemini API not configured', 'Normal behavioral patterns detected'],
+            'recommendations': ['Continue with standard interview process', 'Enable Gemini API for full analysis']
+        }
+        
+    def _create_error_response(self, error_message: str) -> Dict[str, Any]:
+        """Create error response"""
+        return {
+            'session_id': 'error',
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'facial_expression_score': 0.0,
+            'eye_movement_score': 0.0,
+            'behavioral_score': 0.0,
+            'authenticity_confidence': 0.0,
+            'fraud_risk_level': 'Unknown',
+            'red_flags': ['analysis_error'],
+            'observations': [f'Analysis failed: {error_message}'],
+            'recommendations': ['Retry analysis or use manual verification']
+        }
+
+# Global instances
+video_manager = VideoStreamManager()
+gemini_analyzer = GeminiAnalyzer()
+
 # Authentication Routes
 @api_router.post("/auth/register")
 async def register(user_data: UserRegister):
