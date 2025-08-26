@@ -569,7 +569,7 @@ const JobCard = ({ job, onApply }) => {
 };
 
 // Application Card Component
-const ApplicationCard = ({ application, job }) => {
+const ApplicationCard = ({ application, job, onStartInterview }) => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'pending': return 'bg-amber-100 text-amber-800';
@@ -606,9 +606,342 @@ const ApplicationCard = ({ application, job }) => {
           </div>
         )}
 
-        <p className="text-slate-700">{application.cover_letter}</p>
+        <p className="text-slate-700 mb-4">{application.cover_letter}</p>
+
+        {application.status === 'pending' && (
+          <Button 
+            onClick={() => onStartInterview(application.id, job.title)}
+            className="bg-emerald-600 hover:bg-emerald-700 w-full"
+          >
+            <Camera className="w-4 h-4 mr-2" />
+            Start AI-Monitored Interview
+          </Button>
+        )}
       </CardContent>
     </Card>
+  );
+};
+
+// AI Interview Monitoring Component
+const AIInterviewMonitoring = ({ applicationId, jobTitle, onEndInterview }) => {
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+  const wsRef = useRef(null);
+  
+  const [isRecording, setIsRecording] = useState(false);
+  const [analysisResults, setAnalysisResults] = useState([]);
+  const [sessionStats, setSessionStats] = useState({
+    facial_expression_score: 0,
+    eye_movement_score: 0,
+    behavioral_score: 0,
+    authenticity_confidence: 0,
+    fraud_risk_level: 'Low'
+  });
+  const [isConnected, setIsConnected] = useState(false);
+  const [sessionId, setSessionId] = useState(null);
+
+  useEffect(() => {
+    startInterviewSession();
+    return () => {
+      stopRecording();
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, []);
+
+  const startInterviewSession = async () => {
+    try {
+      // Create AI monitoring session
+      const sessionResponse = await axios.post(`${API}/ai/sessions`, null, {
+        params: { application_id: applicationId }
+      });
+      const newSessionId = sessionResponse.data.id;
+      setSessionId(newSessionId);
+
+      // Connect to WebSocket
+      const wsUrl = `wss://${window.location.host}/ws/ai-monitoring/${newSessionId}`;
+      wsRef.current = new WebSocket(wsUrl);
+      
+      wsRef.current.onopen = () => {
+        setIsConnected(true);
+        console.log('AI monitoring WebSocket connected');
+      };
+      
+      wsRef.current.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'analysis_result') {
+          handleAnalysisResult(data.data);
+        }
+      };
+      
+      wsRef.current.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+      
+      wsRef.current.onclose = () => {
+        setIsConnected(false);
+      };
+
+      // Start camera
+      await startCamera();
+      
+    } catch (error) {
+      console.error('Failed to start interview session:', error);
+    }
+  };
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { width: 1280, height: 720, facingMode: 'user' }, 
+        audio: false 
+      });
+      
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      
+      setIsRecording(true);
+      
+      // Start frame analysis
+      startFrameAnalysis();
+      
+    } catch (error) {
+      console.error('Camera access failed:', error);
+      alert('Camera access is required for AI monitoring. Please allow camera permissions.');
+    }
+  };
+
+  const startFrameAnalysis = () => {
+    const analyzeFrame = () => {
+      if (!isRecording || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        return;
+      }
+
+      const canvas = canvasRef.current;
+      const video = videoRef.current;
+      
+      if (canvas && video && video.videoWidth > 0) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0);
+        
+        // Convert frame to base64
+        const frameData = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+        
+        // Send frame to AI analysis
+        wsRef.current.send(JSON.stringify({
+          type: 'video_frame',
+          frame_data: frameData,
+          timestamp: new Date().toISOString()
+        }));
+      }
+      
+      // Continue analysis every 2 seconds
+      if (isRecording) {
+        setTimeout(analyzeFrame, 2000);
+      }
+    };
+    
+    // Start analysis after video is ready
+    setTimeout(analyzeFrame, 1000);
+  };
+
+  const handleAnalysisResult = (result) => {
+    setAnalysisResults(prev => [...prev.slice(-9), result]); // Keep last 10 results
+    
+    // Update session stats with latest result
+    setSessionStats({
+      facial_expression_score: result.facial_expression_score || 0,
+      eye_movement_score: result.eye_movement_score || 0,
+      behavioral_score: result.behavioral_score || 0,
+      authenticity_confidence: result.authenticity_confidence || 0,
+      fraud_risk_level: result.fraud_risk_level || 'Low'
+    });
+  };
+
+  const stopRecording = () => {
+    setIsRecording(false);
+    
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+    }
+    
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'end_session' }));
+    }
+  };
+
+  const handleEndInterview = () => {
+    stopRecording();
+    onEndInterview();
+  };
+
+  const getRiskColor = (level) => {
+    switch (level) {
+      case 'Low': return 'text-green-600 bg-green-100';
+      case 'Medium': return 'text-amber-600 bg-amber-100';
+      case 'High': return 'text-red-600 bg-red-100';
+      default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">AI-Monitored Interview</h1>
+          <p className="text-slate-600">{jobTitle}</p>
+          <div className="flex items-center space-x-4 mt-2">
+            <Badge className={isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+              {isConnected ? 'Connected' : 'Disconnected'}
+            </Badge>
+            <Badge className={isRecording ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}>
+              {isRecording ? 'Recording' : 'Stopped'}
+            </Badge>
+          </div>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Video Feed */}
+          <Card className="border-0 shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Camera className="w-5 h-5" />
+                <span>Live Video Feed</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="relative">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="w-full h-64 bg-gray-900 rounded-lg"
+                />
+                <canvas ref={canvasRef} className="hidden" />
+                {isRecording && (
+                  <div className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded text-sm">
+                    <div className="flex items-center space-x-1">
+                      <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                      <span>REC</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Real-time Analysis */}
+          <Card className="border-0 shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Brain className="w-5 h-5" />
+                <span>AI Analysis Results</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Authenticity Score */}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <Label>Authenticity Confidence</Label>
+                    <span className="font-medium">{sessionStats.authenticity_confidence.toFixed(1)}%</span>
+                  </div>
+                  <Progress value={sessionStats.authenticity_confidence} className="h-2" />
+                </div>
+
+                {/* Risk Level */}
+                <div>
+                  <Label className="block mb-2">Risk Level</Label>
+                  <Badge className={getRiskColor(sessionStats.fraud_risk_level)}>
+                    {sessionStats.fraud_risk_level}
+                  </Badge>
+                </div>
+
+                {/* Individual Scores */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-emerald-600">
+                      {sessionStats.facial_expression_score.toFixed(0)}
+                    </div>
+                    <div className="text-xs text-slate-600">Facial</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {sessionStats.eye_movement_score.toFixed(0)}
+                    </div>
+                    <div className="text-xs text-slate-600">Eye Movement</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-600">
+                      {sessionStats.behavioral_score.toFixed(0)}
+                    </div>
+                    <div className="text-xs text-slate-600">Behavioral</div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Recent Analysis Results */}
+        <Card className="mt-6 border-0 shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <TrendingUp className="w-5 h-5" />
+              <span>Recent Analysis ({analysisResults.length} frames analyzed)</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {analysisResults.length > 0 ? (
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {analysisResults.slice(-5).reverse().map((result, index) => (
+                  <div key={index} className="flex justify-between items-center p-2 bg-slate-50 rounded">
+                    <span className="text-sm text-slate-600">
+                      {new Date(result.timestamp).toLocaleTimeString()}
+                    </span>
+                    <span className="text-sm font-medium">
+                      Confidence: {result.authenticity_confidence?.toFixed(1)}%
+                    </span>
+                    <Badge className={getRiskColor(result.fraud_risk_level)} variant="secondary">
+                      {result.fraud_risk_level}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-slate-500 text-center py-4">No analysis results yet. Make sure your camera is working.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Action Buttons */}
+        <div className="flex justify-between items-center mt-6">
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>AI Monitoring Active</AlertTitle>
+            <AlertDescription>
+              Your interview is being monitored for authenticity and fraud prevention.
+            </AlertDescription>
+          </Alert>
+          
+          <Button 
+            onClick={handleEndInterview}
+            className="bg-red-600 hover:bg-red-700 text-white"
+          >
+            End Interview
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 };
 
