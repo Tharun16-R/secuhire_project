@@ -496,6 +496,107 @@ async def seed_jobs():
     
     return {"message": f"Seeded {len(sample_jobs)} jobs successfully"}
 
+# AI Monitoring Routes
+@api_router.post("/ai/sessions", response_model=InterviewSession)
+async def create_ai_monitoring_session(
+    application_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Create new AI monitoring session for interview"""
+    application = await db.applications.find_one({"id": application_id, "user_id": current_user.id})
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+        
+    session = InterviewSession(
+        application_id=application_id,
+        user_id=current_user.id,
+        job_id=application["job_id"],
+        scheduled_date=datetime.now(timezone.utc),
+        status="in_progress",
+        ai_monitoring_enabled=True
+    )
+    
+    await db.interview_sessions.insert_one(session.dict())
+    return session
+
+@api_router.get("/ai/sessions/{session_id}/analysis")
+async def get_session_analysis(
+    session_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """Get AI analysis results for session"""
+    session = await db.interview_sessions.find_one({"id": session_id, "user_id": current_user.id})
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+        
+    analyses = await db.ai_analyses.find({"session_id": session_id}).to_list(100)
+    
+    if not analyses:
+        return {"message": "No analysis data available", "analyses": []}
+        
+    # Calculate summary statistics
+    avg_scores = {}
+    score_fields = ['facial_expression_score', 'eye_movement_score', 'behavioral_score', 'authenticity_confidence']
+    
+    for field in score_fields:
+        scores = [a[field] for a in analyses if field in a and isinstance(a[field], (int, float))]
+        avg_scores[field] = sum(scores) / len(scores) if scores else 0.0
+        
+    # Determine overall risk
+    overall_confidence = avg_scores.get('authenticity_confidence', 0)
+    overall_risk = 'Low' if overall_confidence >= 80 else 'Medium' if overall_confidence >= 60 else 'High'
+    
+    return {
+        "session_id": session_id,
+        "total_analyses": len(analyses),
+        "average_scores": avg_scores,
+        "overall_risk": overall_risk,
+        "analyses": analyses[-10:]  # Return last 10 analyses
+    }
+
+# WebSocket endpoint for real-time AI monitoring
+@app.websocket("/ws/ai-monitoring/{session_id}")
+async def websocket_ai_monitoring(websocket: WebSocket, session_id: str):
+    """WebSocket endpoint for real-time AI monitoring"""
+    await video_manager.connect(websocket, session_id)
+    
+    try:
+        while True:
+            # Receive video frame data
+            data = await websocket.receive_json()
+            
+            if data.get("type") == "video_frame":
+                frame_data = data.get("frame_data")
+                if frame_data:
+                    # Analyze frame with Gemini
+                    analysis_result = await gemini_analyzer.analyze_interview_frame(frame_data, session_id)
+                    
+                    # Store analysis in database
+                    analysis_doc = AIAnalysisResult(
+                        session_id=session_id,
+                        frame_id=str(uuid.uuid4()),
+                        timestamp=datetime.now(timezone.utc),
+                        **analysis_result
+                    )
+                    await db.ai_analyses.insert_one(analysis_doc.dict())
+                    
+                    # Broadcast results to client
+                    await video_manager.broadcast_analysis(session_id, analysis_result)
+                    
+            elif data.get("type") == "end_session":
+                # Mark session as completed
+                await db.interview_sessions.update_one(
+                    {"id": session_id},
+                    {"$set": {"status": "completed", "end_time": datetime.now(timezone.utc)}}
+                )
+                break
+                
+    except WebSocketDisconnect:
+        video_manager.disconnect(session_id)
+    except Exception as e:
+        logging.error(f"WebSocket error for session {session_id}: {e}")
+        video_manager.disconnect(session_id)
+
 # Include the router in the main app
 app.include_router(api_router)
 
