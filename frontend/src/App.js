@@ -74,7 +74,7 @@ const LandingPage = () => {
           <div className="flex items-center space-x-4">
             <Button variant="ghost" className="text-slate-600 hover:text-emerald-600">About</Button>
             <Button variant="ghost" className="text-slate-600 hover:text-emerald-600">Features</Button>
-            <Button variant="outline" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50">Login</Button>
+            <Button variant="outline" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={() => window.location.href = '/auth'}>Login</Button>
             <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">Get Started</Button>
           </div>
         </div>
