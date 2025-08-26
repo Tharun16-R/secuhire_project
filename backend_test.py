@@ -386,6 +386,11 @@ def main():
         ("Duplicate Application Prevention", tester.test_duplicate_application),
         ("Get My Applications", tester.test_get_my_applications),
         ("Dashboard Statistics", tester.test_dashboard_stats),
+        ("Create AI Monitoring Session", tester.test_create_ai_session),
+        ("Get AI Session Analysis", tester.test_get_session_analysis),
+        ("Unauthorized Access Test", tester.test_unauthorized_access),
+        ("Invalid Job Application", tester.test_invalid_job_application),
+        ("Invalid AI Session Creation", tester.test_invalid_ai_session),
     ]
     
     failed_tests = []
