@@ -995,6 +995,7 @@ function App() {
           <Route path="/" element={token ? <Navigate to="/dashboard" /> : <LandingPage />} />
           <Route path="/auth" element={token ? <Navigate to="/dashboard" /> : <AuthPage />} />
           <Route path="/dashboard" element={token ? <Dashboard /> : <Navigate to="/auth" />} />
+          <Route path="/interview/:applicationId" element={token ? <Dashboard /> : <Navigate to="/auth" />} />
         </Routes>
       </BrowserRouter>
     </div>
