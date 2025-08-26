@@ -274,6 +274,99 @@ Test Candidate"""
             return True
         return False
 
+    def test_create_ai_session(self):
+        """Test creating AI monitoring session"""
+        if not hasattr(self, 'application_id'):
+            print("   ⚠️ No application ID available, skipping test")
+            return True
+            
+        success, response = self.run_test(
+            "Create AI Monitoring Session",
+            "POST",
+            "/ai/sessions",
+            200,
+            params={"application_id": self.application_id}
+        )
+        
+        if success and 'id' in response:
+            self.session_id = response['id']
+            print(f"   ✅ AI Session ID: {self.session_id}")
+            print(f"   ✅ Session Status: {response.get('status', 'unknown')}")
+            print(f"   ✅ AI Monitoring Enabled: {response.get('ai_monitoring_enabled', False)}")
+            return True
+        return False
+
+    def test_get_session_analysis(self):
+        """Test getting AI session analysis"""
+        if not hasattr(self, 'session_id'):
+            print("   ⚠️ No session ID available, skipping test")
+            return True
+            
+        success, response = self.run_test(
+            "Get AI Session Analysis",
+            "GET",
+            f"/ai/sessions/{self.session_id}/analysis",
+            200
+        )
+        
+        if success:
+            print(f"   ✅ Total Analyses: {response.get('total_analyses', 0)}")
+            if 'average_scores' in response:
+                scores = response['average_scores']
+                print(f"   ✅ Avg Facial Score: {scores.get('facial_expression_score', 0):.1f}")
+                print(f"   ✅ Avg Eye Movement: {scores.get('eye_movement_score', 0):.1f}")
+                print(f"   ✅ Avg Behavioral: {scores.get('behavioral_score', 0):.1f}")
+                print(f"   ✅ Avg Authenticity: {scores.get('authenticity_confidence', 0):.1f}")
+            print(f"   ✅ Overall Risk: {response.get('overall_risk', 'Unknown')}")
+            return True
+        return False
+
+    def test_unauthorized_access(self):
+        """Test unauthorized access to protected endpoints"""
+        # Temporarily remove token
+        original_token = self.token
+        self.token = None
+        
+        success, response = self.run_test(
+            "Unauthorized Access Test",
+            "GET",
+            "/dashboard/stats",
+            401  # Should fail with 401
+        )
+        
+        # Restore token
+        self.token = original_token
+        return success
+
+    def test_invalid_job_application(self):
+        """Test applying for non-existent job"""
+        fake_job_id = "non-existent-job-id-12345"
+        
+        success, response = self.run_test(
+            "Invalid Job Application",
+            "POST",
+            "/applications",
+            404,  # Should fail with 404
+            params={
+                "job_id": fake_job_id,
+                "cover_letter": "Test application for non-existent job"
+            }
+        )
+        return success
+
+    def test_invalid_ai_session(self):
+        """Test creating AI session for non-existent application"""
+        fake_app_id = "non-existent-app-id-12345"
+        
+        success, response = self.run_test(
+            "Invalid AI Session Creation",
+            "POST",
+            "/ai/sessions",
+            404,  # Should fail with 404
+            params={"application_id": fake_app_id}
+        )
+        return success
+
 def main():
     print("🚀 Starting SecuHire API Testing...")
     print("=" * 60)
