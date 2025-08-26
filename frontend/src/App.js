@@ -185,7 +185,7 @@ const LandingPage = () => {
           <p className="text-xl text-slate-600 mb-8">
             Join leading companies using SecuHire to ensure authentic interviews and protect hiring integrity.
           </p>
-          <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white px-12 py-4">
+          <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white px-12 py-4" onClick={() => window.location.href = '/auth'}>
             Get Started Today
             <ArrowRight className="w-5 h-5 ml-2" />
           </Button>
