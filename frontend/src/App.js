@@ -1779,6 +1779,11 @@ const SecureInterviewSession = ({ interview, onEndInterview }) => {
     }, 200);
   };
 
+  const handleWindowFocus = () => {
+    logSecurityEvent('Window regained focus - security monitoring active');
+    setLastActivity(Date.now());
+  };
+
   const handleVisibilityChange = () => {
     if (document.hidden) {
       logSecurityViolation('Tab became hidden - CRITICAL security violation detected');
