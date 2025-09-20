@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -12,13 +12,10 @@ import uuid
 from datetime import datetime, timezone
 import jwt
 import hashlib
-import json
-import asyncio
-import base64
-import cv2
-import numpy as np
-import google.generativeai as genai
-from collections import deque
+import PyPDF2
+import io
+import re
+from enum import Enum
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -36,86 +33,126 @@ api_router = APIRouter(prefix="/api")
 
 # Security
 security = HTTPBearer()
-JWT_SECRET = "secuhire_secret_key_2025"
+JWT_SECRET = "ats_crm_secret_key_2025"
 
-# Initialize Gemini AI
-gemini_api_key = os.environ.get('GEMINI_API_KEY')
-if gemini_api_key:
-    genai.configure(api_key=gemini_api_key)
-else:
-    logging.warning("GEMINI_API_KEY not configured - AI monitoring will be disabled")
+# Enums for ATS
+class PipelineStage(str, Enum):
+    NEW = "new"
+    SCREENING = "screening"
+    PHONE_SCREEN = "phone_screen"
+    TECHNICAL_INTERVIEW = "technical_interview"
+    FINAL_INTERVIEW = "final_interview"
+    OFFER = "offer"
+    HIRED = "hired"
+    REJECTED = "rejected"
 
-# Define Models
-class User(BaseModel):
+class JobStatus(str, Enum):
+    DRAFT = "draft"
+    ACTIVE = "active"
+    PAUSED = "paused"
+    CLOSED = "closed"
+
+# Define ATS Models
+class Company(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    domain: str
+    size: str  # "1-10", "11-50", "51-200", "200+"
+    industry: str
+    website: Optional[str] = None
+    logo_url: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class Recruiter(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     email: EmailStr
     full_name: str
-    phone: str
-    experience_years: int
-    skills: List[str]
-    resume_url: Optional[str] = None
+    company_id: str
+    role: str = "recruiter"  # recruiter, admin, manager
+    phone: Optional[str] = None
+    avatar_url: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class UserLogin(BaseModel):
+class RecruiterLogin(BaseModel):
     email: EmailStr
     password: str
 
-class UserRegister(BaseModel):
+class RecruiterRegister(BaseModel):
     email: EmailStr
     password: str
     full_name: str
-    phone: str
-    experience_years: int
-    skills: List[str]
+    company_name: str
+    company_domain: str
+    company_size: str
+    industry: str
 
 class Job(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     title: str
-    company: str
+    company_id: str
+    recruiter_id: str
     description: str
     requirements: List[str]
     location: str
-    salary_range: str
     job_type: str  # Full-time, Part-time, Contract
-    posted_date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    is_active: bool = True
+    salary_min: Optional[int] = None
+    salary_max: Optional[int] = None
+    skills: List[str]
+    department: str
+    experience_level: str  # Entry, Mid, Senior
+    status: JobStatus = JobStatus.DRAFT
+    posted_date: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class JobApplication(BaseModel):
+class Candidate(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    email: EmailStr
+    full_name: str
+    phone: Optional[str] = None
+    location: Optional[str] = None
+    current_title: Optional[str] = None
+    current_company: Optional[str] = None
+    experience_years: Optional[int] = None
+    skills: List[str] = []
+    education: List[str] = []
+    resume_url: Optional[str] = None
+    resume_text: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    source: str = "manual"  # manual, linkedin, job_board, referral
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class Application(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     job_id: str
-    user_id: str
-    cover_letter: str
-    status: str = "pending"  # pending, reviewing, scheduled, completed, rejected
+    candidate_id: str
+    recruiter_id: str
+    company_id: str
+    stage: PipelineStage = PipelineStage.NEW
+    score: Optional[int] = None  # 1-10 rating
+    notes: List[str] = []
     applied_date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    interview_date: Optional[datetime] = None
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class InterviewSession(BaseModel):
+class Interview(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     application_id: str
-    user_id: str
-    job_id: str
+    interviewer_id: str
+    type: str  # phone, video, onsite
     scheduled_date: datetime
     duration_minutes: int = 60
-    status: str = "scheduled"  # scheduled, in_progress, completed, cancelled
-    ai_monitoring_enabled: bool = True
+    status: str = "scheduled"  # scheduled, completed, cancelled, no_show
+    feedback: Optional[str] = None
+    rating: Optional[int] = None  # 1-10
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class AIAnalysisResult(BaseModel):
+class Note(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    session_id: str
-    frame_id: str
-    timestamp: datetime
-    facial_expression_score: float
-    eye_movement_score: float
-    behavioral_score: float
-    authenticity_confidence: float
-    fraud_risk_level: str
-    red_flags: List[str]
-    recommendations: List[str]
-
-class VideoStreamData(BaseModel):
-    frame_data: str
-    timestamp: str
-    session_id: str
+    application_id: str
+    recruiter_id: str
+    content: str
+    type: str = "general"  # general, interview, feedback
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # Helper functions
 def hash_password(password: str) -> str:
@@ -124,478 +161,463 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, hashed: str) -> bool:
     return hash_password(password) == hashed
 
-def create_jwt_token(user_id: str, email: str) -> str:
-    payload = {"user_id": user_id, "email": email, "exp": datetime.now(timezone.utc).timestamp() + 86400}
+def create_jwt_token(recruiter_id: str, email: str, company_id: str) -> str:
+    payload = {
+        "recruiter_id": recruiter_id, 
+        "email": email, 
+        "company_id": company_id,
+        "exp": datetime.now(timezone.utc).timestamp() + 86400
+    }
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def get_current_recruiter(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
         payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=["HS256"])
-        user = await db.users.find_one({"id": payload["user_id"]})
-        if user:
-            return User(**user)
+        recruiter = await db.recruiters.find_one({"id": payload["recruiter_id"]})
+        if recruiter:
+            return Recruiter(**recruiter)
         raise HTTPException(status_code=401, detail="Invalid token")
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-# AI Monitoring Components
-class VideoStreamManager:
-    def __init__(self):
-        self.active_connections: Dict[str, WebSocket] = {}
-        self.session_connections: Dict[str, WebSocket] = {}
-        
-    async def connect(self, websocket: WebSocket, session_id: str):
-        await websocket.accept()
-        self.active_connections[session_id] = websocket
-        self.session_connections[session_id] = websocket
-        logging.info(f"AI monitoring session {session_id} connected")
-        
-    def disconnect(self, session_id: str):
-        if session_id in self.active_connections:
-            del self.active_connections[session_id]
-        if session_id in self.session_connections:
-            del self.session_connections[session_id]
-        logging.info(f"AI monitoring session {session_id} disconnected")
-        
-    async def broadcast_analysis(self, session_id: str, analysis_result: Dict[str, Any]):
-        """Broadcast analysis results to connected clients"""
-        if session_id in self.active_connections:
-            try:
-                await self.active_connections[session_id].send_json({
-                    "type": "analysis_result",
-                    "data": analysis_result
-                })
-            except Exception as e:
-                logging.error(f"Error broadcasting analysis: {e}")
-                self.disconnect(session_id)
+def extract_text_from_pdf(file_content: bytes) -> str:
+    """Extract text content from PDF resume"""
+    try:
+        pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_content))
+        text = ""
+        for page in pdf_reader.pages:
+            text += page.extract_text() + "\n"
+        return text
+    except Exception as e:
+        logging.error(f"PDF parsing error: {e}")
+        return ""
 
-class GeminiAnalyzer:
-    def __init__(self):
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
-        self.analysis_history = deque(maxlen=1000)
-        
-    async def analyze_interview_frame(self, frame_data: str, session_id: str) -> Dict[str, Any]:
-        """Analyze video frame for behavioral indicators"""
-        try:
-            if not gemini_api_key:
-                return self._create_mock_response()
-                
-            # Decode base64 frame
-            frame_bytes = base64.b64decode(frame_data)
-            
-            # Create analysis prompt
-            prompt = self._create_behavioral_analysis_prompt()
-            
-            # Analyze with Gemini
-            response = await self.model.generate_content_async([
-                prompt,
-                {"mime_type": "image/jpeg", "data": frame_bytes}
-            ])
-            
-            # Parse response
-            analysis_result = await self._parse_analysis_response(response.text, session_id)
-            
-            # Store analysis
-            self.analysis_history.append(analysis_result)
-            
-            return analysis_result
-            
-        except Exception as e:
-            logging.error(f"Gemini analysis error: {e}")
-            return self._create_error_response(str(e))
-            
-    def _create_behavioral_analysis_prompt(self) -> str:
-        """Create comprehensive behavioral analysis prompt for Gemini"""
-        return """
-        Analyze this video frame from an online interview for authenticity and behavioral indicators. 
-        
-        Focus on:
-        1. Facial expression naturalness (score 0-100)
-        2. Eye contact and gaze patterns (score 0-100)  
-        3. Overall behavioral authenticity (score 0-100)
-        4. Fraud risk assessment (Low/Medium/High)
-        
-        Provide analysis as JSON:
-        {
-          "facial_expression_score": 85,
-          "eye_movement_score": 78,
-          "behavioral_score": 82,
-          "authenticity_confidence": 81.7,
-          "fraud_risk_level": "Low",
-          "red_flags": [],
-          "observations": ["Natural expressions", "Good eye contact"],
-          "recommendations": ["Continue with normal interview process"]
-        }
-        """
-        
-    async def _parse_analysis_response(self, response_text: str, session_id: str) -> Dict[str, Any]:
-        """Parse Gemini response into structured data"""
-        try:
-            # Try to extract JSON from response
-            import re
-            json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', response_text, re.DOTALL)
-            
-            if json_match:
-                json_data = json.loads(json_match.group())
-                return self._validate_analysis_structure(json_data, session_id)
-            else:
-                return self._parse_natural_language_response(response_text, session_id)
-                
-        except Exception as e:
-            logging.warning(f"Response parsing error: {e}")
-            return self._create_mock_response(session_id)
-            
-    def _validate_analysis_structure(self, data: Dict[str, Any], session_id: str) -> Dict[str, Any]:
-        """Validate and normalize analysis data"""
-        required_fields = {
-            'facial_expression_score': 75.0,
-            'eye_movement_score': 75.0,
-            'behavioral_score': 75.0,
-            'authenticity_confidence': 75.0,
-            'fraud_risk_level': 'Low',
-            'red_flags': [],
-            'observations': ['Behavioral analysis completed'],
-            'recommendations': ['Continue interview process']
-        }
-        
-        # Ensure all fields exist
-        for field, default_value in required_fields.items():
-            if field not in data:
-                data[field] = default_value
-                
-        # Normalize scores
-        score_fields = ['facial_expression_score', 'eye_movement_score', 'behavioral_score', 'authenticity_confidence']
-        for field in score_fields:
-            if isinstance(data[field], (int, float)):
-                data[field] = min(100, max(0, float(data[field])))
-                
-        data['session_id'] = session_id
-        data['timestamp'] = datetime.now(timezone.utc).isoformat()
-        
-        return data
-        
-    def _parse_natural_language_response(self, response_text: str, session_id: str) -> Dict[str, Any]:
-        """Fallback parsing for natural language responses"""
-        # Extract confidence scores using regex
-        import re
-        confidence_pattern = r'(\d+(?:\.\d+)?)'
-        matches = re.findall(confidence_pattern, response_text)
-        
-        scores = [float(m) for m in matches if 0 <= float(m) <= 100]
-        avg_score = sum(scores) / len(scores) if scores else 75.0
-        
-        return {
-            'session_id': session_id,
-            'timestamp': datetime.now(timezone.utc).isoformat(),
-            'facial_expression_score': avg_score,
-            'eye_movement_score': avg_score,
-            'behavioral_score': avg_score,
-            'authenticity_confidence': avg_score,
-            'fraud_risk_level': 'Low' if avg_score > 70 else 'Medium' if avg_score > 40 else 'High',
-            'red_flags': [],
-            'observations': ['Analysis completed successfully'],
-            'recommendations': ['Continue with interview process']
-        }
-        
-    def _create_mock_response(self, session_id: str = "unknown") -> Dict[str, Any]:
-        """Create mock response when Gemini is unavailable"""
-        return {
-            'session_id': session_id,
-            'timestamp': datetime.now(timezone.utc).isoformat(),
-            'facial_expression_score': 78.5,
-            'eye_movement_score': 82.3,
-            'behavioral_score': 79.1,
-            'authenticity_confidence': 80.0,
-            'fraud_risk_level': 'Low',
-            'red_flags': [],
-            'observations': ['Mock analysis - Gemini API not configured', 'Normal behavioral patterns detected'],
-            'recommendations': ['Continue with standard interview process', 'Enable Gemini API for full analysis']
-        }
-        
-    def _create_error_response(self, error_message: str) -> Dict[str, Any]:
-        """Create error response"""
-        return {
-            'session_id': 'error',
-            'timestamp': datetime.now(timezone.utc).isoformat(),
-            'facial_expression_score': 0.0,
-            'eye_movement_score': 0.0,
-            'behavioral_score': 0.0,
-            'authenticity_confidence': 0.0,
-            'fraud_risk_level': 'Unknown',
-            'red_flags': ['analysis_error'],
-            'observations': [f'Analysis failed: {error_message}'],
-            'recommendations': ['Retry analysis or use manual verification']
-        }
-
-# Global instances
-video_manager = VideoStreamManager()
-gemini_analyzer = GeminiAnalyzer()
+def parse_resume_skills(resume_text: str) -> List[str]:
+    """Extract skills from resume text using simple keyword matching"""
+    common_skills = [
+        "Python", "JavaScript", "Java", "React", "Node.js", "SQL", "MongoDB", 
+        "Docker", "Kubernetes", "AWS", "Azure", "GCP", "Machine Learning", 
+        "Data Science", "HTML", "CSS", "TypeScript", "Angular", "Vue.js",
+        "FastAPI", "Django", "Flask", "PostgreSQL", "Redis", "Git", "Linux",
+        "Project Management", "Agile", "Scrum", "Leadership", "Communication"
+    ]
+    
+    found_skills = []
+    resume_lower = resume_text.lower()
+    
+    for skill in common_skills:
+        if skill.lower() in resume_lower:
+            found_skills.append(skill)
+    
+    return found_skills
 
 # Authentication Routes
 @api_router.post("/auth/register")
-async def register(user_data: UserRegister):
-    # Check if user exists
-    existing_user = await db.users.find_one({"email": user_data.email})
-    if existing_user:
+async def register_recruiter(recruiter_data: RecruiterRegister):
+    # Check if recruiter exists
+    existing_recruiter = await db.recruiters.find_one({"email": recruiter_data.email})
+    if existing_recruiter:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Create user
-    user_dict = user_data.dict()
-    hashed_password = hash_password(user_dict.pop("password"))
-    user = User(**user_dict)
+    # Create company
+    company = Company(
+        name=recruiter_data.company_name,
+        domain=recruiter_data.company_domain,
+        size=recruiter_data.company_size,
+        industry=recruiter_data.industry
+    )
+    await db.companies.insert_one(company.dict())
     
-    # Store user and password separately
-    await db.users.insert_one(user.dict())
-    await db.user_passwords.insert_one({"user_id": user.id, "password": hashed_password})
+    # Create recruiter
+    recruiter_dict = recruiter_data.dict()
+    hashed_password = hash_password(recruiter_dict.pop("password"))
     
-    token = create_jwt_token(user.id, user.email)
-    return {"user": user, "token": token, "message": "Registration successful"}
+    # Remove company fields from recruiter data
+    for field in ["company_name", "company_domain", "company_size", "industry"]:
+        recruiter_dict.pop(field, None)
+    
+    recruiter = Recruiter(company_id=company.id, **recruiter_dict)
+    
+    # Store recruiter and password
+    await db.recruiters.insert_one(recruiter.dict())
+    await db.recruiter_passwords.insert_one({"recruiter_id": recruiter.id, "password": hashed_password})
+    
+    token = create_jwt_token(recruiter.id, recruiter.email, company.id)
+    return {"recruiter": recruiter, "company": company, "token": token, "message": "Registration successful"}
 
 @api_router.post("/auth/login")
-async def login(login_data: UserLogin):
-    # Find user
-    user = await db.users.find_one({"email": login_data.email})
-    if not user:
+async def login_recruiter(login_data: RecruiterLogin):
+    # Find recruiter
+    recruiter = await db.recruiters.find_one({"email": login_data.email})
+    if not recruiter:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     # Verify password
-    user_password = await db.user_passwords.find_one({"user_id": user["id"]})
-    if not user_password or not verify_password(login_data.password, user_password["password"]):
+    recruiter_password = await db.recruiter_passwords.find_one({"recruiter_id": recruiter["id"]})
+    if not recruiter_password or not verify_password(login_data.password, recruiter_password["password"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
-    token = create_jwt_token(user["id"], user["email"])
-    return {"user": User(**user), "token": token, "message": "Login successful"}
+    # Get company info
+    company = await db.companies.find_one({"id": recruiter["company_id"]})
+    
+    token = create_jwt_token(recruiter["id"], recruiter["email"], recruiter["company_id"])
+    return {
+        "recruiter": Recruiter(**recruiter), 
+        "company": Company(**company) if company else None,
+        "token": token, 
+        "message": "Login successful"
+    }
 
-# Job Routes
+# Job Management Routes
+@api_router.post("/jobs", response_model=Job)
+async def create_job(job_data: Dict[str, Any], current_recruiter: Recruiter = Depends(get_current_recruiter)):
+    job = Job(
+        company_id=current_recruiter.company_id,
+        recruiter_id=current_recruiter.id,
+        **job_data
+    )
+    await db.jobs.insert_one(job.dict())
+    return job
+
 @api_router.get("/jobs", response_model=List[Job])
-async def get_jobs():
-    jobs = await db.jobs.find({"is_active": True}).to_list(100)
+async def get_company_jobs(current_recruiter: Recruiter = Depends(get_current_recruiter)):
+    jobs = await db.jobs.find({"company_id": current_recruiter.company_id}).to_list(1000)
     return [Job(**job) for job in jobs]
 
-@api_router.get("/jobs/{job_id}", response_model=Job)
-async def get_job(job_id: str):
-    job = await db.jobs.find_one({"id": job_id})
+@api_router.put("/jobs/{job_id}", response_model=Job)
+async def update_job(job_id: str, job_data: Dict[str, Any], current_recruiter: Recruiter = Depends(get_current_recruiter)):
+    # Verify job belongs to company
+    job = await db.jobs.find_one({"id": job_id, "company_id": current_recruiter.company_id})
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    return Job(**job)
+    
+    job_data["last_updated"] = datetime.now(timezone.utc)
+    await db.jobs.update_one({"id": job_id}, {"$set": job_data})
+    
+    updated_job = await db.jobs.find_one({"id": job_id})
+    return Job(**updated_job)
 
-# Application Routes
-@api_router.post("/applications", response_model=JobApplication)
-async def apply_for_job(
-    job_id: str,
-    cover_letter: str,
-    current_user: User = Depends(get_current_user)
-):
-    # Check if job exists
-    job = await db.jobs.find_one({"id": job_id})
-    if not job:
+@api_router.post("/jobs/{job_id}/publish")
+async def publish_job(job_id: str, current_recruiter: Recruiter = Depends(get_current_recruiter)):
+    # Update job status to active and set posted date
+    result = await db.jobs.update_one(
+        {"id": job_id, "company_id": current_recruiter.company_id},
+        {"$set": {"status": JobStatus.ACTIVE, "posted_date": datetime.now(timezone.utc)}}
+    )
+    
+    if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Job not found")
     
-    # Check if already applied
-    existing_application = await db.applications.find_one({
-        "job_id": job_id,
-        "user_id": current_user.id
-    })
-    if existing_application:
-        raise HTTPException(status_code=400, detail="Already applied for this job")
+    return {"message": "Job published successfully"}
+
+# Candidate Management Routes
+@api_router.post("/candidates", response_model=Candidate)
+async def create_candidate(candidate_data: Dict[str, Any], current_recruiter: Recruiter = Depends(get_current_recruiter)):
+    candidate = Candidate(**candidate_data)
+    await db.candidates.insert_one(candidate.dict())
+    return candidate
+
+@api_router.post("/candidates/upload-resume")
+async def upload_resume(
+    candidate_id: str,
+    file: UploadFile = File(...),
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    # Verify it's a PDF
+    if not file.filename.endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
     
-    application = JobApplication(
-        job_id=job_id,
-        user_id=current_user.id,
-        cover_letter=cover_letter
+    # Read file content
+    file_content = await file.read()
+    
+    # Extract text from PDF
+    resume_text = extract_text_from_pdf(file_content)
+    
+    # Parse skills from resume
+    skills = parse_resume_skills(resume_text)
+    
+    # Update candidate with resume data
+    await db.candidates.update_one(
+        {"id": candidate_id},
+        {"$set": {
+            "resume_text": resume_text,
+            "skills": skills,
+            "resume_url": f"/resumes/{candidate_id}.pdf"  # Would save to storage in production
+        }}
     )
+    
+    return {
+        "message": "Resume uploaded successfully",
+        "extracted_skills": skills,
+        "text_length": len(resume_text)
+    }
+
+@api_router.get("/candidates", response_model=List[Candidate])
+async def get_candidates(
+    search: Optional[str] = None,
+    skills: Optional[str] = None,
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    query = {}
+    
+    # Add search filters
+    if search:
+        query["$or"] = [
+            {"full_name": {"$regex": search, "$options": "i"}},
+            {"current_title": {"$regex": search, "$options": "i"}},
+            {"current_company": {"$regex": search, "$options": "i"}}
+        ]
+    
+    if skills:
+        skill_list = [s.strip() for s in skills.split(",")]
+        query["skills"] = {"$in": skill_list}
+    
+    candidates = await db.candidates.find(query).to_list(1000)
+    return [Candidate(**candidate) for candidate in candidates]
+
+# Application & Pipeline Management
+@api_router.post("/applications", response_model=Application)
+async def create_application(
+    job_id: str,
+    candidate_id: str,
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    # Verify job and candidate exist
+    job = await db.jobs.find_one({"id": job_id, "company_id": current_recruiter.company_id})
+    candidate = await db.candidates.find_one({"id": candidate_id})
+    
+    if not job or not candidate:
+        raise HTTPException(status_code=404, detail="Job or candidate not found")
+    
+    # Check if application already exists
+    existing = await db.applications.find_one({"job_id": job_id, "candidate_id": candidate_id})
+    if existing:
+        raise HTTPException(status_code=400, detail="Application already exists")
+    
+    application = Application(
+        job_id=job_id,
+        candidate_id=candidate_id,
+        recruiter_id=current_recruiter.id,
+        company_id=current_recruiter.company_id
+    )
+    
     await db.applications.insert_one(application.dict())
     return application
 
-@api_router.get("/applications/my", response_model=List[dict])
-async def get_my_applications(current_user: User = Depends(get_current_user)):
-    applications = await db.applications.find({"user_id": current_user.id}).to_list(100)
+@api_router.get("/applications")
+async def get_applications(
+    job_id: Optional[str] = None,
+    stage: Optional[PipelineStage] = None,
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    query = {"company_id": current_recruiter.company_id}
     
-    # Enrich with job details
+    if job_id:
+        query["job_id"] = job_id
+    if stage:
+        query["stage"] = stage
+    
+    applications = await db.applications.find(query).to_list(1000)
+    
+    # Enrich with candidate and job data
     enriched_applications = []
     for app in applications:
+        candidate = await db.candidates.find_one({"id": app["candidate_id"]})
         job = await db.jobs.find_one({"id": app["job_id"]})
-        app_data = JobApplication(**app)
+        
         enriched_applications.append({
-            "application": app_data,
+            "application": Application(**app),
+            "candidate": Candidate(**candidate) if candidate else None,
             "job": Job(**job) if job else None
         })
     
     return enriched_applications
 
-@api_router.get("/dashboard/stats")
-async def get_dashboard_stats(current_user: User = Depends(get_current_user)):
-    total_applications = await db.applications.count_documents({"user_id": current_user.id})
-    pending_applications = await db.applications.count_documents({"user_id": current_user.id, "status": "pending"})
-    scheduled_interviews = await db.interviews.count_documents({"user_id": current_user.id, "status": "scheduled"})
-    total_jobs = await db.jobs.count_documents({"is_active": True})
+@api_router.put("/applications/{application_id}/stage")
+async def move_application_stage(
+    application_id: str,
+    stage: PipelineStage,
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    result = await db.applications.update_one(
+        {"id": application_id, "company_id": current_recruiter.company_id},
+        {"$set": {"stage": stage, "last_updated": datetime.now(timezone.utc)}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Application not found")
+    
+    return {"message": "Application stage updated successfully"}
+
+# Notes Management
+@api_router.post("/applications/{application_id}/notes", response_model=Note)
+async def add_note(
+    application_id: str,
+    content: str,
+    note_type: str = "general",
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    # Verify application exists and belongs to company
+    application = await db.applications.find_one({
+        "id": application_id, 
+        "company_id": current_recruiter.company_id
+    })
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+    
+    note = Note(
+        application_id=application_id,
+        recruiter_id=current_recruiter.id,
+        content=content,
+        type=note_type
+    )
+    
+    await db.notes.insert_one(note.dict())
+    return note
+
+@api_router.get("/applications/{application_id}/notes", response_model=List[Note])
+async def get_application_notes(
+    application_id: str,
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    # Verify application exists and belongs to company
+    application = await db.applications.find_one({
+        "id": application_id,
+        "company_id": current_recruiter.company_id
+    })
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+    
+    notes = await db.notes.find({"application_id": application_id}).to_list(1000)
+    return [Note(**note) for note in notes]
+
+# Analytics Dashboard
+@api_router.get("/analytics/dashboard")
+async def get_analytics_dashboard(current_recruiter: Recruiter = Depends(get_current_recruiter)):
+    company_id = current_recruiter.company_id
+    
+    # Get basic stats
+    total_jobs = await db.jobs.count_documents({"company_id": company_id})
+    active_jobs = await db.jobs.count_documents({"company_id": company_id, "status": "active"})
+    total_candidates = await db.candidates.count_documents({})
+    total_applications = await db.applications.count_documents({"company_id": company_id})
+    
+    # Pipeline stats
+    pipeline_stages = {}
+    for stage in PipelineStage:
+        count = await db.applications.count_documents({
+            "company_id": company_id, 
+            "stage": stage.value
+        })
+        pipeline_stages[stage.value] = count
+    
+    # Recent activity (last 30 days)
+    thirty_days_ago = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    thirty_days_ago = thirty_days_ago.replace(day=thirty_days_ago.day - 30)
+    
+    recent_applications = await db.applications.count_documents({
+        "company_id": company_id,
+        "applied_date": {"$gte": thirty_days_ago}
+    })
+    
+    recent_hires = await db.applications.count_documents({
+        "company_id": company_id,
+        "stage": "hired",
+        "last_updated": {"$gte": thirty_days_ago}
+    })
     
     return {
-        "total_applications": total_applications,
-        "pending_applications": pending_applications,
-        "scheduled_interviews": scheduled_interviews,
-        "total_jobs": total_jobs
+        "overview": {
+            "total_jobs": total_jobs,
+            "active_jobs": active_jobs,
+            "total_candidates": total_candidates,
+            "total_applications": total_applications
+        },
+        "pipeline": pipeline_stages,
+        "recent_activity": {
+            "applications_30_days": recent_applications,
+            "hires_30_days": recent_hires
+        }
     }
 
-# Seed some sample jobs
-@api_router.post("/seed/jobs")
-async def seed_jobs():
+# Seed data for demo
+@api_router.post("/seed/data")
+async def seed_demo_data(current_recruiter: Recruiter = Depends(get_current_recruiter)):
+    company_id = current_recruiter.company_id
+    
+    # Sample jobs
     sample_jobs = [
         {
-            "title": "Senior Software Engineer",
-            "company": "TechCorp Solutions",
-            "description": "Join our dynamic team as a Senior Software Engineer. Work on cutting-edge projects using modern technologies.",
-            "requirements": ["5+ years Python experience", "FastAPI expertise", "Cloud platforms", "Microservices architecture"],
-            "location": "San Francisco, CA (Remote)",
-            "salary_range": "$140,000 - $180,000",
-            "job_type": "Full-time"
+            "title": "Senior Full Stack Developer",
+            "description": "We're looking for a senior developer to lead our frontend initiatives.",
+            "requirements": ["React", "Node.js", "5+ years experience"],
+            "location": "San Francisco, CA",
+            "job_type": "Full-time",
+            "salary_min": 120000,
+            "salary_max": 180000,
+            "skills": ["React", "Node.js", "JavaScript", "MongoDB"],
+            "department": "Engineering",
+            "experience_level": "Senior",
+            "status": "active"
         },
         {
-            "title": "Data Scientist",
-            "company": "AI Innovations Inc",
-            "description": "Lead data science initiatives and build ML models to drive business insights.",
-            "requirements": ["Machine Learning expertise", "Python/R proficiency", "SQL skills", "Statistical analysis"],
-            "location": "New York, NY (Hybrid)",
-            "salary_range": "$120,000 - $160,000",
-            "job_type": "Full-time"
-        },
-        {
-            "title": "Frontend Developer",
-            "company": "Digital Agency Pro",
-            "description": "Create beautiful, responsive web applications using modern frontend technologies.",
-            "requirements": ["React expertise", "TypeScript", "CSS/SCSS", "UI/UX understanding"],
-            "location": "Austin, TX (Remote)",
-            "salary_range": "$90,000 - $130,000",
-            "job_type": "Full-time"
-        },
-        {
-            "title": "DevOps Engineer",
-            "company": "CloudScale Systems",
-            "description": "Build and maintain robust CI/CD pipelines and cloud infrastructure.",
-            "requirements": ["AWS/Azure/GCP", "Docker/Kubernetes", "Terraform", "CI/CD pipelines"],
-            "location": "Seattle, WA (On-site)",
-            "salary_range": "$110,000 - $150,000",
-            "job_type": "Full-time"
-        },
-        {
-            "title": "Product Manager",
-            "company": "StartUp Dynamics",
-            "description": "Drive product strategy and work with cross-functional teams to deliver innovative solutions.",
-            "requirements": ["Product strategy", "Agile methodologies", "Stakeholder management", "Data-driven decisions"],
-            "location": "Los Angeles, CA (Hybrid)",
-            "salary_range": "$130,000 - $170,000",
-            "job_type": "Full-time"
+            "title": "Product Marketing Manager", 
+            "description": "Drive product marketing strategy and go-to-market execution.",
+            "requirements": ["Marketing experience", "B2B SaaS", "Analytics"],
+            "location": "Remote",
+            "job_type": "Full-time",
+            "salary_min": 90000,
+            "salary_max": 130000,
+            "skills": ["Marketing", "Analytics", "Strategy"],
+            "department": "Marketing",
+            "experience_level": "Mid",
+            "status": "active"
         }
     ]
     
+    # Sample candidates
+    sample_candidates = [
+        {
+            "email": "john.developer@email.com",
+            "full_name": "John Developer",
+            "phone": "+1234567890",
+            "location": "San Francisco, CA",
+            "current_title": "Senior Frontend Developer",
+            "current_company": "TechCorp",
+            "experience_years": 6,
+            "skills": ["React", "JavaScript", "TypeScript", "Node.js"],
+            "source": "linkedin"
+        },
+        {
+            "email": "sarah.manager@email.com",
+            "full_name": "Sarah Marketing",
+            "phone": "+1987654321", 
+            "location": "New York, NY",
+            "current_title": "Marketing Manager",
+            "current_company": "GrowthCo",
+            "experience_years": 4,
+            "skills": ["Marketing", "Analytics", "Strategy", "B2B"],
+            "source": "referral"
+        }
+    ]
+    
+    # Insert sample data
     for job_data in sample_jobs:
-        job = Job(**job_data)
+        job = Job(
+            company_id=company_id,
+            recruiter_id=current_recruiter.id,
+            posted_date=datetime.now(timezone.utc),
+            **job_data
+        )
         await db.jobs.insert_one(job.dict())
     
-    return {"message": f"Seeded {len(sample_jobs)} jobs successfully"}
-
-# AI Monitoring Routes
-@api_router.post("/ai/sessions", response_model=InterviewSession)
-async def create_ai_monitoring_session(
-    application_id: str,
-    current_user: User = Depends(get_current_user)
-):
-    """Create new AI monitoring session for interview"""
-    application = await db.applications.find_one({"id": application_id, "user_id": current_user.id})
-    if not application:
-        raise HTTPException(status_code=404, detail="Application not found")
-        
-    session = InterviewSession(
-        application_id=application_id,
-        user_id=current_user.id,
-        job_id=application["job_id"],
-        scheduled_date=datetime.now(timezone.utc),
-        status="in_progress",
-        ai_monitoring_enabled=True
-    )
+    for candidate_data in sample_candidates:
+        candidate = Candidate(**candidate_data)
+        await db.candidates.insert_one(candidate.dict())
     
-    await db.interview_sessions.insert_one(session.dict())
-    return session
-
-@api_router.get("/ai/sessions/{session_id}/analysis")
-async def get_session_analysis(
-    session_id: str,
-    current_user: User = Depends(get_current_user)
-):
-    """Get AI analysis results for session"""
-    session = await db.interview_sessions.find_one({"id": session_id, "user_id": current_user.id})
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-        
-    analyses = await db.ai_analyses.find({"session_id": session_id}).to_list(100)
-    
-    if not analyses:
-        return {"message": "No analysis data available", "analyses": []}
-        
-    # Calculate summary statistics
-    avg_scores = {}
-    score_fields = ['facial_expression_score', 'eye_movement_score', 'behavioral_score', 'authenticity_confidence']
-    
-    for field in score_fields:
-        scores = [a[field] for a in analyses if field in a and isinstance(a[field], (int, float))]
-        avg_scores[field] = sum(scores) / len(scores) if scores else 0.0
-        
-    # Determine overall risk
-    overall_confidence = avg_scores.get('authenticity_confidence', 0)
-    overall_risk = 'Low' if overall_confidence >= 80 else 'Medium' if overall_confidence >= 60 else 'High'
-    
-    return {
-        "session_id": session_id,
-        "total_analyses": len(analyses),
-        "average_scores": avg_scores,
-        "overall_risk": overall_risk,
-        "analyses": analyses[-10:]  # Return last 10 analyses
-    }
-
-# WebSocket endpoint for real-time AI monitoring
-@app.websocket("/ws/ai-monitoring/{session_id}")
-async def websocket_ai_monitoring(websocket: WebSocket, session_id: str):
-    """WebSocket endpoint for real-time AI monitoring"""
-    await video_manager.connect(websocket, session_id)
-    
-    try:
-        while True:
-            # Receive video frame data
-            data = await websocket.receive_json()
-            
-            if data.get("type") == "video_frame":
-                frame_data = data.get("frame_data")
-                if frame_data:
-                    # Analyze frame with Gemini
-                    analysis_result = await gemini_analyzer.analyze_interview_frame(frame_data, session_id)
-                    
-                    # Store analysis in database
-                    analysis_doc = AIAnalysisResult(
-                        session_id=session_id,
-                        frame_id=str(uuid.uuid4()),
-                        timestamp=datetime.now(timezone.utc),
-                        **analysis_result
-                    )
-                    await db.ai_analyses.insert_one(analysis_doc.dict())
-                    
-                    # Broadcast results to client
-                    await video_manager.broadcast_analysis(session_id, analysis_result)
-                    
-            elif data.get("type") == "end_session":
-                # Mark session as completed
-                await db.interview_sessions.update_one(
-                    {"id": session_id},
-                    {"$set": {"status": "completed", "end_time": datetime.now(timezone.utc)}}
-                )
-                break
-                
-    except WebSocketDisconnect:
-        video_manager.disconnect(session_id)
-    except Exception as e:
-        logging.error(f"WebSocket error for session {session_id}: {e}")
-        video_manager.disconnect(session_id)
+    return {"message": "Demo data seeded successfully"}
 
 # Include the router in the main app
 app.include_router(api_router)

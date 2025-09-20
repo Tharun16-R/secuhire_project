@@ -37,7 +37,7 @@ body {
   background: #94a3b8;
 }
 
-/* Animation classes */
+/* Animation classes for ATS */
 .animate-fade-in {
   animation: fadeIn 0.6s ease-in-out;
 }
@@ -81,6 +81,19 @@ body {
   }
 }
 
+/* Professional ATS color scheme */
+:root {
+  --ats-primary: #2563eb;
+  --ats-primary-hover: #1d4ed8;
+  --ats-secondary: #64748b;
+  --ats-success: #059669;
+  --ats-warning: #d97706;
+  --ats-danger: #dc2626;
+  --ats-background: #f8fafc;
+  --ats-card: #ffffff;
+  --ats-border: #e2e8f0;
+}
+
 /* Button hover effects */
 button:hover {
   transform: translateY(-1px);
@@ -91,22 +104,24 @@ button:active {
   transform: translateY(0);
 }
 
-/* Card hover effects */
-[data-radix-collection-item]:hover {
+/* Card hover effects for ATS */
+.ats-card:hover {
   transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
 }
 
-/* Focus styles */
+/* Focus styles for accessibility */
 input:focus, textarea:focus, select:focus {
-  outline: 2px solid #10b981;
+  outline: 2px solid var(--ats-primary);
   outline-offset: 2px;
+  border-color: var(--ats-primary);
 }
 
-/* Loading spinner */
+/* Loading states */
 .loading-spinner {
   border: 2px solid #f3f4f6;
-  border-top: 2px solid #10b981;
+  border-top: 2px solid var(--ats-primary);
   border-radius: 50%;
   width: 20px;
   height: 20px;
@@ -118,7 +133,7 @@ input:focus, textarea:focus, select:focus {
   100% { transform: rotate(360deg); }
 }
 
-/* Custom badge styles */
+/* Status badges for ATS */
 .status-badge {
   padding: 4px 8px;
   border-radius: 12px;
@@ -127,56 +142,110 @@ input:focus, textarea:focus, select:focus {
   text-transform: capitalize;
 }
 
-/* Responsive design utilities */
+.status-active {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.status-draft {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.status-paused {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.status-closed {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+/* Pipeline stage styling */
+.pipeline-stage {
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stage-new {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.stage-screening {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.stage-interview {
+  background-color: #e0e7ff;
+  color: #3730a3;
+}
+
+.stage-offer {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.stage-hired {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.stage-rejected {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+/* Responsive grid for ATS dashboard */
 @media (max-width: 768px) {
-  .hero-title {
-    font-size: 2.5rem !important;
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
   }
   
   .stats-grid {
     grid-template-columns: repeat(2, 1fr) !important;
   }
   
-  .job-card-content {
-    padding: 1rem !important;
+  .mobile-stack {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
   }
 }
 
-/* Glass morphism effect */
-.glass-effect {
-  background: rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+@media (max-width: 640px) {
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .mobile-hide {
+    display: none !important;
+  }
 }
 
-/* Gradient text */
-.gradient-text {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+/* Professional typography hierarchy */
+.ats-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.025em;
 }
 
-/* Security themed colors */
-.security-primary {
-  color: #10b981;
+.ats-subtitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #334155;
 }
 
-.security-secondary {
-  color: #059669;
-}
-
-.security-accent {
-  color: #0d9488;
-}
-
-/* Professional spacing */
-.section-spacing {
-  padding: 5rem 0;
-}
-
-.content-spacing {
-  margin-bottom: 3rem;
+.ats-body {
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.5;
 }
 
 /* Interactive elements */
@@ -186,15 +255,99 @@ input:focus, textarea:focus, select:focus {
 }
 
 .interactive-element:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Security icon animations */
-.security-icon {
-  transition: transform 0.3s ease;
+/* ATS-specific animations */
+.slide-in-right {
+  animation: slideInRight 0.3s ease-out;
 }
 
-.security-icon:hover {
-  transform: scale(1.1);
+.slide-in-left {
+  animation: slideInLeft 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Professional form styling */
+.ats-form-section {
+  background: white;
+  border: 1px solid var(--ats-border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.ats-form-label {
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.ats-form-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  transition: border-color 0.2s ease;
+}
+
+.ats-form-input:focus {
+  border-color: var(--ats-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Dashboard layout */
+.dashboard-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.dashboard-header {
+  background: white;
+  border-bottom: 1px solid var(--ats-border);
+  padding: 1rem 0;
+  margin-bottom: 2rem;
+}
+
+.dashboard-content {
+  display: grid;
+  gap: 2rem;
+}
+
+/* Professional shadows */
+.ats-shadow-sm {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.ats-shadow-md {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.ats-shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
