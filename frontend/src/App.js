@@ -12,10 +12,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
 import { Progress } from "./components/ui/progress";
 import { 
-  Building2, Users, Briefcase, TrendingUp, Plus, Search, Filter, 
+  Shield, Users, Briefcase, TrendingUp, Plus, Search, Filter, 
   MapPin, DollarSign, Calendar, Phone, Mail, FileText, 
   ChevronRight, Star, Clock, CheckCircle, User, Edit,
-  BarChart3, PieChart, Target, Award
+  BarChart3, PieChart, Target, Award, Zap, Brain
 } from "lucide-react";
 import "./App.css";
 
@@ -70,22 +70,25 @@ const AuthProvider = ({ children }) => {
   );
 };
 
-// Landing Page for ATS/CRM
+// Landing Page for SecuHire ATS
 const LandingPage = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-teal-50">
       {/* Header */}
-      <header className="px-6 py-4 border-b border-blue-200">
+      <header className="px-6 py-4 border-b border-purple-200 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <Building2 className="w-8 h-8 text-blue-600" />
-            <h1 className="text-2xl font-bold text-slate-800">RecruitPro ATS</h1>
+            <div className="relative">
+              <Shield className="w-8 h-8 text-purple-600" />
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-orange-400 to-pink-500 rounded-full animate-pulse"></div>
+            </div>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 via-teal-600 to-orange-500 bg-clip-text text-transparent">SecuHire</h1>
           </div>
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" className="text-slate-600 hover:text-blue-600">Features</Button>
-            <Button variant="ghost" className="text-slate-600 hover:text-blue-600">Pricing</Button>
-            <Button variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50" onClick={() => window.location.href = '/auth'}>Login</Button>
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => window.location.href = '/auth'}>Start Free Trial</Button>
+            <Button variant="ghost" className="text-slate-600 hover:text-purple-600 hover:bg-purple-50">Features</Button>
+            <Button variant="ghost" className="text-slate-600 hover:text-teal-600 hover:bg-teal-50">Pricing</Button>
+            <Button variant="outline" className="border-purple-300 text-purple-700 hover:bg-purple-50" onClick={() => window.location.href = '/auth'}>Login</Button>
+            <Button className="bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white shadow-lg" onClick={() => window.location.href = '/auth'}>Start Free Trial</Button>
           </div>
         </div>
       </header>
@@ -96,92 +99,108 @@ const LandingPage = () => {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-8">
               <div>
+                <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-purple-100 to-teal-100 text-purple-700 px-4 py-2 rounded-full text-sm font-medium mb-6">
+                  <Zap className="w-4 h-4" />
+                  <span>AI-Powered Recruiting Platform</span>
+                </div>
                 <h2 className="text-5xl font-bold text-slate-800 leading-tight mb-6">
-                  Complete ATS & CRM
-                  <span className="text-blue-600 block">For Modern Recruiters</span>
+                  Secure & Intelligent
+                  <span className="bg-gradient-to-r from-purple-600 via-teal-600 to-orange-500 bg-clip-text text-transparent block">ATS + CRM Platform</span>
                 </h2>
                 <p className="text-xl text-slate-600 leading-relaxed">
-                  Streamline your entire hiring process with advanced applicant tracking, 
-                  candidate management, and powerful analytics. From job posting to hiring.
+                  Transform your hiring process with advanced security, AI-powered insights, and comprehensive candidate management. 
+                  From secure interviews to data-driven hiring decisions.
                 </p>
               </div>
               
               <div className="flex items-center space-x-6">
-                <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4" onClick={() => window.location.href = '/auth'}>
-                  Start Your Free Trial
+                <Button size="lg" className="bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white px-8 py-4 shadow-xl" onClick={() => window.location.href = '/auth'}>
+                  Start Secure Hiring
                   <ChevronRight className="w-5 h-5 ml-2" />
                 </Button>
-                <Button variant="outline" size="lg" className="border-slate-300 text-slate-700 px-8 py-4">
+                <Button variant="outline" size="lg" className="border-slate-300 text-slate-700 hover:bg-slate-50 px-8 py-4">
                   Watch Demo
                 </Button>
               </div>
 
               <div className="flex items-center space-x-8 pt-4">
                 <div className="flex items-center space-x-2">
-                  <Users className="w-5 h-5 text-blue-600" />
-                  <span className="text-sm text-slate-600">Candidate Database</span>
+                  <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    <Shield className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-sm text-slate-600 font-medium">Enterprise Security</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <BarChart3 className="w-5 h-5 text-blue-600" />
-                  <span className="text-sm text-slate-600">Analytics Dashboard</span>
+                  <div className="w-8 h-8 bg-gradient-to-r from-teal-500 to-teal-600 rounded-lg flex items-center justify-center">
+                    <Brain className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-sm text-slate-600 font-medium">AI-Powered Analytics</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Target className="w-5 h-5 text-blue-600" />
-                  <span className="text-sm text-slate-600">Pipeline Management</span>
+                  <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-pink-500 rounded-lg flex items-center justify-center">
+                    <Target className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-sm text-slate-600 font-medium">Smart Pipeline</span>
                 </div>
               </div>
             </div>
 
             <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-teal-600/20 rounded-3xl blur-3xl"></div>
               <img 
                 src="https://images.unsplash.com/photo-1552664730-d307ca884978?crop=entropy&cs=srgb&fm=jpg&q=85"
-                alt="Team Collaboration"
-                className="rounded-2xl shadow-2xl w-full h-[500px] object-cover"
+                alt="Professional Team Collaboration"
+                className="relative rounded-2xl shadow-2xl w-full h-[500px] object-cover border border-white/20"
               />
-              <div className="absolute inset-0 bg-blue-600/10 rounded-2xl"></div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-6 bg-slate-50">
+      <section className="py-20 px-6 bg-gradient-to-r from-slate-50 to-purple-50/30">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h3 className="text-4xl font-bold text-slate-800 mb-4">Everything You Need to Hire Better</h3>
+            <h3 className="text-4xl font-bold text-slate-800 mb-4">Comprehensive Recruiting Solutions</h3>
             <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-              Complete ATS and CRM solution with advanced features for modern recruiting teams
+              Advanced ATS and CRM capabilities with enterprise-grade security and AI-powered insights
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+            <Card className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-white to-purple-50/50 group hover:scale-105">
               <CardHeader className="text-center pb-4">
-                <Briefcase className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-                <CardTitle className="text-xl">Job Management</CardTitle>
+                <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                  <Briefcase className="w-8 h-8 text-white" />
+                </div>
+                <CardTitle className="text-xl text-slate-800">Smart Job Management</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-slate-600 text-center">Create, publish and manage job postings with advanced tracking</p>
+                <p className="text-slate-600 text-center">AI-assisted job creation, intelligent matching, and automated publishing with advanced analytics</p>
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+            <Card className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-white to-teal-50/50 group hover:scale-105">
               <CardHeader className="text-center pb-4">
-                <Users className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-                <CardTitle className="text-xl">Candidate Database</CardTitle>
+                <div className="w-16 h-16 bg-gradient-to-r from-teal-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                  <Users className="w-8 h-8 text-white" />
+                </div>
+                <CardTitle className="text-xl text-slate-800">Secure Candidate Hub</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-slate-600 text-center">Searchable candidate pool with resume parsing and skill matching</p>
+                <p className="text-slate-600 text-center">Advanced resume parsing, secure data storage, and AI-powered candidate insights with fraud detection</p>
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+            <Card className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-white to-orange-50/50 group hover:scale-105">
               <CardHeader className="text-center pb-4">
-                <Target className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-                <CardTitle className="text-xl">Pipeline Management</CardTitle>
+                <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                  <Target className="w-8 h-8 text-white" />
+                </div>
+                <CardTitle className="text-xl text-slate-800">Intelligent Pipeline</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-slate-600 text-center">Visual hiring pipeline with drag-drop stage management</p>
+                <p className="text-slate-600 text-center">AI-driven pipeline optimization with automated stage transitions and predictive hiring analytics</p>
               </CardContent>
             </Card>
           </div>
@@ -191,14 +210,19 @@ const LandingPage = () => {
       {/* CTA Section */}
       <section className="py-20 px-6">
         <div className="max-w-4xl mx-auto text-center">
-          <h3 className="text-4xl font-bold text-slate-800 mb-6">Ready to Transform Your Hiring?</h3>
-          <p className="text-xl text-slate-600 mb-8">
-            Join thousands of companies using RecruitPro to streamline their hiring process.
-          </p>
-          <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-12 py-4" onClick={() => window.location.href = '/auth'}>
-            Start Free Trial Today
-            <ChevronRight className="w-5 h-5 ml-2" />
-          </Button>
+          <div className="bg-gradient-to-r from-purple-600 via-teal-600 to-orange-500 rounded-3xl p-12 text-white relative overflow-hidden">
+            <div className="absolute inset-0 bg-black/20 rounded-3xl"></div>
+            <div className="relative">
+              <h3 className="text-4xl font-bold mb-6">Ready to Secure Your Hiring Future?</h3>
+              <p className="text-xl text-purple-100 mb-8">
+                Join innovative companies using SecuHire to build world-class teams with confidence and security.
+              </p>
+              <Button size="lg" className="bg-white text-purple-600 hover:bg-purple-50 px-12 py-4 text-lg font-semibold shadow-xl" onClick={() => window.location.href = '/auth'}>
+                Start Your Journey Today
+                <ChevronRight className="w-5 h-5 ml-2" />
+              </Button>
+            </div>
+          </div>
         </div>
       </section>
     </div>
@@ -244,86 +268,89 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center p-6">
-      <Card className="w-full max-w-md shadow-2xl border-0">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-teal-50 flex items-center justify-center p-6">
+      <Card className="w-full max-w-md shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
         <CardHeader className="text-center pb-6">
           <div className="flex justify-center mb-4">
-            <Building2 className="w-10 h-10 text-blue-600" />
+            <div className="relative">
+              <Shield className="w-12 h-12 text-transparent bg-gradient-to-r from-purple-600 to-teal-600 bg-clip-text" style={{WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'}} />
+              <Shield className="w-12 h-12 text-purple-600 absolute top-0" />
+            </div>
           </div>
-          <CardTitle className="text-2xl font-bold text-slate-800">
-            {isLogin ? 'Welcome Back' : 'Create Your ATS Account'}
+          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-teal-600 bg-clip-text text-transparent">
+            {isLogin ? 'Welcome Back to SecuHire' : 'Create Your SecuHire Account'}
           </CardTitle>
           <CardDescription className="text-slate-600">
-            {isLogin ? 'Sign in to your recruiting dashboard' : 'Start your free trial today'}
+            {isLogin ? 'Sign in to your recruiting dashboard' : 'Start your secure hiring journey today'}
           </CardDescription>
         </CardHeader>
 
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-slate-700 font-medium">Email</Label>
               <Input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
                 required
-                className="mt-1"
+                className="mt-1 border-slate-300 focus:border-purple-500 focus:ring-purple-500"
               />
             </div>
 
             <div>
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-slate-700 font-medium">Password</Label>
               <Input
                 id="password"
                 type="password"
                 value={formData.password}
                 onChange={(e) => setFormData({...formData, password: e.target.value})}
                 required
-                className="mt-1"
+                className="mt-1 border-slate-300 focus:border-purple-500 focus:ring-purple-500"
               />
             </div>
 
             {!isLogin && (
               <>
                 <div>
-                  <Label htmlFor="full_name">Full Name</Label>
+                  <Label htmlFor="full_name" className="text-slate-700 font-medium">Full Name</Label>
                   <Input
                     id="full_name"
                     value={formData.full_name}
                     onChange={(e) => setFormData({...formData, full_name: e.target.value})}
                     required
-                    className="mt-1"
+                    className="mt-1 border-slate-300 focus:border-purple-500 focus:ring-purple-500"
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="company_name">Company Name</Label>
+                  <Label htmlFor="company_name" className="text-slate-700 font-medium">Company Name</Label>
                   <Input
                     id="company_name"
                     value={formData.company_name}
                     onChange={(e) => setFormData({...formData, company_name: e.target.value})}
                     required
-                    className="mt-1"
+                    className="mt-1 border-slate-300 focus:border-purple-500 focus:ring-purple-500"
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="company_domain">Company Domain</Label>
+                  <Label htmlFor="company_domain" className="text-slate-700 font-medium">Company Domain</Label>
                   <Input
                     id="company_domain"
                     value={formData.company_domain}
                     onChange={(e) => setFormData({...formData, company_domain: e.target.value})}
                     required
-                    className="mt-1"
+                    className="mt-1 border-slate-300 focus:border-purple-500 focus:ring-purple-500"
                     placeholder="company.com"
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="company_size">Company Size</Label>
+                  <Label htmlFor="company_size" className="text-slate-700 font-medium">Company Size</Label>
                   <Select onValueChange={(value) => setFormData({...formData, company_size: value})}>
-                    <SelectTrigger className="mt-1">
+                    <SelectTrigger className="mt-1 border-slate-300 focus:border-purple-500 focus:ring-purple-500">
                       <SelectValue placeholder="Select company size" />
                     </SelectTrigger>
                     <SelectContent>
@@ -336,9 +363,9 @@ const AuthPage = () => {
                 </div>
 
                 <div>
-                  <Label htmlFor="industry">Industry</Label>
+                  <Label htmlFor="industry" className="text-slate-700 font-medium">Industry</Label>
                   <Select onValueChange={(value) => setFormData({...formData, industry: value})}>
-                    <SelectTrigger className="mt-1">
+                    <SelectTrigger className="mt-1 border-slate-300 focus:border-purple-500 focus:ring-purple-500">
                       <SelectValue placeholder="Select industry" />
                     </SelectTrigger>
                     <SelectContent>
@@ -356,7 +383,7 @@ const AuthPage = () => {
 
             <Button 
               type="submit" 
-              className="w-full bg-blue-600 hover:bg-blue-700" 
+              className="w-full bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white shadow-lg" 
               disabled={loading}
             >
               {loading ? 'Loading...' : (isLogin ? 'Sign In' : 'Create Account')}
@@ -366,7 +393,7 @@ const AuthPage = () => {
           <div className="mt-6 text-center">
             <button
               onClick={() => setIsLogin(!isLogin)}
-              className="text-blue-600 hover:text-blue-700 font-medium"
+              className="text-purple-600 hover:text-teal-600 font-medium transition-colors"
             >
               {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
             </button>
@@ -419,20 +446,26 @@ const ATSDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50/20">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4">
+      <header className="bg-white border-b border-purple-200 px-6 py-4 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <Building2 className="w-8 h-8 text-blue-600" />
+            <div className="relative">
+              <Shield className="w-8 h-8 text-purple-600" />
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-orange-400 to-pink-500 rounded-full animate-pulse"></div>
+            </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-800">RecruitPro ATS</h1>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 via-teal-600 to-orange-500 bg-clip-text text-transparent">SecuHire</h1>
               <p className="text-sm text-slate-600">{company?.name}</p>
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <span className="text-slate-600">Welcome, {recruiter?.full_name}</span>
-            <Button variant="outline" onClick={logout}>Logout</Button>
+            <div className="text-right">
+              <p className="text-sm text-slate-600">Welcome back,</p>
+              <p className="font-semibold text-slate-800">{recruiter?.full_name}</p>
+            </div>
+            <Button variant="outline" className="border-purple-300 text-purple-700 hover:bg-purple-50" onClick={logout}>Logout</Button>
           </div>
         </div>
       </header>
@@ -441,19 +474,19 @@ const ATSDashboard = () => {
         <div className="max-w-7xl mx-auto">
           {/* Main Navigation Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid grid-cols-5 w-full max-w-2xl">
-              <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-              <TabsTrigger value="jobs">Jobs</TabsTrigger>
-              <TabsTrigger value="candidates">Candidates</TabsTrigger>
-              <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
-              <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsList className="grid grid-cols-5 w-full max-w-2xl bg-white border border-purple-200 shadow-sm">
+              <TabsTrigger value="dashboard" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white">Dashboard</TabsTrigger>
+              <TabsTrigger value="jobs" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white">Jobs</TabsTrigger>
+              <TabsTrigger value="candidates" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white">Candidates</TabsTrigger>
+              <TabsTrigger value="pipeline" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white">Pipeline</TabsTrigger>
+              <TabsTrigger value="analytics" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white">Analytics</TabsTrigger>
             </TabsList>
 
             {/* Dashboard Overview */}
             <TabsContent value="dashboard" className="space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-3xl font-bold text-slate-800">Dashboard Overview</h2>
-                <Button onClick={seedData} className="bg-blue-600 hover:bg-blue-700">
+                <Button onClick={seedData} className="bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white shadow-lg">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Demo Data
                 </Button>
@@ -461,50 +494,58 @@ const ATSDashboard = () => {
 
               {/* Stats Cards */}
               <div className="grid md:grid-cols-4 gap-6">
-                <Card className="border-0 shadow-sm">
+                <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-purple-50/50 hover:shadow-xl transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-slate-600">Active Jobs</p>
+                        <p className="text-sm text-slate-600 font-medium">Active Jobs</p>
                         <p className="text-3xl font-bold text-slate-800">{analytics.overview?.active_jobs || 0}</p>
                       </div>
-                      <Briefcase className="w-8 h-8 text-blue-600" />
+                      <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl flex items-center justify-center">
+                        <Briefcase className="w-6 h-6 text-white" />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card className="border-0 shadow-sm">
+                <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-teal-50/50 hover:shadow-xl transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-slate-600">Total Candidates</p>
+                        <p className="text-sm text-slate-600 font-medium">Total Candidates</p>
                         <p className="text-3xl font-bold text-slate-800">{analytics.overview?.total_candidates || 0}</p>
                       </div>
-                      <Users className="w-8 h-8 text-green-600" />
+                      <div className="w-12 h-12 bg-gradient-to-r from-teal-500 to-teal-600 rounded-xl flex items-center justify-center">
+                        <Users className="w-6 h-6 text-white" />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card className="border-0 shadow-sm">
+                <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-orange-50/50 hover:shadow-xl transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-slate-600">Applications</p>
+                        <p className="text-sm text-slate-600 font-medium">Applications</p>
                         <p className="text-3xl font-bold text-slate-800">{analytics.overview?.total_applications || 0}</p>
                       </div>
-                      <FileText className="w-8 h-8 text-purple-600" />
+                      <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-pink-500 rounded-xl flex items-center justify-center">
+                        <FileText className="w-6 h-6 text-white" />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card className="border-0 shadow-sm">
+                <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-green-50/50 hover:shadow-xl transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-slate-600">Recent Hires</p>
+                        <p className="text-sm text-slate-600 font-medium">Recent Hires</p>
                         <p className="text-3xl font-bold text-slate-800">{analytics.recent_activity?.hires_30_days || 0}</p>
                       </div>
-                      <Award className="w-8 h-8 text-emerald-600" />
+                      <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl flex items-center justify-center">
+                        <Award className="w-6 h-6 text-white" />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -512,17 +553,17 @@ const ATSDashboard = () => {
 
               {/* Pipeline Overview */}
               {analytics.pipeline && (
-                <Card className="border-0 shadow-sm">
+                <Card className="border-0 shadow-lg bg-white">
                   <CardHeader>
-                    <CardTitle>Pipeline Overview</CardTitle>
+                    <CardTitle className="text-slate-800">Hiring Pipeline Overview</CardTitle>
                     <CardDescription>Applications by stage</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-4 gap-4">
                       {Object.entries(analytics.pipeline).map(([stage, count]) => (
-                        <div key={stage} className="text-center p-4 bg-slate-50 rounded-lg">
+                        <div key={stage} className="text-center p-4 bg-gradient-to-br from-slate-50 to-purple-50/30 rounded-xl border border-purple-100">
                           <div className="text-2xl font-bold text-slate-800">{count}</div>
-                          <div className="text-sm text-slate-600 capitalize">{stage.replace('_', ' ')}</div>
+                          <div className="text-sm text-slate-600 capitalize font-medium">{stage.replace('_', ' ')}</div>
                         </div>
                       ))}
                     </div>
@@ -535,7 +576,7 @@ const ATSDashboard = () => {
             <TabsContent value="jobs" className="space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-3xl font-bold text-slate-800">Jobs Management</h2>
-                <Button className="bg-blue-600 hover:bg-blue-700">
+                <Button className="bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white shadow-lg">
                   <Plus className="w-4 h-4 mr-2" />
                   Create Job
                 </Button>
@@ -545,12 +586,14 @@ const ATSDashboard = () => {
                 {jobs.length > 0 ? jobs.map((job) => (
                   <JobCard key={job.id} job={job} />
                 )) : (
-                  <Card className="border-0 shadow-sm">
+                  <Card className="border-0 shadow-lg bg-white">
                     <CardContent className="p-12 text-center">
-                      <Briefcase className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                      <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <Briefcase className="w-10 h-10 text-white" />
+                      </div>
                       <h3 className="text-xl font-semibold text-slate-600 mb-2">No jobs yet</h3>
                       <p className="text-slate-500 mb-4">Create your first job posting to get started</p>
-                      <Button className="bg-blue-600 hover:bg-blue-700">Create Your First Job</Button>
+                      <Button className="bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white">Create Your First Job</Button>
                     </CardContent>
                   </Card>
                 )}
@@ -561,7 +604,7 @@ const ATSDashboard = () => {
             <TabsContent value="candidates" className="space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-3xl font-bold text-slate-800">Candidate Database</h2>
-                <Button className="bg-blue-600 hover:bg-blue-700">
+                <Button className="bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white shadow-lg">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Candidate
                 </Button>
@@ -571,9 +614,9 @@ const ATSDashboard = () => {
               <div className="flex space-x-4">
                 <div className="flex-1 relative">
                   <Search className="w-5 h-5 absolute left-3 top-3 text-slate-400" />
-                  <Input placeholder="Search candidates..." className="pl-10" />
+                  <Input placeholder="Search candidates..." className="pl-10 border-purple-200 focus:border-purple-500 focus:ring-purple-500" />
                 </div>
-                <Button variant="outline">
+                <Button variant="outline" className="border-purple-300 text-purple-700 hover:bg-purple-50">
                   <Filter className="w-4 h-4 mr-2" />
                   Filters
                 </Button>
@@ -583,12 +626,14 @@ const ATSDashboard = () => {
                 {candidates.length > 0 ? candidates.map((candidate) => (
                   <CandidateCard key={candidate.id} candidate={candidate} />
                 )) : (
-                  <Card className="border-0 shadow-sm">
+                  <Card className="border-0 shadow-lg bg-white">
                     <CardContent className="p-12 text-center">
-                      <Users className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                      <div className="w-20 h-20 bg-gradient-to-r from-teal-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <Users className="w-10 h-10 text-white" />
+                      </div>
                       <h3 className="text-xl font-semibold text-slate-600 mb-2">No candidates yet</h3>
                       <p className="text-slate-500 mb-4">Add candidates to build your talent pipeline</p>
-                      <Button className="bg-blue-600 hover:bg-blue-700">Add First Candidate</Button>
+                      <Button className="bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white">Add First Candidate</Button>
                     </CardContent>
                   </Card>
                 )}
@@ -603,9 +648,11 @@ const ATSDashboard = () => {
                 {applications.length > 0 ? applications.map((item, index) => (
                   <ApplicationCard key={index} application={item.application} candidate={item.candidate} job={item.job} />
                 )) : (
-                  <Card className="border-0 shadow-sm">
+                  <Card className="border-0 shadow-lg bg-white">
                     <CardContent className="p-12 text-center">
-                      <Target className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                      <div className="w-20 h-20 bg-gradient-to-r from-orange-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <Target className="w-10 h-10 text-white" />
+                      </div>
                       <h3 className="text-xl font-semibold text-slate-600 mb-2">No applications yet</h3>
                       <p className="text-slate-500 mb-4">Applications will appear here once candidates apply</p>
                     </CardContent>
@@ -619,41 +666,41 @@ const ATSDashboard = () => {
               <h2 className="text-3xl font-bold text-slate-800">Analytics & Reports</h2>
               
               <div className="grid md:grid-cols-2 gap-6">
-                <Card className="border-0 shadow-sm">
+                <Card className="border-0 shadow-lg bg-white">
                   <CardHeader>
-                    <CardTitle>Hiring Metrics</CardTitle>
+                    <CardTitle className="text-slate-800">Hiring Metrics</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
                       <div className="flex justify-between">
-                        <span>Time to Hire (avg)</span>
-                        <span className="font-medium">14 days</span>
+                        <span className="text-slate-600">Time to Hire (avg)</span>
+                        <span className="font-medium text-slate-800">14 days</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Applications per Job</span>
-                        <span className="font-medium">25</span>
+                        <span className="text-slate-600">Applications per Job</span>
+                        <span className="font-medium text-slate-800">25</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Interview to Hire Ratio</span>
-                        <span className="font-medium">3:1</span>
+                        <span className="text-slate-600">Interview to Hire Ratio</span>
+                        <span className="font-medium text-slate-800">3:1</span>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card className="border-0 shadow-sm">
+                <Card className="border-0 shadow-lg bg-white">
                   <CardHeader>
-                    <CardTitle>Recent Activity</CardTitle>
+                    <CardTitle className="text-slate-800">Recent Activity</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
                       <div className="flex justify-between">
-                        <span>Applications (30 days)</span>
-                        <span className="font-medium">{analytics.recent_activity?.applications_30_days || 0}</span>
+                        <span className="text-slate-600">Applications (30 days)</span>
+                        <span className="font-medium text-slate-800">{analytics.recent_activity?.applications_30_days || 0}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Hires (30 days)</span>
-                        <span className="font-medium">{analytics.recent_activity?.hires_30_days || 0}</span>
+                        <span className="text-slate-600">Hires (30 days)</span>
+                        <span className="font-medium text-slate-800">{analytics.recent_activity?.hires_30_days || 0}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -671,20 +718,20 @@ const ATSDashboard = () => {
 const JobCard = ({ job }) => {
   const getStatusColor = (status) => {
     switch (status) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'draft': return 'bg-gray-100 text-gray-800';
-      case 'paused': return 'bg-yellow-100 text-yellow-800';
-      case 'closed': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'active': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'draft': return 'bg-slate-100 text-slate-700 border-slate-200';
+      case 'paused': return 'bg-amber-100 text-amber-800 border-amber-200';
+      case 'closed': return 'bg-red-100 text-red-800 border-red-200';
+      default: return 'bg-slate-100 text-slate-700 border-slate-200';
     }
   };
 
   return (
-    <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
+    <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white group">
       <CardContent className="p-6">
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h3 className="text-xl font-semibold text-slate-800 mb-2">{job.title}</h3>
+            <h3 className="text-xl font-semibold text-slate-800 mb-2 group-hover:text-purple-700 transition-colors">{job.title}</h3>
             <div className="flex items-center space-x-4 text-sm text-slate-600">
               <div className="flex items-center space-x-1">
                 <MapPin className="w-4 h-4" />
@@ -700,7 +747,7 @@ const JobCard = ({ job }) => {
               </div>
             </div>
           </div>
-          <Badge className={getStatusColor(job.status)}>
+          <Badge className={`${getStatusColor(job.status)} border font-medium`}>
             {job.status}
           </Badge>
         </div>
@@ -711,7 +758,7 @@ const JobCard = ({ job }) => {
           <h4 className="font-medium text-slate-800 mb-2">Skills Required:</h4>
           <div className="flex flex-wrap gap-2">
             {job.skills?.map((skill, index) => (
-              <Badge key={index} variant="outline" className="text-xs">
+              <Badge key={index} variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
                 {skill}
               </Badge>
             ))}
@@ -719,12 +766,12 @@ const JobCard = ({ job }) => {
         </div>
 
         <div className="flex space-x-3">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="border-purple-300 text-purple-700 hover:bg-purple-50">
             <Edit className="w-4 h-4 mr-2" />
             Edit
           </Button>
           {job.status === 'draft' && (
-            <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+            <Button size="sm" className="bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white">
               Publish Job
             </Button>
           )}
@@ -737,15 +784,15 @@ const JobCard = ({ job }) => {
 // Candidate Card Component
 const CandidateCard = ({ candidate }) => {
   return (
-    <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
+    <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white group">
       <CardContent className="p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-              <User className="w-6 h-6 text-blue-600" />
+            <div className="w-12 h-12 bg-gradient-to-r from-teal-500 to-teal-600 rounded-xl flex items-center justify-center">
+              <User className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h3 className="text-xl font-semibold text-slate-800">{candidate.full_name}</h3>
+              <h3 className="text-xl font-semibold text-slate-800 group-hover:text-teal-700 transition-colors">{candidate.full_name}</h3>
               <p className="text-slate-600">{candidate.current_title} at {candidate.current_company}</p>
               <div className="flex items-center space-x-4 text-sm text-slate-500 mt-1">
                 <div className="flex items-center space-x-1">
@@ -759,14 +806,14 @@ const CandidateCard = ({ candidate }) => {
               </div>
             </div>
           </div>
-          <Badge variant="secondary">{candidate.experience_years}+ years</Badge>
+          <Badge variant="secondary" className="bg-teal-100 text-teal-800 border-teal-200">{candidate.experience_years}+ years</Badge>
         </div>
 
         <div className="mb-4">
           <h4 className="font-medium text-slate-800 mb-2">Skills:</h4>
           <div className="flex flex-wrap gap-2">
             {candidate.skills?.map((skill, index) => (
-              <Badge key={index} variant="outline" className="text-xs">
+              <Badge key={index} variant="outline" className="text-xs bg-teal-50 text-teal-700 border-teal-200">
                 {skill}
               </Badge>
             ))}
@@ -774,11 +821,11 @@ const CandidateCard = ({ candidate }) => {
         </div>
 
         <div className="flex space-x-3">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="border-teal-300 text-teal-700 hover:bg-teal-50">
             <FileText className="w-4 h-4 mr-2" />
             View Resume
           </Button>
-          <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+          <Button size="sm" className="bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white">
             Add to Job
           </Button>
         </div>
@@ -791,30 +838,30 @@ const CandidateCard = ({ candidate }) => {
 const ApplicationCard = ({ application, candidate, job }) => {
   const getStageColor = (stage) => {
     switch (stage) {
-      case 'new': return 'bg-blue-100 text-blue-800';
-      case 'screening': return 'bg-yellow-100 text-yellow-800';
-      case 'phone_screen': return 'bg-purple-100 text-purple-800';
-      case 'technical_interview': return 'bg-orange-100 text-orange-800';
-      case 'final_interview': return 'bg-indigo-100 text-indigo-800';
-      case 'offer': return 'bg-green-100 text-green-800';
-      case 'hired': return 'bg-emerald-100 text-emerald-800';
-      case 'rejected': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'new': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'screening': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'phone_screen': return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'technical_interview': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'final_interview': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+      case 'offer': return 'bg-green-100 text-green-800 border-green-200';
+      case 'hired': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
   if (!candidate || !job) return null;
 
   return (
-    <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
+    <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white group">
       <CardContent className="p-6">
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h3 className="text-lg font-semibold text-slate-800">{candidate.full_name}</h3>
+            <h3 className="text-lg font-semibold text-slate-800 group-hover:text-orange-700 transition-colors">{candidate.full_name}</h3>
             <p className="text-slate-600">Applied for {job.title}</p>
             <p className="text-sm text-slate-500">Applied on {new Date(application.applied_date).toLocaleDateString()}</p>
           </div>
-          <Badge className={getStageColor(application.stage)}>
+          <Badge className={`${getStageColor(application.stage)} border font-medium`}>
             {application.stage.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
           </Badge>
         </div>
@@ -831,11 +878,11 @@ const ApplicationCard = ({ application, candidate, job }) => {
         </div>
 
         <div className="flex space-x-3">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="border-orange-300 text-orange-700 hover:bg-orange-50">
             <FileText className="w-4 h-4 mr-2" />
             View Profile
           </Button>
-          <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+          <Button size="sm" className="bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white">
             Move Stage
           </Button>
         </div>
@@ -852,8 +899,11 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Building2 className="w-8 h-8 text-blue-600 animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-teal-50">
+        <div className="relative">
+          <Shield className="w-12 h-12 text-purple-600 animate-spin" />
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-orange-400 to-pink-500 rounded-full animate-pulse"></div>
+        </div>
       </div>
     );
   }
