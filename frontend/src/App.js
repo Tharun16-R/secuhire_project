@@ -11,11 +11,13 @@ import { Textarea } from "./components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "./components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
 import { Progress } from "./components/ui/progress";
+import { Alert, AlertDescription, AlertTitle } from "./components/ui/alert";
 import { 
   Shield, Users, Briefcase, TrendingUp, Plus, Search, Filter, 
   MapPin, DollarSign, Calendar, Phone, Mail, FileText, 
   ChevronRight, Star, Clock, CheckCircle, User, Edit,
-  BarChart3, PieChart, Target, Award, Zap, Brain
+  BarChart3, PieChart, Target, Award, Zap, Brain, Building2,
+  Eye, Heart, Send, Video, AlertTriangle, Verified
 } from "lucide-react";
 import "./App.css";
 
