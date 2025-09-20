@@ -1008,7 +1008,7 @@ const CandidateDashboard = () => {
                           <SelectValue placeholder="All levels" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">All levels</SelectItem>
+                          <SelectItem value="all">All levels</SelectItem>
                           <SelectItem value="Entry">Entry Level</SelectItem>
                           <SelectItem value="Mid">Mid Level</SelectItem>
                           <SelectItem value="Senior">Senior Level</SelectItem>
