@@ -174,17 +174,12 @@ class SecuHireBackendTester:
             print("❌ No candidate ID available for phone verification test")
             return False
             
-        verification_data = {
-            "user_id": self.candidate_id,
-            "otp_code": "123456"  # This would be the actual OTP in production
-        }
-        
+        # Use query parameters for verification
         success, response = self.run_test(
             "Phone Verification",
             "POST",
-            "/candidates/verify-phone",
-            200,
-            data=verification_data
+            f"/candidates/verify-phone?user_id={self.candidate_id}&otp_code=123456",
+            200
         )
         
         return success
