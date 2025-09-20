@@ -456,7 +456,12 @@ async def verify_phone(user_id: str, otp_code: str):
     if not verification:
         raise HTTPException(status_code=400, detail="Invalid OTP code")
     
-    if datetime.now(timezone.utc) > verification["expires_at"]:
+    # Handle timezone comparison properly
+    expires_at = verification["expires_at"]
+    if isinstance(expires_at, datetime) and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    
+    if datetime.now(timezone.utc) > expires_at:
         raise HTTPException(status_code=400, detail="OTP code expired")
     
     # Mark as verified
