@@ -16,6 +16,8 @@ import PyPDF2
 import io
 import re
 from enum import Enum
+import random
+import string
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -33,7 +35,7 @@ api_router = APIRouter(prefix="/api")
 
 # Security
 security = HTTPBearer()
-JWT_SECRET = "ats_crm_secret_key_2025"
+JWT_SECRET = "secuhire_secret_key_2025"
 
 # Enums for ATS
 class PipelineStage(str, Enum):
@@ -52,7 +54,11 @@ class JobStatus(str, Enum):
     PAUSED = "paused"
     CLOSED = "closed"
 
-# Define ATS Models
+class UserRole(str, Enum):
+    RECRUITER = "recruiter"
+    CANDIDATE = "candidate"
+
+# Define Models
 class Company(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
@@ -73,6 +79,28 @@ class Recruiter(BaseModel):
     avatar_url: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+class CandidateUser(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    email: EmailStr
+    full_name: str
+    phone: str
+    location: Optional[str] = None
+    current_title: Optional[str] = None
+    current_company: Optional[str] = None
+    experience_years: int
+    education: Optional[str] = None
+    skills: List[str] = []
+    resume_url: Optional[str] = None
+    resume_text: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    bio: Optional[str] = None
+    expected_salary: Optional[int] = None
+    availability: str = "immediate"  # immediate, 2_weeks, 1_month, 3_months
+    is_email_verified: bool = False
+    is_phone_verified: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 class RecruiterLogin(BaseModel):
     email: EmailStr
     password: str
@@ -85,6 +113,40 @@ class RecruiterRegister(BaseModel):
     company_domain: str
     company_size: str
     industry: str
+
+class CandidateLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class CandidateRegister(BaseModel):
+    email: EmailStr
+    password: str
+    full_name: str
+    phone: str
+    location: str
+    current_title: str
+    current_company: str
+    experience_years: int
+    education: str
+    skills: List[str]
+    expected_salary: Optional[int] = None
+    linkedin_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    bio: Optional[str] = None
+
+class EmailVerification(BaseModel):
+    user_id: str
+    email: str
+    verification_code: str
+    expires_at: datetime
+    is_verified: bool = False
+
+class PhoneVerification(BaseModel):
+    user_id: str
+    phone: str
+    otp_code: str
+    expires_at: datetime
+    is_verified: bool = False
 
 class Job(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -102,46 +164,32 @@ class Job(BaseModel):
     experience_level: str  # Entry, Mid, Senior
     status: JobStatus = JobStatus.DRAFT
     posted_date: Optional[datetime] = None
+    application_deadline: Optional[datetime] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class Candidate(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    email: EmailStr
-    full_name: str
-    phone: Optional[str] = None
-    location: Optional[str] = None
-    current_title: Optional[str] = None
-    current_company: Optional[str] = None
-    experience_years: Optional[int] = None
-    skills: List[str] = []
-    education: List[str] = []
-    resume_url: Optional[str] = None
-    resume_text: Optional[str] = None
-    linkedin_url: Optional[str] = None
-    portfolio_url: Optional[str] = None
-    source: str = "manual"  # manual, linkedin, job_board, referral
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-class Application(BaseModel):
+class CandidateApplication(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     job_id: str
     candidate_id: str
-    recruiter_id: str
     company_id: str
+    cover_letter: str
     stage: PipelineStage = PipelineStage.NEW
     score: Optional[int] = None  # 1-10 rating
-    notes: List[str] = []
     applied_date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class Interview(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     application_id: str
+    candidate_id: str
     interviewer_id: str
-    type: str  # phone, video, onsite
+    job_id: str
+    company_id: str
+    interview_type: str = "video"  # video, phone, onsite
     scheduled_date: datetime
     duration_minutes: int = 60
-    status: str = "scheduled"  # scheduled, completed, cancelled, no_show
+    meeting_link: Optional[str] = None
+    status: str = "scheduled"  # scheduled, in_progress, completed, cancelled, no_show
     feedback: Optional[str] = None
     rating: Optional[int] = None  # 1-10
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -161,10 +209,17 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, hashed: str) -> bool:
     return hash_password(password) == hashed
 
-def create_jwt_token(recruiter_id: str, email: str, company_id: str) -> str:
+def generate_verification_code() -> str:
+    return ''.join(random.choices(string.digits, k=6))
+
+def generate_otp() -> str:
+    return ''.join(random.choices(string.digits, k=6))
+
+def create_jwt_token(user_id: str, email: str, role: str, company_id: str = None) -> str:
     payload = {
-        "recruiter_id": recruiter_id, 
+        "user_id": user_id, 
         "email": email, 
+        "role": role,
         "company_id": company_id,
         "exp": datetime.now(timezone.utc).timestamp() + 86400
     }
@@ -173,9 +228,25 @@ def create_jwt_token(recruiter_id: str, email: str, company_id: str) -> str:
 async def get_current_recruiter(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
         payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=["HS256"])
-        recruiter = await db.recruiters.find_one({"id": payload["recruiter_id"]})
+        if payload.get("role") != "recruiter":
+            raise HTTPException(status_code=403, detail="Access denied")
+        recruiter = await db.recruiters.find_one({"id": payload["user_id"]})
         if recruiter:
             return Recruiter(**recruiter)
+        raise HTTPException(status_code=401, detail="Invalid token")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+async def get_current_candidate(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=["HS256"])
+        if payload.get("role") != "candidate":
+            raise HTTPException(status_code=403, detail="Access denied")
+        candidate = await db.candidates.find_one({"id": payload["user_id"]})
+        if candidate:
+            return CandidateUser(**candidate)
         raise HTTPException(status_code=401, detail="Invalid token")
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
@@ -213,8 +284,8 @@ def parse_resume_skills(resume_text: str) -> List[str]:
     
     return found_skills
 
-# Authentication Routes
-@api_router.post("/auth/register")
+# Recruiter Authentication Routes
+@api_router.post("/recruiters/auth/register")
 async def register_recruiter(recruiter_data: RecruiterRegister):
     # Check if recruiter exists
     existing_recruiter = await db.recruiters.find_one({"email": recruiter_data.email})
@@ -242,12 +313,12 @@ async def register_recruiter(recruiter_data: RecruiterRegister):
     
     # Store recruiter and password
     await db.recruiters.insert_one(recruiter.dict())
-    await db.recruiter_passwords.insert_one({"recruiter_id": recruiter.id, "password": hashed_password})
+    await db.user_passwords.insert_one({"user_id": recruiter.id, "password": hashed_password, "role": "recruiter"})
     
-    token = create_jwt_token(recruiter.id, recruiter.email, company.id)
-    return {"recruiter": recruiter, "company": company, "token": token, "message": "Registration successful"}
+    token = create_jwt_token(recruiter.id, recruiter.email, "recruiter", company.id)
+    return {"user": recruiter, "company": company, "token": token, "role": "recruiter", "message": "Registration successful"}
 
-@api_router.post("/auth/login")
+@api_router.post("/recruiters/auth/login")
 async def login_recruiter(login_data: RecruiterLogin):
     # Find recruiter
     recruiter = await db.recruiters.find_one({"email": login_data.email})
@@ -255,22 +326,330 @@ async def login_recruiter(login_data: RecruiterLogin):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     # Verify password
-    recruiter_password = await db.recruiter_passwords.find_one({"recruiter_id": recruiter["id"]})
-    if not recruiter_password or not verify_password(login_data.password, recruiter_password["password"]):
+    user_password = await db.user_passwords.find_one({"user_id": recruiter["id"], "role": "recruiter"})
+    if not user_password or not verify_password(login_data.password, user_password["password"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     # Get company info
     company = await db.companies.find_one({"id": recruiter["company_id"]})
     
-    token = create_jwt_token(recruiter["id"], recruiter["email"], recruiter["company_id"])
+    token = create_jwt_token(recruiter["id"], recruiter["email"], "recruiter", recruiter["company_id"])
     return {
-        "recruiter": Recruiter(**recruiter), 
+        "user": Recruiter(**recruiter), 
         "company": Company(**company) if company else None,
         "token": token, 
+        "role": "recruiter",
         "message": "Login successful"
     }
 
-# Job Management Routes
+# Candidate Authentication Routes
+@api_router.post("/candidates/auth/register")
+async def register_candidate(candidate_data: CandidateRegister):
+    # Check if candidate exists
+    existing_candidate = await db.candidates.find_one({"email": candidate_data.email})
+    if existing_candidate:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Create candidate
+    candidate_dict = candidate_data.dict()
+    hashed_password = hash_password(candidate_dict.pop("password"))
+    
+    candidate = CandidateUser(**candidate_dict)
+    
+    # Store candidate and password
+    await db.candidates.insert_one(candidate.dict())
+    await db.user_passwords.insert_one({"user_id": candidate.id, "password": hashed_password, "role": "candidate"})
+    
+    # Generate email verification
+    email_code = generate_verification_code()
+    email_verification = EmailVerification(
+        user_id=candidate.id,
+        email=candidate.email,
+        verification_code=email_code,
+        expires_at=datetime.now(timezone.utc).replace(microsecond=0) + timedelta(hours=24)
+    )
+    await db.email_verifications.insert_one(email_verification.dict())
+    
+    # Generate phone verification
+    phone_otp = generate_otp()
+    phone_verification = PhoneVerification(
+        user_id=candidate.id,
+        phone=candidate.phone,
+        otp_code=phone_otp,
+        expires_at=datetime.now(timezone.utc).replace(microsecond=0) + timedelta(minutes=10)
+    )
+    await db.phone_verifications.insert_one(phone_verification.dict())
+    
+    # In production, send actual email and SMS
+    # For demo, return verification codes
+    token = create_jwt_token(candidate.id, candidate.email, "candidate")
+    return {
+        "user": candidate, 
+        "token": token, 
+        "role": "candidate",
+        "message": "Registration successful",
+        "email_verification_code": email_code,  # Remove in production
+        "phone_otp": phone_otp,  # Remove in production
+        "verification_required": True
+    }
+
+@api_router.post("/candidates/auth/login")
+async def login_candidate(login_data: CandidateLogin):
+    # Find candidate
+    candidate = await db.candidates.find_one({"email": login_data.email})
+    if not candidate:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # Verify password
+    user_password = await db.user_passwords.find_one({"user_id": candidate["id"], "role": "candidate"})
+    if not user_password or not verify_password(login_data.password, user_password["password"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    token = create_jwt_token(candidate["id"], candidate["email"], "candidate")
+    return {
+        "user": CandidateUser(**candidate), 
+        "token": token, 
+        "role": "candidate",
+        "message": "Login successful"
+    }
+
+# Verification Routes
+@api_router.post("/candidates/verify-email")
+async def verify_email(user_id: str, verification_code: str):
+    verification = await db.email_verifications.find_one({
+        "user_id": user_id, 
+        "verification_code": verification_code,
+        "is_verified": False
+    })
+    
+    if not verification:
+        raise HTTPException(status_code=400, detail="Invalid verification code")
+    
+    if datetime.now(timezone.utc) > verification["expires_at"]:
+        raise HTTPException(status_code=400, detail="Verification code expired")
+    
+    # Mark as verified
+    await db.email_verifications.update_one(
+        {"user_id": user_id, "verification_code": verification_code},
+        {"$set": {"is_verified": True}}
+    )
+    await db.candidates.update_one(
+        {"id": user_id},
+        {"$set": {"is_email_verified": True}}
+    )
+    
+    return {"message": "Email verified successfully"}
+
+@api_router.post("/candidates/verify-phone")
+async def verify_phone(user_id: str, otp_code: str):
+    verification = await db.phone_verifications.find_one({
+        "user_id": user_id, 
+        "otp_code": otp_code,
+        "is_verified": False
+    })
+    
+    if not verification:
+        raise HTTPException(status_code=400, detail="Invalid OTP code")
+    
+    if datetime.now(timezone.utc) > verification["expires_at"]:
+        raise HTTPException(status_code=400, detail="OTP code expired")
+    
+    # Mark as verified
+    await db.phone_verifications.update_one(
+        {"user_id": user_id, "otp_code": otp_code},
+        {"$set": {"is_verified": True}}
+    )
+    await db.candidates.update_one(
+        {"id": user_id},
+        {"$set": {"is_phone_verified": True}}
+    )
+    
+    return {"message": "Phone verified successfully"}
+
+@api_router.post("/candidates/resend-email-verification")
+async def resend_email_verification(user_id: str):
+    candidate = await db.candidates.find_one({"id": user_id})
+    if not candidate:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Generate new verification code
+    email_code = generate_verification_code()
+    email_verification = EmailVerification(
+        user_id=user_id,
+        email=candidate["email"],
+        verification_code=email_code,
+        expires_at=datetime.now(timezone.utc).replace(microsecond=0) + timedelta(hours=24)
+    )
+    
+    # Remove old verifications
+    await db.email_verifications.delete_many({"user_id": user_id, "is_verified": False})
+    await db.email_verifications.insert_one(email_verification.dict())
+    
+    return {"message": "Verification email sent", "verification_code": email_code}  # Remove code in production
+
+@api_router.post("/candidates/resend-phone-otp")
+async def resend_phone_otp(user_id: str):
+    candidate = await db.candidates.find_one({"id": user_id})
+    if not candidate:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Generate new OTP
+    phone_otp = generate_otp()
+    phone_verification = PhoneVerification(
+        user_id=user_id,
+        phone=candidate["phone"],
+        otp_code=phone_otp,
+        expires_at=datetime.now(timezone.utc).replace(microsecond=0) + timedelta(minutes=10)
+    )
+    
+    # Remove old verifications
+    await db.phone_verifications.delete_many({"user_id": user_id, "is_verified": False})
+    await db.phone_verifications.insert_one(phone_verification.dict())
+    
+    return {"message": "OTP sent", "otp_code": phone_otp}  # Remove OTP in production
+
+# Candidate Job Routes
+@api_router.get("/candidates/jobs")
+async def get_available_jobs(
+    search: Optional[str] = None,
+    location: Optional[str] = None,
+    job_type: Optional[str] = None,
+    experience_level: Optional[str] = None,
+    current_candidate: CandidateUser = Depends(get_current_candidate)
+):
+    query = {"status": "active"}
+    
+    if search:
+        query["$or"] = [
+            {"title": {"$regex": search, "$options": "i"}},
+            {"description": {"$regex": search, "$options": "i"}},
+            {"skills": {"$in": [re.compile(search, re.IGNORECASE)]}}
+        ]
+    
+    if location:
+        query["location"] = {"$regex": location, "$options": "i"}
+    
+    if job_type:
+        query["job_type"] = job_type
+        
+    if experience_level:
+        query["experience_level"] = experience_level
+    
+    jobs = await db.jobs.find(query).to_list(1000)
+    
+    # Enrich with company data
+    enriched_jobs = []
+    for job in jobs:
+        company = await db.companies.find_one({"id": job["company_id"]})
+        
+        # Check if candidate already applied
+        existing_application = await db.candidate_applications.find_one({
+            "job_id": job["id"],
+            "candidate_id": current_candidate.id
+        })
+        
+        enriched_jobs.append({
+            "job": Job(**job),
+            "company": Company(**company) if company else None,
+            "has_applied": bool(existing_application),
+            "application_id": existing_application["id"] if existing_application else None
+        })
+    
+    return enriched_jobs
+
+@api_router.post("/candidates/applications")
+async def apply_for_job(
+    job_id: str,
+    cover_letter: str,
+    current_candidate: CandidateUser = Depends(get_current_candidate)
+):
+    # Check if job exists and is active
+    job = await db.jobs.find_one({"id": job_id, "status": "active"})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found or not available")
+    
+    # Check if already applied
+    existing_application = await db.candidate_applications.find_one({
+        "job_id": job_id,
+        "candidate_id": current_candidate.id
+    })
+    if existing_application:
+        raise HTTPException(status_code=400, detail="Already applied for this job")
+    
+    # Create application
+    application = CandidateApplication(
+        job_id=job_id,
+        candidate_id=current_candidate.id,
+        company_id=job["company_id"],
+        cover_letter=cover_letter
+    )
+    
+    await db.candidate_applications.insert_one(application.dict())
+    return {"message": "Application submitted successfully", "application": application}
+
+@api_router.get("/candidates/my-applications")
+async def get_my_applications(current_candidate: CandidateUser = Depends(get_current_candidate)):
+    applications = await db.candidate_applications.find({"candidate_id": current_candidate.id}).to_list(1000)
+    
+    # Enrich with job and company data
+    enriched_applications = []
+    for app in applications:
+        job = await db.jobs.find_one({"id": app["job_id"]})
+        company = await db.companies.find_one({"id": app["company_id"]}) if job else None
+        
+        # Get interviews for this application
+        interviews = await db.interviews.find({"application_id": app["id"]}).to_list(100)
+        
+        enriched_applications.append({
+            "application": CandidateApplication(**app),
+            "job": Job(**job) if job else None,
+            "company": Company(**company) if company else None,
+            "interviews": [Interview(**interview) for interview in interviews]
+        })
+    
+    return enriched_applications
+
+@api_router.get("/candidates/interviews")
+async def get_my_interviews(current_candidate: CandidateUser = Depends(get_current_candidate)):
+    interviews = await db.interviews.find({"candidate_id": current_candidate.id}).to_list(1000)
+    
+    enriched_interviews = []
+    for interview in interviews:
+        application = await db.candidate_applications.find_one({"id": interview["application_id"]})
+        job = await db.jobs.find_one({"id": interview["job_id"]}) if application else None
+        company = await db.companies.find_one({"id": interview["company_id"]}) if job else None
+        
+        enriched_interviews.append({
+            "interview": Interview(**interview),
+            "application": CandidateApplication(**application) if application else None,
+            "job": Job(**job) if job else None,
+            "company": Company(**company) if company else None
+        })
+    
+    return enriched_interviews
+
+@api_router.put("/candidates/profile")
+async def update_candidate_profile(
+    profile_data: Dict[str, Any],
+    current_candidate: CandidateUser = Depends(get_current_candidate)
+):
+    # Remove fields that shouldn't be updated directly
+    protected_fields = ["id", "email", "is_email_verified", "is_phone_verified", "created_at"]
+    for field in protected_fields:
+        profile_data.pop(field, None)
+    
+    profile_data["last_updated"] = datetime.now(timezone.utc)
+    
+    await db.candidates.update_one(
+        {"id": current_candidate.id},
+        {"$set": profile_data}
+    )
+    
+    # Get updated candidate
+    updated_candidate = await db.candidates.find_one({"id": current_candidate.id})
+    return {"message": "Profile updated successfully", "user": CandidateUser(**updated_candidate)}
+
+# Job Management Routes (Recruiter)
 @api_router.post("/jobs", response_model=Job)
 async def create_job(job_data: Dict[str, Any], current_recruiter: Recruiter = Depends(get_current_recruiter)):
     job = Job(
@@ -312,100 +691,7 @@ async def publish_job(job_id: str, current_recruiter: Recruiter = Depends(get_cu
     
     return {"message": "Job published successfully"}
 
-# Candidate Management Routes
-@api_router.post("/candidates", response_model=Candidate)
-async def create_candidate(candidate_data: Dict[str, Any], current_recruiter: Recruiter = Depends(get_current_recruiter)):
-    candidate = Candidate(**candidate_data)
-    await db.candidates.insert_one(candidate.dict())
-    return candidate
-
-@api_router.post("/candidates/upload-resume")
-async def upload_resume(
-    candidate_id: str,
-    file: UploadFile = File(...),
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    # Verify it's a PDF
-    if not file.filename.endswith('.pdf'):
-        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
-    
-    # Read file content
-    file_content = await file.read()
-    
-    # Extract text from PDF
-    resume_text = extract_text_from_pdf(file_content)
-    
-    # Parse skills from resume
-    skills = parse_resume_skills(resume_text)
-    
-    # Update candidate with resume data
-    await db.candidates.update_one(
-        {"id": candidate_id},
-        {"$set": {
-            "resume_text": resume_text,
-            "skills": skills,
-            "resume_url": f"/resumes/{candidate_id}.pdf"  # Would save to storage in production
-        }}
-    )
-    
-    return {
-        "message": "Resume uploaded successfully",
-        "extracted_skills": skills,
-        "text_length": len(resume_text)
-    }
-
-@api_router.get("/candidates", response_model=List[Candidate])
-async def get_candidates(
-    search: Optional[str] = None,
-    skills: Optional[str] = None,
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    query = {}
-    
-    # Add search filters
-    if search:
-        query["$or"] = [
-            {"full_name": {"$regex": search, "$options": "i"}},
-            {"current_title": {"$regex": search, "$options": "i"}},
-            {"current_company": {"$regex": search, "$options": "i"}}
-        ]
-    
-    if skills:
-        skill_list = [s.strip() for s in skills.split(",")]
-        query["skills"] = {"$in": skill_list}
-    
-    candidates = await db.candidates.find(query).to_list(1000)
-    return [Candidate(**candidate) for candidate in candidates]
-
-# Application & Pipeline Management
-@api_router.post("/applications", response_model=Application)
-async def create_application(
-    job_id: str,
-    candidate_id: str,
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    # Verify job and candidate exist
-    job = await db.jobs.find_one({"id": job_id, "company_id": current_recruiter.company_id})
-    candidate = await db.candidates.find_one({"id": candidate_id})
-    
-    if not job or not candidate:
-        raise HTTPException(status_code=404, detail="Job or candidate not found")
-    
-    # Check if application already exists
-    existing = await db.applications.find_one({"job_id": job_id, "candidate_id": candidate_id})
-    if existing:
-        raise HTTPException(status_code=400, detail="Application already exists")
-    
-    application = Application(
-        job_id=job_id,
-        candidate_id=candidate_id,
-        recruiter_id=current_recruiter.id,
-        company_id=current_recruiter.company_id
-    )
-    
-    await db.applications.insert_one(application.dict())
-    return application
-
+# Application Management Routes (Recruiter)
 @api_router.get("/applications")
 async def get_applications(
     job_id: Optional[str] = None,
@@ -419,7 +705,7 @@ async def get_applications(
     if stage:
         query["stage"] = stage
     
-    applications = await db.applications.find(query).to_list(1000)
+    applications = await db.candidate_applications.find(query).to_list(1000)
     
     # Enrich with candidate and job data
     enriched_applications = []
@@ -428,8 +714,8 @@ async def get_applications(
         job = await db.jobs.find_one({"id": app["job_id"]})
         
         enriched_applications.append({
-            "application": Application(**app),
-            "candidate": Candidate(**candidate) if candidate else None,
+            "application": CandidateApplication(**app),
+            "candidate": CandidateUser(**candidate) if candidate else None,
             "job": Job(**job) if job else None
         })
     
@@ -441,7 +727,7 @@ async def move_application_stage(
     stage: PipelineStage,
     current_recruiter: Recruiter = Depends(get_current_recruiter)
 ):
-    result = await db.applications.update_one(
+    result = await db.candidate_applications.update_one(
         {"id": application_id, "company_id": current_recruiter.company_id},
         {"$set": {"stage": stage, "last_updated": datetime.now(timezone.utc)}}
     )
@@ -450,6 +736,39 @@ async def move_application_stage(
         raise HTTPException(status_code=404, detail="Application not found")
     
     return {"message": "Application stage updated successfully"}
+
+# Interview Management Routes
+@api_router.post("/interviews")
+async def schedule_interview(
+    application_id: str,
+    scheduled_date: datetime,
+    interview_type: str = "video",
+    duration_minutes: int = 60,
+    meeting_link: Optional[str] = None,
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    # Get application details
+    application = await db.candidate_applications.find_one({
+        "id": application_id,
+        "company_id": current_recruiter.company_id
+    })
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+    
+    interview = Interview(
+        application_id=application_id,
+        candidate_id=application["candidate_id"],
+        interviewer_id=current_recruiter.id,
+        job_id=application["job_id"],
+        company_id=current_recruiter.company_id,
+        interview_type=interview_type,
+        scheduled_date=scheduled_date,
+        duration_minutes=duration_minutes,
+        meeting_link=meeting_link
+    )
+    
+    await db.interviews.insert_one(interview.dict())
+    return {"message": "Interview scheduled successfully", "interview": interview}
 
 # Notes Management
 @api_router.post("/applications/{application_id}/notes", response_model=Note)
@@ -460,7 +779,7 @@ async def add_note(
     current_recruiter: Recruiter = Depends(get_current_recruiter)
 ):
     # Verify application exists and belongs to company
-    application = await db.applications.find_one({
+    application = await db.candidate_applications.find_one({
         "id": application_id, 
         "company_id": current_recruiter.company_id
     })
@@ -483,7 +802,7 @@ async def get_application_notes(
     current_recruiter: Recruiter = Depends(get_current_recruiter)
 ):
     # Verify application exists and belongs to company
-    application = await db.applications.find_one({
+    application = await db.candidate_applications.find_one({
         "id": application_id,
         "company_id": current_recruiter.company_id
     })
@@ -502,12 +821,12 @@ async def get_analytics_dashboard(current_recruiter: Recruiter = Depends(get_cur
     total_jobs = await db.jobs.count_documents({"company_id": company_id})
     active_jobs = await db.jobs.count_documents({"company_id": company_id, "status": "active"})
     total_candidates = await db.candidates.count_documents({})
-    total_applications = await db.applications.count_documents({"company_id": company_id})
+    total_applications = await db.candidate_applications.count_documents({"company_id": company_id})
     
     # Pipeline stats
     pipeline_stages = {}
     for stage in PipelineStage:
-        count = await db.applications.count_documents({
+        count = await db.candidate_applications.count_documents({
             "company_id": company_id, 
             "stage": stage.value
         })
@@ -517,12 +836,12 @@ async def get_analytics_dashboard(current_recruiter: Recruiter = Depends(get_cur
     from datetime import timedelta
     thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
     
-    recent_applications = await db.applications.count_documents({
+    recent_applications = await db.candidate_applications.count_documents({
         "company_id": company_id,
         "applied_date": {"$gte": thirty_days_ago}
     })
     
-    recent_hires = await db.applications.count_documents({
+    recent_hires = await db.candidate_applications.count_documents({
         "company_id": company_id,
         "stage": "hired",
         "last_updated": {"$gte": thirty_days_ago}
@@ -577,7 +896,7 @@ async def seed_demo_data(current_recruiter: Recruiter = Depends(get_current_recr
         }
     ]
     
-    # Sample candidates
+    # Sample candidates (for demo - in production these would be registered by candidates)
     sample_candidates = [
         {
             "email": "john.developer@email.com",
@@ -587,8 +906,12 @@ async def seed_demo_data(current_recruiter: Recruiter = Depends(get_current_recr
             "current_title": "Senior Frontend Developer",
             "current_company": "TechCorp",
             "experience_years": 6,
+            "education": "BS Computer Science",
             "skills": ["React", "JavaScript", "TypeScript", "Node.js"],
-            "source": "linkedin"
+            "expected_salary": 150000,
+            "bio": "Passionate full-stack developer with 6+ years of experience building scalable web applications.",
+            "is_email_verified": True,
+            "is_phone_verified": True
         },
         {
             "email": "sarah.manager@email.com",
@@ -598,8 +921,12 @@ async def seed_demo_data(current_recruiter: Recruiter = Depends(get_current_recr
             "current_title": "Marketing Manager",
             "current_company": "GrowthCo",
             "experience_years": 4,
+            "education": "MBA Marketing",
             "skills": ["Marketing", "Analytics", "Strategy", "B2B"],
-            "source": "referral"
+            "expected_salary": 110000,
+            "bio": "Results-driven marketing professional with expertise in B2B SaaS growth strategies.",
+            "is_email_verified": True,
+            "is_phone_verified": True
         }
     ]
     
@@ -614,7 +941,7 @@ async def seed_demo_data(current_recruiter: Recruiter = Depends(get_current_recr
         await db.jobs.insert_one(job.dict())
     
     for candidate_data in sample_candidates:
-        candidate = Candidate(**candidate_data)
+        candidate = CandidateUser(**candidate_data)
         await db.candidates.insert_one(candidate.dict())
     
     return {"message": "Demo data seeded successfully"}
