@@ -403,20 +403,14 @@ class SecuHireBackendTester:
             return False
             
         application_id = self.created_ids['applications'][0]
-        interview_data = {
-            "application_id": application_id,
-            "scheduled_date": "2025-01-20T14:00:00Z",
-            "interview_type": "video",
-            "duration_minutes": 60,
-            "meeting_link": "https://meet.google.com/abc-defg-hij"
-        }
+        scheduled_date = "2025-01-20T14:00:00Z"
         
+        # Use query parameters for interview scheduling
         success, response = self.run_test(
             "Schedule Interview",
             "POST",
-            "/interviews",
+            f"/interviews?application_id={application_id}&scheduled_date={scheduled_date}&interview_type=video&duration_minutes=60&meeting_link=https://meet.google.com/abc-defg-hij",
             200,
-            data=interview_data,
             token=self.recruiter_token
         )
         
