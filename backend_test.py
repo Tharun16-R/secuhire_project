@@ -298,9 +298,8 @@ class ATSBackendTester:
         success1, response1 = self.run_test(
             "Add Application Note",
             "POST",
-            f"/applications/{application_id}/notes",
-            200,
-            data={"content": "Great candidate, moving to next stage", "note_type": "general"}
+            f"/applications/{application_id}/notes?content=Great candidate, moving to next stage&note_type=general",
+            200
         )
         
         # Get notes
