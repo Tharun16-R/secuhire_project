@@ -828,8 +828,797 @@ const AuthPage = () => {
   );
 };
 
-// Main ATS Dashboard
-const ATSDashboard = () => {
+// Candidate Dashboard Component
+const CandidateDashboard = () => {
+  const [activeTab, setActiveTab] = useState('jobs');
+  const [jobs, setJobs] = useState([]);
+  const [myApplications, setMyApplications] = useState([]);
+  const [myInterviews, setMyInterviews] = useState([]);
+  const [searchFilters, setSearchFilters] = useState({
+    search: '',
+    location: '',
+    job_type: '',
+    experience_level: ''
+  });
+  const { user, logout } = useAuth();
+
+  useEffect(() => {
+    fetchCandidateData();
+  }, []);
+
+  const fetchCandidateData = async () => {
+    try {
+      const [jobsRes, applicationsRes, interviewsRes] = await Promise.all([
+        axios.get(`${API}/candidates/jobs`),
+        axios.get(`${API}/candidates/my-applications`),
+        axios.get(`${API}/candidates/interviews`)
+      ]);
+
+      setJobs(jobsRes.data);
+      setMyApplications(applicationsRes.data);
+      setMyInterviews(interviewsRes.data);
+    } catch (error) {
+      console.error('Failed to fetch candidate data:', error);
+    }
+  };
+
+  const applyForJob = async (jobId, coverLetter) => {
+    try {
+      await axios.post(`${API}/candidates/applications`, {
+        job_id: jobId,
+        cover_letter: coverLetter
+      });
+      alert('Application submitted successfully!');
+      fetchCandidateData(); // Refresh data
+    } catch (error) {
+      alert(error.response?.data?.detail || 'Application failed');
+    }
+  };
+
+  const searchJobs = async () => {
+    try {
+      const params = new URLSearchParams();
+      Object.entries(searchFilters).forEach(([key, value]) => {
+        if (value) params.append(key, value);
+      });
+      
+      const response = await axios.get(`${API}/candidates/jobs?${params}`);
+      setJobs(response.data);
+    } catch (error) {
+      console.error('Search failed:', error);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-teal-50/20">
+      {/* Header */}
+      <header className="bg-white border-b border-teal-200 px-6 py-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="relative">
+              <Shield className="w-8 h-8 text-teal-600" />
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-orange-400 to-pink-500 rounded-full animate-pulse"></div>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-teal-600 via-purple-600 to-orange-500 bg-clip-text text-transparent">SecuHire</h1>
+              <p className="text-sm text-slate-600">Candidate Portal</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              {user?.is_email_verified ? (
+                <Badge className="bg-green-100 text-green-800 border-green-200">
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                  Email Verified
+                </Badge>
+              ) : (
+                <Badge className="bg-amber-100 text-amber-800 border-amber-200">
+                  <AlertTriangle className="w-3 h-3 mr-1" />
+                  Email Pending
+                </Badge>
+              )}
+              {user?.is_phone_verified ? (
+                <Badge className="bg-green-100 text-green-800 border-green-200">
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                  Phone Verified
+                </Badge>
+              ) : (
+                <Badge className="bg-amber-100 text-amber-800 border-amber-200">
+                  <AlertTriangle className="w-3 h-3 mr-1" />
+                  Phone Pending
+                </Badge>
+              )}
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-slate-600">Welcome back,</p>
+              <p className="font-semibold text-slate-800">{user?.full_name}</p>
+            </div>
+            <Button variant="outline" className="border-teal-300 text-teal-700 hover:bg-teal-50" onClick={logout}>Logout</Button>
+          </div>
+        </div>
+      </header>
+
+      <div className="px-6 py-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Main Navigation Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <TabsList className="grid grid-cols-4 w-full max-w-2xl bg-white border border-teal-200 shadow-sm">
+              <TabsTrigger value="jobs" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">Browse Jobs</TabsTrigger>
+              <TabsTrigger value="applications" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">My Applications</TabsTrigger>
+              <TabsTrigger value="interviews" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">Interviews</TabsTrigger>
+              <TabsTrigger value="profile" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-600 data-[state=active]:to-purple-600 data-[state=active]:text-white">Profile</TabsTrigger>
+            </TabsList>
+
+            {/* Job Browsing */}
+            <TabsContent value="jobs" className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-3xl font-bold text-slate-800">Available Jobs</h2>
+                <Badge className="bg-teal-100 text-teal-800 border-teal-200">
+                  {jobs.length} opportunities
+                </Badge>
+              </div>
+
+              {/* Search and Filters */}
+              <Card className="border-0 shadow-lg bg-white">
+                <CardContent className="p-6">
+                  <div className="grid md:grid-cols-4 gap-4 mb-4">
+                    <div>
+                      <Label className="text-sm font-medium text-slate-700">Search</Label>
+                      <div className="relative mt-1">
+                        <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                        <Input
+                          placeholder="Job title, skills..."
+                          className="pl-10"
+                          value={searchFilters.search}
+                          onChange={(e) => setSearchFilters({...searchFilters, search: e.target.value})}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-sm font-medium text-slate-700">Location</Label>
+                      <Input
+                        placeholder="City, State"
+                        className="mt-1"
+                        value={searchFilters.location}
+                        onChange={(e) => setSearchFilters({...searchFilters, location: e.target.value})}
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-sm font-medium text-slate-700">Job Type</Label>
+                      <Select value={searchFilters.job_type} onValueChange={(value) => setSearchFilters({...searchFilters, job_type: value})}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="All types" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">All types</SelectItem>
+                          <SelectItem value="Full-time">Full-time</SelectItem>
+                          <SelectItem value="Part-time">Part-time</SelectItem>
+                          <SelectItem value="Contract">Contract</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label className="text-sm font-medium text-slate-700">Experience Level</Label>
+                      <Select value={searchFilters.experience_level} onValueChange={(value) => setSearchFilters({...searchFilters, experience_level: value})}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="All levels" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">All levels</SelectItem>
+                          <SelectItem value="Entry">Entry Level</SelectItem>
+                          <SelectItem value="Mid">Mid Level</SelectItem>
+                          <SelectItem value="Senior">Senior Level</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <Button onClick={searchJobs} className="bg-gradient-to-r from-teal-600 to-purple-600 hover:from-teal-700 hover:to-purple-700 text-white">
+                    <Search className="w-4 h-4 mr-2" />
+                    Search Jobs
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Job Listings */}
+              <div className="grid gap-6">
+                {jobs.length > 0 ? jobs.map((item, index) => (
+                  <CandidateJobCard key={index} jobData={item} onApply={applyForJob} />
+                )) : (
+                  <Card className="border-0 shadow-lg bg-white">
+                    <CardContent className="p-12 text-center">
+                      <div className="w-20 h-20 bg-gradient-to-r from-teal-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <Search className="w-10 h-10 text-white" />
+                      </div>
+                      <h3 className="text-xl font-semibold text-slate-600 mb-2">No jobs found</h3>
+                      <p className="text-slate-500 mb-4">Try adjusting your search filters to find more opportunities</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </TabsContent>
+
+            {/* My Applications */}
+            <TabsContent value="applications" className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-3xl font-bold text-slate-800">My Applications</h2>
+                <Badge className="bg-purple-100 text-purple-800 border-purple-200">
+                  {myApplications.length} applications
+                </Badge>
+              </div>
+
+              <div className="grid gap-6">
+                {myApplications.length > 0 ? myApplications.map((item, index) => (
+                  <CandidateApplicationCard key={index} applicationData={item} />
+                )) : (
+                  <Card className="border-0 shadow-lg bg-white">
+                    <CardContent className="p-12 text-center">
+                      <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <FileText className="w-10 h-10 text-white" />
+                      </div>
+                      <h3 className="text-xl font-semibold text-slate-600 mb-2">No applications yet</h3>
+                      <p className="text-slate-500 mb-4">Start applying to jobs to track your applications here</p>
+                      <Button onClick={() => setActiveTab('jobs')} className="bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700">
+                        Browse Jobs
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </TabsContent>
+
+            {/* Interviews */}
+            <TabsContent value="interviews" className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-3xl font-bold text-slate-800">My Interviews</h2>
+                <Badge className="bg-orange-100 text-orange-800 border-orange-200">
+                  {myInterviews.length} scheduled
+                </Badge>
+              </div>
+
+              <div className="grid gap-6">
+                {myInterviews.length > 0 ? myInterviews.map((item, index) => (
+                  <InterviewCard key={index} interviewData={item} />
+                )) : (
+                  <Card className="border-0 shadow-lg bg-white">
+                    <CardContent className="p-12 text-center">
+                      <div className="w-20 h-20 bg-gradient-to-r from-orange-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <Calendar className="w-10 h-10 text-white" />
+                      </div>
+                      <h3 className="text-xl font-semibold text-slate-600 mb-2">No interviews scheduled</h3>
+                      <p className="text-slate-500 mb-4">Interviews will appear here once companies schedule them</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </TabsContent>
+
+            {/* Profile */}
+            <TabsContent value="profile" className="space-y-6">
+              <CandidateProfile user={user} />
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Candidate Job Card Component
+const CandidateJobCard = ({ jobData, onApply }) => {
+  const [showApplyDialog, setShowApplyDialog] = useState(false);
+  const [coverLetter, setCoverLetter] = useState('');
+  const { job, company, has_applied } = jobData;
+
+  const handleApply = () => {
+    onApply(job.id, coverLetter);
+    setShowApplyDialog(false);
+    setCoverLetter('');
+  };
+
+  const getSalaryRange = () => {
+    if (job.salary_min && job.salary_max) {
+      return `$${job.salary_min.toLocaleString()} - $${job.salary_max.toLocaleString()}`;
+    }
+    return 'Salary not specified';
+  };
+
+  return (
+    <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white group">
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1">
+            <div className="flex items-center space-x-3 mb-2">
+              <h3 className="text-xl font-semibold text-slate-800 group-hover:text-teal-700 transition-colors">{job.title}</h3>
+              {company && (
+                <Badge variant="outline" className="bg-teal-50 text-teal-700 border-teal-200">
+                  {company.name}
+                </Badge>
+              )}
+            </div>
+            
+            <div className="flex items-center space-x-4 text-sm text-slate-600 mb-3">
+              <div className="flex items-center space-x-1">
+                <MapPin className="w-4 h-4" />
+                <span>{job.location}</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <DollarSign className="w-4 h-4" />
+                <span>{getSalaryRange()}</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <Briefcase className="w-4 h-4" />
+                <span>{job.job_type}</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <Star className="w-4 h-4" />
+                <span>{job.experience_level}</span>
+              </div>
+            </div>
+          </div>
+
+          {has_applied ? (
+            <Badge className="bg-green-100 text-green-800 border-green-200">
+              <CheckCircle className="w-3 h-3 mr-1" />
+              Applied
+            </Badge>
+          ) : (
+            <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+              Open
+            </Badge>
+          )}
+        </div>
+
+        <p className="text-slate-600 mb-4 line-clamp-3">{job.description}</p>
+
+        <div className="mb-4">
+          <h4 className="font-medium text-slate-800 mb-2">Required Skills:</h4>
+          <div className="flex flex-wrap gap-2">
+            {job.skills?.map((skill, index) => (
+              <Badge key={index} variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                {skill}
+              </Badge>
+            ))}
+          </div>
+        </div>
+
+        {!has_applied && (
+          <Dialog open={showApplyDialog} onOpenChange={setShowApplyDialog}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-to-r from-teal-600 to-purple-600 hover:from-teal-700 hover:to-purple-700 text-white w-full">
+                <Send className="w-4 h-4 mr-2" />
+                Apply Now
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Apply for {job.title}</DialogTitle>
+                <DialogDescription>
+                  Submit your application to {company?.name || 'this company'}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="cover-letter">Cover Letter</Label>
+                  <Textarea
+                    id="cover-letter"
+                    placeholder="Write a compelling cover letter for this position..."
+                    value={coverLetter}
+                    onChange={(e) => setCoverLetter(e.target.value)}
+                    rows={6}
+                    className="mt-1"
+                  />
+                </div>
+                <div className="flex space-x-3">
+                  <Button onClick={handleApply} className="bg-gradient-to-r from-teal-600 to-purple-600 hover:from-teal-700 hover:to-purple-700 flex-1">
+                    Submit Application
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowApplyDialog(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// Candidate Application Card Component
+const CandidateApplicationCard = ({ applicationData }) => {
+  const { application, job, company } = applicationData;
+
+  const getStageColor = (stage) => {
+    switch (stage) {
+      case 'new': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'screening': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'phone_screen': return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'technical_interview': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'final_interview': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+      case 'offer': return 'bg-green-100 text-green-800 border-green-200';
+      case 'hired': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+      case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const formatStage = (stage) => {
+    return stage.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  if (!job || !company) return null;
+
+  return (
+    <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white group">
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-slate-800 group-hover:text-purple-700 transition-colors mb-1">
+              {job.title}
+            </h3>
+            <p className="text-slate-600 mb-2">{company.name}</p>
+            <p className="text-sm text-slate-500">
+              Applied on {new Date(application.applied_date).toLocaleDateString()}
+            </p>
+          </div>
+          
+          <Badge className={`${getStageColor(application.stage)} border font-medium`}>
+            {formatStage(application.stage)}
+          </Badge>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4 mb-4 text-sm text-slate-600">
+          <div className="flex items-center space-x-1">
+            <MapPin className="w-4 h-4" />
+            <span>{job.location}</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <Briefcase className="w-4 h-4" />
+            <span>{job.job_type}</span>
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <Label className="text-sm font-medium text-slate-700">Cover Letter:</Label>
+          <p className="text-slate-600 text-sm mt-1 bg-slate-50 p-3 rounded-lg">
+            {application.cover_letter}
+          </p>
+        </div>
+
+        <div className="flex space-x-3">
+          <Button variant="outline" size="sm" className="border-purple-300 text-purple-700 hover:bg-purple-50">
+            <Eye className="w-4 h-4 mr-2" />
+            View Details
+          </Button>
+          {application.stage === 'offer' && (
+            <Button size="sm" className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white">
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Accept Offer
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+// Interview Card Component
+const InterviewCard = ({ interviewData }) => {
+  const { interview, application, job, company } = interviewData;
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'scheduled': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'in_progress': return 'bg-green-100 text-green-800 border-green-200';
+      case 'completed': return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
+      case 'no_show': return 'bg-orange-100 text-orange-800 border-orange-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const getInterviewTypeIcon = (type) => {
+    switch (type) {
+      case 'video': return <Video className="w-4 h-4" />;
+      case 'phone': return <Phone className="w-4 h-4" />;
+      case 'onsite': return <Building2 className="w-4 h-4" />;
+      default: return <Calendar className="w-4 h-4" />;
+    }
+  };
+
+  if (!job || !company) return null;
+
+  const interviewDate = new Date(interview.scheduled_date);
+  const isUpcoming = interviewDate > new Date();
+
+  return (
+    <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white group">
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-slate-800 group-hover:text-orange-700 transition-colors mb-1">
+              {job.title} Interview
+            </h3>
+            <p className="text-slate-600 mb-2">{company.name}</p>
+            <div className="flex items-center space-x-4 text-sm text-slate-500">
+              <div className="flex items-center space-x-1">
+                <Calendar className="w-4 h-4" />
+                <span>{interviewDate.toLocaleDateString()}</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <Clock className="w-4 h-4" />
+                <span>{interviewDate.toLocaleTimeString()}</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                {getInterviewTypeIcon(interview.interview_type)}
+                <span className="capitalize">{interview.interview_type}</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <span>{interview.duration_minutes} minutes</span>
+              </div>
+            </div>
+          </div>
+          
+          <Badge className={`${getStatusColor(interview.status)} border font-medium`}>
+            {interview.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+          </Badge>
+        </div>
+
+        {interview.meeting_link && (
+          <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <Label className="text-sm font-medium text-blue-800">Meeting Link:</Label>
+            <a 
+              href={interview.meeting_link} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 text-sm block mt-1 underline"
+            >
+              {interview.meeting_link}
+            </a>
+          </div>
+        )}
+
+        <div className="flex space-x-3">
+          {isUpcoming && interview.status === 'scheduled' && (
+            <Button className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white">
+              <Video className="w-4 h-4 mr-2" />
+              Join Interview
+            </Button>
+          )}
+          <Button variant="outline" size="sm" className="border-orange-300 text-orange-700 hover:bg-orange-50">
+            <Calendar className="w-4 h-4 mr-2" />
+            Add to Calendar
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+// Candidate Profile Component
+const CandidateProfile = ({ user }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [profileData, setProfileData] = useState(user || {});
+
+  const handleSave = async () => {
+    try {
+      await axios.put(`${API}/candidates/profile`, profileData);
+      alert('Profile updated successfully!');
+      setIsEditing(false);
+    } catch (error) {
+      alert('Failed to update profile: ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-3xl font-bold text-slate-800">My Profile</h2>
+        <Button
+          onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+          className="bg-gradient-to-r from-teal-600 to-purple-600 hover:from-teal-700 hover:to-purple-700 text-white"
+        >
+          {isEditing ? (
+            <>
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Save Changes
+            </>
+          ) : (
+            <>
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Profile
+            </>
+          )}
+        </Button>
+      </div>
+
+      {/* Verification Status */}
+      <Card className="border-0 shadow-lg bg-white">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Verified className="w-5 h-5 text-teal-600" />
+            <span>Verification Status</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
+              <div className="flex items-center space-x-3">
+                <Mail className="w-5 h-5 text-green-600" />
+                <div>
+                  <p className="font-medium text-green-800">Email</p>
+                  <p className="text-sm text-green-600">{user?.email}</p>
+                </div>
+              </div>
+              {user?.is_email_verified ? (
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              ) : (
+                <Button size="sm" variant="outline" className="border-green-300 text-green-700">
+                  Verify
+                </Button>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center space-x-3">
+                <Phone className="w-5 h-5 text-blue-600" />
+                <div>
+                  <p className="font-medium text-blue-800">Phone</p>
+                  <p className="text-sm text-blue-600">{user?.phone}</p>
+                </div>
+              </div>
+              {user?.is_phone_verified ? (
+                <CheckCircle className="w-5 h-5 text-blue-600" />
+              ) : (
+                <Button size="sm" variant="outline" className="border-blue-300 text-blue-700">
+                  Verify
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Profile Information */}
+      <Card className="border-0 shadow-lg bg-white">
+        <CardHeader>
+          <CardTitle>Profile Information</CardTitle>
+          <CardDescription>Keep your profile up-to-date to attract the right opportunities</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="full_name">Full Name</Label>
+              <Input
+                id="full_name"
+                value={profileData.full_name || ''}
+                onChange={(e) => setProfileData({...profileData, full_name: e.target.value})}
+                disabled={!isEditing}
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="current_title">Current Title</Label>
+              <Input
+                id="current_title"
+                value={profileData.current_title || ''}
+                onChange={(e) => setProfileData({...profileData, current_title: e.target.value})}
+                disabled={!isEditing}
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="current_company">Current Company</Label>
+              <Input
+                id="current_company"
+                value={profileData.current_company || ''}
+                onChange={(e) => setProfileData({...profileData, current_company: e.target.value})}
+                disabled={!isEditing}
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="location">Location</Label>
+              <Input
+                id="location"
+                value={profileData.location || ''}
+                onChange={(e) => setProfileData({...profileData, location: e.target.value})}
+                disabled={!isEditing}
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="experience_years">Years of Experience</Label>
+              <Input
+                id="experience_years"
+                type="number"
+                value={profileData.experience_years || ''}
+                onChange={(e) => setProfileData({...profileData, experience_years: e.target.value})}
+                disabled={!isEditing}
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="expected_salary">Expected Salary</Label>
+              <Input
+                id="expected_salary"
+                type="number"
+                value={profileData.expected_salary || ''}
+                onChange={(e) => setProfileData({...profileData, expected_salary: e.target.value})}
+                disabled={!isEditing}
+                className="mt-1"
+                placeholder="120000"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="bio">Professional Bio</Label>
+            <Textarea
+              id="bio"
+              value={profileData.bio || ''}
+              onChange={(e) => setProfileData({...profileData, bio: e.target.value})}
+              disabled={!isEditing}
+              className="mt-1"
+              rows={4}
+              placeholder="Tell employers about your professional background and goals..."
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="skills">Skills</Label>
+            <Input
+              id="skills"
+              value={Array.isArray(profileData.skills) ? profileData.skills.join(', ') : ''}
+              onChange={(e) => setProfileData({...profileData, skills: e.target.value.split(',').map(s => s.trim())})}
+              disabled={!isEditing}
+              className="mt-1"
+              placeholder="React, Python, JavaScript, Node.js"
+            />
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="linkedin_url">LinkedIn URL</Label>
+              <Input
+                id="linkedin_url"
+                type="url"
+                value={profileData.linkedin_url || ''}
+                onChange={(e) => setProfileData({...profileData, linkedin_url: e.target.value})}
+                disabled={!isEditing}
+                className="mt-1"
+                placeholder="https://linkedin.com/in/yourprofile"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="portfolio_url">Portfolio URL</Label>
+              <Input
+                id="portfolio_url"
+                type="url"
+                value={profileData.portfolio_url || ''}
+                onChange={(e) => setProfileData({...profileData, portfolio_url: e.target.value})}
+                disabled={!isEditing}
+                className="mt-1"
+                placeholder="https://yourportfolio.com"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
   const [activeTab, setActiveTab] = useState('dashboard');
   const [analytics, setAnalytics] = useState({});
   const [jobs, setJobs] = useState([]);
