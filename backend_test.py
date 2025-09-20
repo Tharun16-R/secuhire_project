@@ -283,9 +283,8 @@ class ATSBackendTester:
         success, response = self.run_test(
             "Update Application Stage",
             "PUT",
-            f"/applications/{application_id}/stage",
-            200,
-            data={"stage": "screening"}
+            f"/applications/{application_id}/stage?stage=screening",
+            200
         )
         return success
 
