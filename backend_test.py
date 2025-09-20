@@ -338,17 +338,14 @@ class SecuHireBackendTester:
             return False
             
         job_id = self.created_ids['jobs'][0]
-        application_data = {
-            "job_id": job_id,
-            "cover_letter": "I am very interested in this security engineer position. My experience in cybersecurity and Python development makes me a great fit for this role."
-        }
+        cover_letter = "I am very interested in this security engineer position. My experience in cybersecurity and Python development makes me a great fit for this role."
         
+        # Use query parameters for application
         success, response = self.run_test(
             "Apply for Job",
             "POST",
-            "/candidates/applications",
+            f"/candidates/applications?job_id={job_id}&cover_letter={cover_letter}",
             200,
-            data=application_data,
             token=self.candidate_token
         )
         
