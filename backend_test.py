@@ -14,6 +14,8 @@ class SecuHireBackendTester:
         self.candidate_id = None
         self.recruiter_id = None
         self.company_id = None
+        self.email_verification_code = None
+        self.phone_otp = None
         self.tests_run = 0
         self.tests_passed = 0
         self.failed_tests = []
