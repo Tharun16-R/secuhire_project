@@ -1900,17 +1900,80 @@ const SecureInterviewSession = ({ interview, onEndInterview }) => {
   const checkUnauthorizedApps = () => {
     // Monitor for suspicious browser behavior
     if (navigator.webdriver) {
-      logSecurityViolation('Automated browser detected');
-      showCriticalSecurityAlert('Automated browser tools are not allowed during interviews');
+      logSecurityViolation('Automated browser detected - potential cheating attempt');
+      showCriticalSecurityAlert('Automated browser tools are STRICTLY PROHIBITED during interviews');
     }
 
-    // Check for DevTools
+    // Enhanced DevTools detection
     const widthThreshold = window.outerWidth - window.innerWidth > 160;
     const heightThreshold = window.outerHeight - window.innerHeight > 160;
     
     if (widthThreshold || heightThreshold) {
-      logSecurityViolation('Developer tools possibly open');
-      showSecurityWarning('Please close any developer tools or browser extensions');
+      logSecurityViolation('Developer tools possibly open - unauthorized resource access detected');
+      showCriticalSecurityAlert('Developer tools detected! Close all developer tools immediately.');
+    }
+
+    // Check for console access
+    let consoleBlocked = false;
+    const originalConsole = console.log;
+    console.log = function() {
+      consoleBlocked = true;
+      logSecurityViolation('Console access attempt detected');
+      showSecurityWarning('Console access is monitored and blocked during interviews');
+      return originalConsole.apply(console, arguments);
+    };
+
+    // Check for debugging tools
+    let debuggerDetected = false;
+    const debuggerCheck = setInterval(() => {
+      const start = performance.now();
+      debugger; // eslint-disable-line no-debugger
+      const end = performance.now();
+      if (end - start > 100) {
+        debuggerDetected = true;
+        logSecurityViolation('Debugger detected - unauthorized development tool access');
+        showCriticalSecurityAlert('Debugging tools detected! This is a serious security violation.');
+        clearInterval(debuggerCheck);
+      }
+    }), 1000);
+
+    // Check for browser extensions
+    if (window.chrome && window.chrome.runtime && window.chrome.runtime.onConnect) {
+      logSecurityViolation('Browser extensions may be interfering with security');
+      showSecurityWarning('Disable all browser extensions before interviews');
+    }
+
+    // Check for screen recording software indicators
+    if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
+      navigator.mediaDevices.getDisplayMedia({video: true})
+        .then(() => {
+          logSecurityViolation('Potential screen recording software detected');
+          showSecurityWarning('External screen recording is not allowed during interviews');
+        })
+        .catch(() => {
+          // Expected when no screen recording is active
+        });
+    }
+
+    // Monitor clipboard access
+    if (navigator.clipboard) {
+      const originalRead = navigator.clipboard.readText;
+      navigator.clipboard.readText = function() {
+        logSecurityViolation('Clipboard read attempt blocked');
+        showSecurityWarning('Clipboard access is restricted during interviews');
+        return Promise.reject('Clipboard access denied');
+      };
+    }
+
+    // Check for virtual machines
+    const isVM = navigator.userAgent.includes('VMware') || 
+                 navigator.userAgent.includes('VirtualBox') ||
+                 navigator.userAgent.includes('QEMU') ||
+                 screen.width === 1024 && screen.height === 768; // Common VM resolution
+    
+    if (isVM) {
+      logSecurityViolation('Virtual machine environment detected');
+      showSecurityWarning('Virtual machine usage should be disclosed to interview organizers');
     }
   };
 
