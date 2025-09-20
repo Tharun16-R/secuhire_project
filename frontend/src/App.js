@@ -81,7 +81,7 @@ const AuthProvider = ({ children }) => {
   );
 };
 
-// Landing Page for SecuHire ATS
+// Landing Page for SecuHire with Dual Options
 const LandingPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-teal-50">
@@ -98,8 +98,8 @@ const LandingPage = () => {
           <div className="flex items-center space-x-4">
             <Button variant="ghost" className="text-slate-600 hover:text-purple-600 hover:bg-purple-50">Features</Button>
             <Button variant="ghost" className="text-slate-600 hover:text-teal-600 hover:bg-teal-50">Pricing</Button>
-            <Button variant="outline" className="border-purple-300 text-purple-700 hover:bg-purple-50" onClick={() => window.location.href = '/auth'}>Login</Button>
-            <Button className="bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white shadow-lg" onClick={() => window.location.href = '/auth'}>Start Free Trial</Button>
+            <Button variant="outline" className="border-purple-300 text-purple-700 hover:bg-purple-50" onClick={() => window.location.href = '/auth?type=recruiter'}>Recruiter Login</Button>
+            <Button variant="outline" className="border-teal-300 text-teal-700 hover:bg-teal-50" onClick={() => window.location.href = '/auth?type=candidate'}>Candidate Login</Button>
           </div>
         </div>
       </header>
@@ -112,25 +112,26 @@ const LandingPage = () => {
               <div>
                 <div className="inline-flex items-center space-x-2 bg-gradient-to-r from-purple-100 to-teal-100 text-purple-700 px-4 py-2 rounded-full text-sm font-medium mb-6">
                   <Zap className="w-4 h-4" />
-                  <span>AI-Powered Recruiting Platform</span>
+                  <span>AI-Powered Secure Hiring Platform</span>
                 </div>
                 <h2 className="text-5xl font-bold text-slate-800 leading-tight mb-6">
                   Secure & Intelligent
-                  <span className="bg-gradient-to-r from-purple-600 via-teal-600 to-orange-500 bg-clip-text text-transparent block">ATS + CRM Platform</span>
+                  <span className="bg-gradient-to-r from-purple-600 via-teal-600 to-orange-500 bg-clip-text text-transparent block">Hiring Platform</span>
                 </h2>
                 <p className="text-xl text-slate-600 leading-relaxed">
-                  Transform your hiring process with advanced security, AI-powered insights, and comprehensive candidate management. 
-                  From secure interviews to data-driven hiring decisions.
+                  Connect talented candidates with innovative companies through our secure platform. 
+                  Advanced verification, AI-powered matching, and streamlined hiring process.
                 </p>
               </div>
               
-              <div className="flex items-center space-x-6">
-                <Button size="lg" className="bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white px-8 py-4 shadow-xl" onClick={() => window.location.href = '/auth'}>
-                  Start Secure Hiring
-                  <ChevronRight className="w-5 h-5 ml-2" />
+              <div className="grid md:grid-cols-2 gap-4">
+                <Button size="lg" className="bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white px-8 py-4 shadow-xl" onClick={() => window.location.href = '/auth?type=recruiter'}>
+                  <Building2 className="w-5 h-5 mr-2" />
+                  For Recruiters
                 </Button>
-                <Button variant="outline" size="lg" className="border-slate-300 text-slate-700 hover:bg-slate-50 px-8 py-4">
-                  Watch Demo
+                <Button size="lg" className="bg-gradient-to-r from-teal-600 to-orange-500 hover:from-teal-700 hover:to-orange-600 text-white px-8 py-4 shadow-xl" onClick={() => window.location.href = '/auth?type=candidate'}>
+                  <User className="w-5 h-5 mr-2" />
+                  For Candidates
                 </Button>
               </div>
 
@@ -139,13 +140,13 @@ const LandingPage = () => {
                   <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
                     <Shield className="w-4 h-4 text-white" />
                   </div>
-                  <span className="text-sm text-slate-600 font-medium">Enterprise Security</span>
+                  <span className="text-sm text-slate-600 font-medium">Secure Verification</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="w-8 h-8 bg-gradient-to-r from-teal-500 to-teal-600 rounded-lg flex items-center justify-center">
                     <Brain className="w-4 h-4 text-white" />
                   </div>
-                  <span className="text-sm text-slate-600 font-medium">AI-Powered Analytics</span>
+                  <span className="text-sm text-slate-600 font-medium">AI-Powered Matching</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-pink-500 rounded-lg flex items-center justify-center">
@@ -168,52 +169,114 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Dual Features Section */}
       <section className="py-20 px-6 bg-gradient-to-r from-slate-50 to-purple-50/30">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h3 className="text-4xl font-bold text-slate-800 mb-4">Comprehensive Recruiting Solutions</h3>
+            <h3 className="text-4xl font-bold text-slate-800 mb-4">For Every Step of Your Career Journey</h3>
             <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-              Advanced ATS and CRM capabilities with enterprise-grade security and AI-powered insights
+              Whether you're hiring talent or seeking opportunities, SecuHire provides the tools you need
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <Card className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-white to-purple-50/50 group hover:scale-105">
-              <CardHeader className="text-center pb-4">
-                <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                  <Briefcase className="w-8 h-8 text-white" />
+          <div className="grid lg:grid-cols-2 gap-12">
+            {/* For Recruiters */}
+            <div className="space-y-6">
+              <div className="text-center mb-8">
+                <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Building2 className="w-8 h-8 text-white" />
                 </div>
-                <CardTitle className="text-xl text-slate-800">Smart Job Management</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-600 text-center">AI-assisted job creation, intelligent matching, and automated publishing with advanced analytics</p>
-              </CardContent>
-            </Card>
+                <h4 className="text-2xl font-bold text-slate-800 mb-2">For Recruiters</h4>
+                <p className="text-slate-600">Complete ATS & CRM solution for modern hiring teams</p>
+              </div>
 
-            <Card className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-white to-teal-50/50 group hover:scale-105">
-              <CardHeader className="text-center pb-4">
-                <div className="w-16 h-16 bg-gradient-to-r from-teal-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                  <Users className="w-8 h-8 text-white" />
-                </div>
-                <CardTitle className="text-xl text-slate-800">Secure Candidate Hub</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-600 text-center">Advanced resume parsing, secure data storage, and AI-powered candidate insights with fraud detection</p>
-              </CardContent>
-            </Card>
+              <div className="space-y-4">
+                <Card className="border-0 shadow-lg bg-white group hover:shadow-xl transition-all">
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-3">
+                      <Briefcase className="w-6 h-6 text-purple-600" />
+                      <div>
+                        <h5 className="font-semibold text-slate-800">Smart Job Management</h5>
+                        <p className="text-sm text-slate-600">AI-assisted job creation and publishing</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-            <Card className="border-0 shadow-xl hover:shadow-2xl transition-all duration-300 bg-gradient-to-br from-white to-orange-50/50 group hover:scale-105">
-              <CardHeader className="text-center pb-4">
-                <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                  <Target className="w-8 h-8 text-white" />
+                <Card className="border-0 shadow-lg bg-white group hover:shadow-xl transition-all">
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-3">
+                      <Users className="w-6 h-6 text-purple-600" />
+                      <div>
+                        <h5 className="font-semibold text-slate-800">Candidate Database</h5>
+                        <p className="text-sm text-slate-600">Verified profiles with skill matching</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-0 shadow-lg bg-white group hover:shadow-xl transition-all">
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-3">
+                      <BarChart3 className="w-6 h-6 text-purple-600" />
+                      <div>
+                        <h5 className="font-semibold text-slate-800">Analytics Dashboard</h5>
+                        <p className="text-sm text-slate-600">Hiring metrics and pipeline insights</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            {/* For Candidates */}
+            <div className="space-y-6">
+              <div className="text-center mb-8">
+                <div className="w-16 h-16 bg-gradient-to-r from-teal-500 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <User className="w-8 h-8 text-white" />
                 </div>
-                <CardTitle className="text-xl text-slate-800">Intelligent Pipeline</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-600 text-center">AI-driven pipeline optimization with automated stage transitions and predictive hiring analytics</p>
-              </CardContent>
-            </Card>
+                <h4 className="text-2xl font-bold text-slate-800 mb-2">For Candidates</h4>
+                <p className="text-slate-600">Secure platform to find and apply for dream jobs</p>
+              </div>
+
+              <div className="space-y-4">
+                <Card className="border-0 shadow-lg bg-white group hover:shadow-xl transition-all">
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-3">
+                      <Search className="w-6 h-6 text-teal-600" />
+                      <div>
+                        <h5 className="font-semibold text-slate-800">Job Discovery</h5>
+                        <p className="text-sm text-slate-600">Find relevant opportunities with smart matching</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-0 shadow-lg bg-white group hover:shadow-xl transition-all">
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-3">
+                      <Verified className="w-6 h-6 text-teal-600" />
+                      <div>
+                        <h5 className="font-semibold text-slate-800">Secure Verification</h5>
+                        <p className="text-sm text-slate-600">Email and phone verification for authenticity</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-0 shadow-lg bg-white group hover:shadow-xl transition-all">
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-3">
+                      <Video className="w-6 h-6 text-teal-600" />
+                      <div>
+                        <h5 className="font-semibold text-slate-800">Secure Interviews</h5>
+                        <p className="text-sm text-slate-600">AI-monitored interviews with fraud detection</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -224,14 +287,18 @@ const LandingPage = () => {
           <div className="bg-gradient-to-r from-purple-600 via-teal-600 to-orange-500 rounded-3xl p-12 text-white relative overflow-hidden">
             <div className="absolute inset-0 bg-black/20 rounded-3xl"></div>
             <div className="relative">
-              <h3 className="text-4xl font-bold mb-6">Ready to Secure Your Hiring Future?</h3>
+              <h3 className="text-4xl font-bold mb-6">Ready to Transform Your Career?</h3>
               <p className="text-xl text-purple-100 mb-8">
-                Join innovative companies using SecuHire to build world-class teams with confidence and security.
+                Join thousands of professionals and companies using SecuHire for secure, efficient hiring.
               </p>
-              <Button size="lg" className="bg-white text-purple-600 hover:bg-purple-50 px-12 py-4 text-lg font-semibold shadow-xl" onClick={() => window.location.href = '/auth'}>
-                Start Your Journey Today
-                <ChevronRight className="w-5 h-5 ml-2" />
-              </Button>
+              <div className="flex justify-center space-x-4">
+                <Button size="lg" className="bg-white text-purple-600 hover:bg-purple-50 px-8 py-4 text-lg font-semibold shadow-xl" onClick={() => window.location.href = '/auth?type=recruiter'}>
+                  Start Hiring
+                </Button>
+                <Button size="lg" className="bg-purple-800 text-white hover:bg-purple-900 px-8 py-4 text-lg font-semibold shadow-xl" onClick={() => window.location.href = '/auth?type=candidate'}>
+                  Find Jobs
+                </Button>
+              </div>
             </div>
           </div>
         </div>
