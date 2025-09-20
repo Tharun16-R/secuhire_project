@@ -1668,6 +1668,68 @@ const SecureInterviewSession = ({ interview, onEndInterview }) => {
     return false;
   };
 
+  const preventCut = (e) => {
+    e.preventDefault();
+    logSecurityViolation('Cut attempt blocked');
+    showSecurityWarning('Cut function is disabled during interview');
+    return false;
+  };
+
+  const preventDrag = (e) => {
+    e.preventDefault();
+    logSecurityViolation('Drag attempt blocked');
+    return false;
+  };
+
+  const handleMouseLeave = () => {
+    logSecurityViolation('Mouse left window boundary');
+    showSecurityWarning('Please keep your mouse within the interview window');
+  };
+
+  const handleMouseEnter = () => {
+    logSecurityEvent('Mouse returned to window');
+  };
+
+  const handleUnload = () => {
+    logSecurityViolation('Page unload detected');
+  };
+
+  const blockDevTools = (e) => {
+    if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C'))) {
+      e.preventDefault();
+      logSecurityViolation('Developer tools access attempt blocked');
+      showSecurityWarning('Developer tools are not allowed during interview');
+      return false;
+    }
+  };
+
+  const preventPrintScreen = (e) => {
+    if (e.key === 'PrintScreen' || e.key === 'Print') {
+      e.preventDefault();
+      logSecurityViolation('Print screen attempt blocked');
+      showSecurityWarning('Screenshots are not allowed during interview');
+      return false;
+    }
+  };
+
+  const preventZoom = (e) => {
+    if (e.ctrlKey) {
+      e.preventDefault();
+      logSecurityViolation('Zoom attempt blocked');
+      showSecurityWarning('Zoom function is disabled during interview');
+      return false;
+    }
+  };
+
+  const preventZoomKeys = (e) => {
+    if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
+      e.preventDefault();
+      logSecurityViolation('Keyboard zoom attempt blocked');
+      showSecurityWarning('Zoom controls are disabled during interview');
+      return false;
+    }
+  };
+
   const handleWindowBlur = () => {
     logSecurityViolation('Window lost focus - possible tab switch');
     setTabSwitchCount(prev => prev + 1);
