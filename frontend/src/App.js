@@ -1747,39 +1747,64 @@ const SecureInterviewSession = ({ interview, onEndInterview }) => {
   };
 
   const handleWindowBlur = () => {
-    logSecurityViolation('Window lost focus - possible tab switch');
+    logSecurityViolation('Window lost focus - possible tab switch or application switch');
     setTabSwitchCount(prev => prev + 1);
     
+    // Immediate response to tab switching
     if (tabSwitchCount >= 2) {
-      showCriticalSecurityAlert('Multiple tab switches detected! Interview security compromised.');
-      // In production, this could auto-end the interview
+      showCriticalSecurityAlert('MULTIPLE TAB SWITCHES DETECTED! Interview security severely compromised. This incident has been recorded.');
+      // In production, this would auto-end the interview and notify the recruiter
+      setTimeout(() => {
+        if (window.confirm('Your interview session has been flagged for security violations. Continue at your own risk?')) {
+          logSecurityViolation('User acknowledged security violation and chose to continue');
+        }
+      }, 2000);
+    } else if (tabSwitchCount >= 1) {
+      showCriticalSecurityAlert('TAB SWITCHING DETECTED! Second violation will result in interview termination. Return focus immediately.');
     } else {
-      showSecurityWarning('Please keep this window focused during the interview');
+      showSecurityWarning('Please keep this window focused during the interview. Tab switching is monitored.');
     }
     
-    // Force window focus back
+    // Aggressive focus reclaim
     setTimeout(() => {
       window.focus();
+      if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+      }
     }, 100);
-  };
 
-  const handleWindowFocus = () => {
-    logSecurityEvent('Window regained focus');
-    setLastActivity(Date.now());
+    // Force click to activate window
+    setTimeout(() => {
+      document.body.click();
+    }, 200);
   };
 
   const handleVisibilityChange = () => {
     if (document.hidden) {
-      logSecurityViolation('Tab became hidden - possible tab switch');
+      logSecurityViolation('Tab became hidden - CRITICAL security violation detected');
       setTabSwitchCount(prev => prev + 1);
-      showSecurityWarning('Tab switching detected! Please return to the interview.');
       
-      // Force tab to become visible
-      if (document.hidden) {
+      // More aggressive response to tab hiding
+      showCriticalSecurityAlert('⚠️ TAB SWITCHING/HIDING DETECTED! This is a CRITICAL security violation. Return to interview immediately!');
+      
+      // Attempt to force tab visibility
+      setTimeout(() => {
         window.focus();
-      }
+        document.body.focus();
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen();
+        }
+      }, 50);
+
+      // Play warning sound (if allowed)
+      try {
+        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xyu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgC==');
+        audio.play().catch(() => {});
+      } catch (e) {}
+
     } else {
-      logSecurityEvent('Tab became visible again');
+      logSecurityEvent('Tab became visible again - monitoring resumed');
+      setLastActivity(Date.now());
     }
   };
 
