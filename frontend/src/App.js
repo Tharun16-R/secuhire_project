@@ -1584,11 +1584,27 @@ const SecureInterviewSession = ({ interview, onEndInterview }) => {
     document.removeEventListener('selectstart', preventSelection);
     document.removeEventListener('copy', preventCopy);
     document.removeEventListener('paste', preventPaste);
+    document.removeEventListener('cut', preventCut);
+    document.removeEventListener('drag', preventDrag);
+    document.removeEventListener('dragstart', preventDrag);
     window.removeEventListener('blur', handleWindowBlur);
     window.removeEventListener('focus', handleWindowFocus);
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     window.removeEventListener('beforeunload', handleBeforeUnload);
+    window.removeEventListener('unload', handleUnload);
     document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.removeEventListener('keypress', blockDevTools);
+    document.removeEventListener('mouseleave', handleMouseLeave);
+    document.removeEventListener('mouseenter', handleMouseEnter);
+    document.removeEventListener('keydown', preventPrintScreen);
+    document.removeEventListener('wheel', preventZoom);
+    document.removeEventListener('keydown', preventZoomKeys);
+
+    // Clean up security intervals
+    if (window.securityIntervals) {
+      window.securityIntervals.forEach(interval => clearInterval(interval));
+      window.securityIntervals = [];
+    }
 
     // Exit fullscreen
     if (document.fullscreenElement) {
@@ -1598,7 +1614,7 @@ const SecureInterviewSession = ({ interview, onEndInterview }) => {
     // Stop recording
     stopVideoRecording();
 
-    logSecurityEvent('Secure mode deactivated');
+    logSecurityEvent('Secure mode deactivated - all protections removed');
   };
 
   // SECURITY EVENT HANDLERS
