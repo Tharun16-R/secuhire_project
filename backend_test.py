@@ -99,10 +99,12 @@ class SecuHireBackendTester:
         if success and 'token' in response and 'user' in response:
             self.candidate_token = response['token']
             self.candidate_id = response['user']['id']
+            self.email_verification_code = response.get('email_verification_code')
+            self.phone_otp = response.get('phone_otp')
             print(f"   Token: {self.candidate_token[:20]}...")
             print(f"   Candidate ID: {self.candidate_id}")
-            print(f"   Email verification code: {response.get('email_verification_code', 'N/A')}")
-            print(f"   Phone OTP: {response.get('phone_otp', 'N/A')}")
+            print(f"   Email verification code: {self.email_verification_code}")
+            print(f"   Phone OTP: {self.phone_otp}")
             
             # Verify UUID format
             try:
