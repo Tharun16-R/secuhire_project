@@ -1935,7 +1935,7 @@ const SecureInterviewSession = ({ interview, onEndInterview }) => {
         showCriticalSecurityAlert('Debugging tools detected! This is a serious security violation.');
         clearInterval(debuggerCheck);
       }
-    }), 1000);
+    }, 1000);
 
     // Check for browser extensions
     if (window.chrome && window.chrome.runtime && window.chrome.runtime.onConnect) {
