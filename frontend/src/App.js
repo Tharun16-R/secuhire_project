@@ -1308,6 +1308,177 @@ const CandidateApplicationCard = ({ applicationData }) => {
   );
 };
 
+// Interview Card Component
+const InterviewCard = ({ interviewData }) => {
+  const [showSecureInterview, setShowSecureInterview] = useState(false);
+  const { interview, application, job, company } = interviewData;
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'scheduled': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'in_progress': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'completed': return 'bg-green-100 text-green-800 border-green-200';
+      case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
+      case 'no_show': return 'bg-gray-100 text-gray-800 border-gray-200';
+      default: return 'bg-slate-100 text-slate-800 border-slate-200';
+    }
+  };
+
+  const formatDateTime = (dateString) => {
+    const date = new Date(dateString);
+    return {
+      date: date.toLocaleDateString(),
+      time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+  };
+
+  const isInterviewTime = () => {
+    const now = new Date();
+    const interviewTime = new Date(interview.scheduled_date);
+    const timeDiff = interviewTime.getTime() - now.getTime();
+    // Allow joining 10 minutes before scheduled time
+    return timeDiff <= 10 * 60 * 1000 && timeDiff >= -interview.duration_minutes * 60 * 1000;
+  };
+
+  const timeUntilInterview = () => {
+    const now = new Date();
+    const interviewTime = new Date(interview.scheduled_date);
+    const timeDiff = interviewTime.getTime() - now.getTime();
+    
+    if (timeDiff < 0) return 'Interview time has passed';
+    
+    const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+    const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 24) {
+      const days = Math.floor(hours / 24);
+      return `In ${days} day${days > 1 ? 's' : ''}`;
+    } else if (hours > 0) {
+      return `In ${hours}h ${minutes}m`;
+    } else {
+      return `In ${minutes} minute${minutes > 1 ? 's' : ''}`;
+    }
+  };
+
+  const handleJoinInterview = () => {
+    if (interview.status === 'scheduled' && isInterviewTime()) {
+      setShowSecureInterview(true);
+    }
+  };
+
+  const handleEndInterview = () => {
+    setShowSecureInterview(false);
+    // In production, update interview status
+  };
+
+  if (showSecureInterview) {
+    return <SecureInterviewSession interview={interview} onEndInterview={handleEndInterview} />;
+  }
+
+  const { date, time } = formatDateTime(interview.scheduled_date);
+
+  return (
+    <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white group">
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1">
+            <div className="flex items-center space-x-3 mb-2">
+              <h3 className="text-lg font-semibold text-slate-800 group-hover:text-orange-700 transition-colors">
+                {interview.interview_type.charAt(0).toUpperCase() + interview.interview_type.slice(1)} Interview
+              </h3>
+              <Badge className={`${getStatusColor(interview.status)} border font-medium`}>
+                {interview.status.replace('_', ' ').toUpperCase()}
+              </Badge>
+            </div>
+            
+            {job && (
+              <h4 className="text-md font-medium text-slate-700 mb-1">{job.title}</h4>
+            )}
+            {company && (
+              <p className="text-slate-600 mb-2">{company.name}</p>
+            )}
+          </div>
+          
+          <div className="text-right">
+            <div className="text-sm text-slate-500 mb-1">
+              {timeUntilInterview()}
+            </div>
+            {isInterviewTime() && interview.status === 'scheduled' && (
+              <Badge className="bg-green-100 text-green-800 border-green-200 animate-pulse">
+                <Video className="w-3 h-3 mr-1" />
+                Ready to Join
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-4 mb-4">
+          <div className="flex items-center space-x-2 text-sm text-slate-600">
+            <Calendar className="w-4 h-4" />
+            <span>{date}</span>
+          </div>
+          <div className="flex items-center space-x-2 text-sm text-slate-600">
+            <Clock className="w-4 h-4" />
+            <span>{time}</span>
+          </div>
+          <div className="flex items-center space-x-2 text-sm text-slate-600">
+            <Timer className="w-4 h-4" />
+            <span>{interview.duration_minutes} minutes</span>
+          </div>
+        </div>
+
+        {interview.meeting_link && (
+          <div className="mb-4 p-3 bg-slate-50 rounded-lg">
+            <Label className="text-sm font-medium text-slate-700">Meeting Link:</Label>
+            <p className="text-sm text-slate-600 mt-1 truncate">{interview.meeting_link}</p>
+          </div>
+        )}
+
+        <div className="flex space-x-3">
+          {interview.status === 'scheduled' && isInterviewTime() && (
+            <Button 
+              onClick={handleJoinInterview}
+              className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white flex items-center space-x-2"
+            >
+              <Shield className="w-4 h-4" />
+              <span>Join Secure Interview</span>
+            </Button>
+          )}
+          
+          {interview.meeting_link && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="border-orange-300 text-orange-700 hover:bg-orange-50"
+              onClick={() => window.open(interview.meeting_link, '_blank')}
+            >
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Open Meeting Link
+            </Button>
+          )}
+
+          <Button variant="outline" size="sm" className="border-slate-300 text-slate-700 hover:bg-slate-50">
+            <Eye className="w-4 h-4 mr-2" />
+            View Details
+          </Button>
+        </div>
+
+        {interview.status === 'scheduled' && !isInterviewTime() && (
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center space-x-2 text-blue-800">
+              <Shield className="w-4 h-4" />
+              <span className="text-sm font-medium">Security Notice</span>
+            </div>
+            <p className="text-sm text-blue-700 mt-1">
+              This interview will use advanced security monitoring including camera recording, screen monitoring, and tab switching prevention.
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 // Secure Interview Component with Full Security Monitoring
 const SecureInterviewSession = ({ interview, onEndInterview }) => {
   const videoRef = useRef(null);
