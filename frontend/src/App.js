@@ -47,6 +47,7 @@ const AuthProvider = ({ children }) => {
   }, [token]);
 
   const login = (recruiterData, companyData, userToken) => {
+    console.log('Login called with:', { recruiterData, companyData, userToken });
     setRecruiter(recruiterData);
     setCompany(companyData);
     setToken(userToken);
