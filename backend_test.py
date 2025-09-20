@@ -158,18 +158,12 @@ class SecuHireBackendTester:
             print("❌ No candidate ID available for email verification test")
             return False
             
-        # Get verification code from registration response (in production this would be sent via email)
-        verification_data = {
-            "user_id": self.candidate_id,
-            "verification_code": "123456"  # This would be the actual code in production
-        }
-        
+        # Use query parameters for verification
         success, response = self.run_test(
             "Email Verification",
             "POST",
-            "/candidates/verify-email",
-            200,
-            data=verification_data
+            f"/candidates/verify-email?user_id={self.candidate_id}&verification_code=123456",
+            200
         )
         
         return success
