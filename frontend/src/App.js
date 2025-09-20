@@ -1619,12 +1619,15 @@ const CandidateProfile = ({ user }) => {
     </div>
   );
 };
+
+// Main ATS Dashboard
+const ATSDashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [analytics, setAnalytics] = useState({});
   const [jobs, setJobs] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [applications, setApplications] = useState([]);
-  const { recruiter, company, logout } = useAuth();
+  const { user, company, logout } = useAuth();
 
   useEffect(() => {
     fetchDashboardData();
