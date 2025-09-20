@@ -2,54 +2,63 @@ import requests
 import sys
 import json
 from datetime import datetime
+import time
 
-class SecuHireAPITester:
-    def __init__(self, base_url="https://interview-shield.preview.emergentagent.com/api"):
+class ATSBackendTester:
+    def __init__(self, base_url="https://interview-shield.preview.emergentagent.com"):
         self.base_url = base_url
+        self.api_url = f"{base_url}/api"
         self.token = None
-        self.user_id = None
+        self.recruiter_id = None
+        self.company_id = None
         self.tests_run = 0
         self.tests_passed = 0
-        self.test_user_email = f"test.candidate.{datetime.now().strftime('%H%M%S')}@example.com"
+        self.created_ids = {
+            'jobs': [],
+            'candidates': [],
+            'applications': []
+        }
 
-    def run_test(self, name, method, endpoint, expected_status, data=None, params=None):
+    def run_test(self, name, method, endpoint, expected_status, data=None, files=None):
         """Run a single API test"""
-        url = f"{self.base_url}{endpoint}"
+        url = f"{self.api_url}{endpoint}"
         headers = {'Content-Type': 'application/json'}
         if self.token:
             headers['Authorization'] = f'Bearer {self.token}'
 
         self.tests_run += 1
         print(f"\n🔍 Testing {name}...")
-        print(f"   URL: {url}")
+        print(f"   URL: {method} {url}")
         
         try:
             if method == 'GET':
-                response = requests.get(url, headers=headers, params=params)
+                response = requests.get(url, headers=headers)
             elif method == 'POST':
-                response = requests.post(url, json=data, headers=headers, params=params)
+                if files:
+                    # Remove Content-Type for file uploads
+                    headers.pop('Content-Type', None)
+                    response = requests.post(url, data=data, files=files, headers=headers)
+                else:
+                    response = requests.post(url, json=data, headers=headers)
             elif method == 'PUT':
                 response = requests.put(url, json=data, headers=headers)
-            elif method == 'DELETE':
-                response = requests.delete(url, headers=headers)
 
-            print(f"   Status Code: {response.status_code}")
-            
             success = response.status_code == expected_status
             if success:
                 self.tests_passed += 1
-                print(f"✅ Passed - Expected {expected_status}, got {response.status_code}")
+                print(f"✅ Passed - Status: {response.status_code}")
                 try:
                     response_data = response.json()
-                    print(f"   Response: {json.dumps(response_data, indent=2)[:200]}...")
+                    if isinstance(response_data, dict) and 'id' in response_data:
+                        print(f"   Created ID: {response_data['id']}")
                     return True, response_data
                 except:
                     return True, {}
             else:
                 print(f"❌ Failed - Expected {expected_status}, got {response.status_code}")
                 try:
-                    error_data = response.json()
-                    print(f"   Error: {error_data}")
+                    error_detail = response.json()
+                    print(f"   Error: {error_detail}")
                 except:
                     print(f"   Error: {response.text}")
                 return False, {}
@@ -58,370 +67,371 @@ class SecuHireAPITester:
             print(f"❌ Failed - Error: {str(e)}")
             return False, {}
 
-    def test_user_registration(self):
-        """Test user registration"""
-        registration_data = {
-            "email": self.test_user_email,
-            "password": "securepass123",
-            "full_name": "Test Candidate",
-            "phone": "+1-555-0123",
-            "experience_years": 5,
-            "skills": ["JavaScript", "React", "Python", "FastAPI", "MongoDB"]
+    def test_recruiter_registration(self):
+        """Test recruiter registration with company creation"""
+        test_data = {
+            "email": f"test_recruiter_{int(time.time())}@testcompany.com",
+            "password": "TestPass123!",
+            "full_name": "Test Recruiter",
+            "company_name": "Test ATS Company",
+            "company_domain": "testats.com",
+            "company_size": "11-50",
+            "industry": "Technology"
         }
         
         success, response = self.run_test(
-            "User Registration",
+            "Recruiter Registration",
             "POST",
             "/auth/register",
             200,
-            data=registration_data
+            data=test_data
         )
         
         if success and 'token' in response:
             self.token = response['token']
-            self.user_id = response['user']['id']
-            print(f"   ✅ Token received: {self.token[:20]}...")
-            print(f"   ✅ User ID: {self.user_id}")
+            self.recruiter_id = response['recruiter']['id']
+            self.company_id = response['company']['id']
+            print(f"   Token: {self.token[:20]}...")
+            print(f"   Recruiter ID: {self.recruiter_id}")
+            print(f"   Company ID: {self.company_id}")
             return True
         return False
 
-    def test_duplicate_registration(self):
-        """Test duplicate email registration prevention"""
-        registration_data = {
-            "email": self.test_user_email,  # Same email as before
-            "password": "securepass123",
-            "full_name": "Another Test User",
-            "phone": "+1-555-0124",
-            "experience_years": 3,
-            "skills": ["Python", "Django"]
+    def test_recruiter_login(self):
+        """Test recruiter login"""
+        # First register a new recruiter for login test
+        email = f"login_test_{int(time.time())}@testcompany.com"
+        register_data = {
+            "email": email,
+            "password": "LoginTest123!",
+            "full_name": "Login Test Recruiter",
+            "company_name": "Login Test Company",
+            "company_domain": "logintest.com",
+            "company_size": "1-10",
+            "industry": "Healthcare"
         }
         
-        success, response = self.run_test(
-            "Duplicate Registration Prevention",
-            "POST",
-            "/auth/register",
-            400,  # Should fail with 400
-            data=registration_data
-        )
-        return success
-
-    def test_user_login(self):
-        """Test user login"""
+        # Register first
+        requests.post(f"{self.api_url}/auth/register", json=register_data)
+        
+        # Now test login
         login_data = {
-            "email": self.test_user_email,
-            "password": "securepass123"
+            "email": email,
+            "password": "LoginTest123!"
         }
         
         success, response = self.run_test(
-            "User Login",
+            "Recruiter Login",
             "POST",
             "/auth/login",
             200,
             data=login_data
         )
         
-        if success and 'token' in response:
-            self.token = response['token']
-            print(f"   ✅ Login token received: {self.token[:20]}...")
-            return True
-        return False
+        return success and 'token' in response
 
-    def test_invalid_login(self):
-        """Test login with invalid credentials"""
-        login_data = {
-            "email": self.test_user_email,
-            "password": "wrongpassword"
+    def test_job_creation(self):
+        """Test job creation"""
+        job_data = {
+            "title": "Senior Full Stack Developer",
+            "description": "We're looking for a senior developer to lead our frontend initiatives.",
+            "requirements": ["React", "Node.js", "5+ years experience"],
+            "location": "San Francisco, CA",
+            "job_type": "Full-time",
+            "salary_min": 120000,
+            "salary_max": 180000,
+            "skills": ["React", "Node.js", "JavaScript", "MongoDB"],
+            "department": "Engineering",
+            "experience_level": "Senior"
         }
         
         success, response = self.run_test(
-            "Invalid Login",
+            "Job Creation",
             "POST",
-            "/auth/login",
-            401,  # Should fail with 401
-            data=login_data
+            "/jobs",
+            200,
+            data=job_data
         )
-        return success
+        
+        if success and 'id' in response:
+            self.created_ids['jobs'].append(response['id'])
+            return response['id']
+        return None
 
-    def test_seed_jobs(self):
-        """Test seeding sample jobs"""
+    def test_get_company_jobs(self):
+        """Test getting company jobs"""
         success, response = self.run_test(
-            "Seed Sample Jobs",
-            "POST",
-            "/seed/jobs",
-            200
-        )
-        return success
-
-    def test_get_jobs(self):
-        """Test fetching all jobs"""
-        success, response = self.run_test(
-            "Get All Jobs",
+            "Get Company Jobs",
             "GET",
             "/jobs",
             200
         )
         
-        if success and isinstance(response, list):
-            print(f"   ✅ Found {len(response)} jobs")
-            if len(response) > 0:
-                self.sample_job_id = response[0]['id']
-                print(f"   ✅ Sample job ID: {self.sample_job_id}")
-            return True
-        return False
+        if success:
+            print(f"   Found {len(response)} jobs")
+        return success
 
-    def test_get_specific_job(self):
-        """Test fetching a specific job"""
-        if not hasattr(self, 'sample_job_id'):
-            print("   ⚠️ No sample job ID available, skipping test")
-            return True
+    def test_job_publishing(self, job_id):
+        """Test job publishing"""
+        if not job_id:
+            print("❌ No job ID provided for publishing test")
+            return False
             
         success, response = self.run_test(
-            "Get Specific Job",
-            "GET",
-            f"/jobs/{self.sample_job_id}",
+            "Job Publishing",
+            "POST",
+            f"/jobs/{job_id}/publish",
             200
-        )
-        
-        if success and 'id' in response:
-            print(f"   ✅ Job details: {response['title']} at {response['company']}")
-            return True
-        return False
-
-    def test_job_application(self):
-        """Test applying for a job"""
-        if not hasattr(self, 'sample_job_id'):
-            print("   ⚠️ No sample job ID available, skipping test")
-            return True
-            
-        cover_letter = """Dear Hiring Manager,
-
-I am excited to apply for this position. With my experience in JavaScript, React, Python, FastAPI, and MongoDB, I believe I would be a great fit for your team.
-
-I have 5 years of experience in software development and am passionate about building secure, scalable applications. I would love the opportunity to contribute to your organization.
-
-Thank you for your consideration.
-
-Best regards,
-Test Candidate"""
-
-        success, response = self.run_test(
-            "Job Application",
-            "POST",
-            "/applications",
-            200,
-            params={
-                "job_id": self.sample_job_id,
-                "cover_letter": cover_letter
-            }
-        )
-        
-        if success and 'id' in response:
-            self.application_id = response['id']
-            print(f"   ✅ Application ID: {self.application_id}")
-            return True
-        return False
-
-    def test_duplicate_application(self):
-        """Test duplicate application prevention"""
-        if not hasattr(self, 'sample_job_id'):
-            print("   ⚠️ No sample job ID available, skipping test")
-            return True
-            
-        success, response = self.run_test(
-            "Duplicate Application Prevention",
-            "POST",
-            "/applications",
-            400,  # Should fail with 400
-            params={
-                "job_id": self.sample_job_id,
-                "cover_letter": "Another application"
-            }
         )
         return success
 
-    def test_get_my_applications(self):
-        """Test fetching user's applications"""
-        success, response = self.run_test(
-            "Get My Applications",
-            "GET",
-            "/applications/my",
-            200
-        )
+    def test_candidate_creation(self):
+        """Test candidate creation"""
+        candidate_data = {
+            "email": f"candidate_{int(time.time())}@email.com",
+            "full_name": "John Developer",
+            "phone": "+1234567890",
+            "location": "San Francisco, CA",
+            "current_title": "Senior Frontend Developer",
+            "current_company": "TechCorp",
+            "experience_years": 6,
+            "skills": ["React", "JavaScript", "TypeScript", "Node.js"],
+            "source": "linkedin"
+        }
         
-        if success and isinstance(response, list):
-            print(f"   ✅ Found {len(response)} applications")
-            for app in response:
-                if 'application' in app and 'job' in app:
-                    print(f"   ✅ Application for: {app['job']['title']} - Status: {app['application']['status']}")
-            return True
-        return False
-
-    def test_dashboard_stats(self):
-        """Test dashboard statistics"""
         success, response = self.run_test(
-            "Dashboard Statistics",
-            "GET",
-            "/dashboard/stats",
-            200
-        )
-        
-        if success and isinstance(response, dict):
-            stats = response
-            print(f"   ✅ Total Applications: {stats.get('total_applications', 0)}")
-            print(f"   ✅ Pending Applications: {stats.get('pending_applications', 0)}")
-            print(f"   ✅ Scheduled Interviews: {stats.get('scheduled_interviews', 0)}")
-            print(f"   ✅ Total Jobs: {stats.get('total_jobs', 0)}")
-            return True
-        return False
-
-    def test_create_ai_session(self):
-        """Test creating AI monitoring session"""
-        if not hasattr(self, 'application_id'):
-            print("   ⚠️ No application ID available, skipping test")
-            return True
-            
-        success, response = self.run_test(
-            "Create AI Monitoring Session",
+            "Candidate Creation",
             "POST",
-            "/ai/sessions",
+            "/candidates",
             200,
-            params={"application_id": self.application_id}
+            data=candidate_data
         )
         
         if success and 'id' in response:
-            self.session_id = response['id']
-            print(f"   ✅ AI Session ID: {self.session_id}")
-            print(f"   ✅ Session Status: {response.get('status', 'unknown')}")
-            print(f"   ✅ AI Monitoring Enabled: {response.get('ai_monitoring_enabled', False)}")
-            return True
-        return False
+            self.created_ids['candidates'].append(response['id'])
+            return response['id']
+        return None
 
-    def test_get_session_analysis(self):
-        """Test getting AI session analysis"""
-        if not hasattr(self, 'session_id'):
-            print("   ⚠️ No session ID available, skipping test")
-            return True
-            
+    def test_get_candidates(self):
+        """Test getting candidates with search and filters"""
+        # Test basic get
         success, response = self.run_test(
-            "Get AI Session Analysis",
+            "Get All Candidates",
             "GET",
-            f"/ai/sessions/{self.session_id}/analysis",
+            "/candidates",
             200
         )
         
         if success:
-            print(f"   ✅ Total Analyses: {response.get('total_analyses', 0)}")
-            if 'average_scores' in response:
-                scores = response['average_scores']
-                print(f"   ✅ Avg Facial Score: {scores.get('facial_expression_score', 0):.1f}")
-                print(f"   ✅ Avg Eye Movement: {scores.get('eye_movement_score', 0):.1f}")
-                print(f"   ✅ Avg Behavioral: {scores.get('behavioral_score', 0):.1f}")
-                print(f"   ✅ Avg Authenticity: {scores.get('authenticity_confidence', 0):.1f}")
-            print(f"   ✅ Overall Risk: {response.get('overall_risk', 'Unknown')}")
-            return True
-        return False
-
-    def test_unauthorized_access(self):
-        """Test unauthorized access to protected endpoints"""
-        # Temporarily remove token
-        original_token = self.token
-        self.token = None
+            print(f"   Found {len(response)} candidates")
         
-        success, response = self.run_test(
-            "Unauthorized Access Test",
+        # Test with search
+        success2, response2 = self.run_test(
+            "Search Candidates",
             "GET",
-            "/dashboard/stats",
-            401  # Should fail with 401
+            "/candidates?search=John",
+            200
         )
         
-        # Restore token
-        self.token = original_token
-        return success
-
-    def test_invalid_job_application(self):
-        """Test applying for non-existent job"""
-        fake_job_id = "non-existent-job-id-12345"
+        # Test with skills filter
+        success3, response3 = self.run_test(
+            "Filter Candidates by Skills",
+            "GET",
+            "/candidates?skills=React,JavaScript",
+            200
+        )
         
+        return success and success2 and success3
+
+    def test_application_creation(self, job_id, candidate_id):
+        """Test application creation"""
+        if not job_id or not candidate_id:
+            print("❌ Missing job_id or candidate_id for application test")
+            return False
+            
         success, response = self.run_test(
-            "Invalid Job Application",
+            "Application Creation",
             "POST",
+            f"/applications?job_id={job_id}&candidate_id={candidate_id}",
+            200
+        )
+        
+        if success and 'id' in response:
+            self.created_ids['applications'].append(response['id'])
+            return response['id']
+        return None
+
+    def test_get_applications(self):
+        """Test getting applications"""
+        success, response = self.run_test(
+            "Get All Applications",
+            "GET",
             "/applications",
-            404,  # Should fail with 404
-            params={
-                "job_id": fake_job_id,
-                "cover_letter": "Test application for non-existent job"
-            }
+            200
+        )
+        
+        if success:
+            print(f"   Found {len(response)} applications")
+        return success
+
+    def test_application_stage_update(self, application_id):
+        """Test updating application stage"""
+        if not application_id:
+            print("❌ No application ID provided for stage update test")
+            return False
+            
+        success, response = self.run_test(
+            "Update Application Stage",
+            "PUT",
+            f"/applications/{application_id}/stage",
+            200,
+            data={"stage": "screening"}
         )
         return success
 
-    def test_invalid_ai_session(self):
-        """Test creating AI session for non-existent application"""
-        fake_app_id = "non-existent-app-id-12345"
-        
-        success, response = self.run_test(
-            "Invalid AI Session Creation",
+    def test_notes_management(self, application_id):
+        """Test adding and getting notes"""
+        if not application_id:
+            print("❌ No application ID provided for notes test")
+            return False
+            
+        # Add note
+        success1, response1 = self.run_test(
+            "Add Application Note",
             "POST",
-            "/ai/sessions",
-            404,  # Should fail with 404
-            params={"application_id": fake_app_id}
+            f"/applications/{application_id}/notes",
+            200,
+            data={"content": "Great candidate, moving to next stage", "note_type": "general"}
+        )
+        
+        # Get notes
+        success2, response2 = self.run_test(
+            "Get Application Notes",
+            "GET",
+            f"/applications/{application_id}/notes",
+            200
+        )
+        
+        if success2:
+            print(f"   Found {len(response2)} notes")
+        
+        return success1 and success2
+
+    def test_analytics_dashboard(self):
+        """Test analytics dashboard"""
+        success, response = self.run_test(
+            "Analytics Dashboard",
+            "GET",
+            "/analytics/dashboard",
+            200
+        )
+        
+        if success:
+            print(f"   Overview: {response.get('overview', {})}")
+            print(f"   Pipeline: {response.get('pipeline', {})}")
+            print(f"   Recent Activity: {response.get('recent_activity', {})}")
+        
+        return success
+
+    def test_seed_data(self):
+        """Test demo data seeding"""
+        success, response = self.run_test(
+            "Seed Demo Data",
+            "POST",
+            "/seed/data",
+            200
         )
         return success
+
+    def run_all_tests(self):
+        """Run complete ATS backend test suite"""
+        print("🚀 Starting RecruitPro ATS Backend Testing")
+        print("=" * 50)
+        
+        # Authentication Tests
+        print("\n📋 AUTHENTICATION TESTS")
+        if not self.test_recruiter_registration():
+            print("❌ Registration failed, stopping tests")
+            return False
+            
+        if not self.test_recruiter_login():
+            print("❌ Login test failed")
+            return False
+
+        # Job Management Tests
+        print("\n📋 JOB MANAGEMENT TESTS")
+        job_id = self.test_job_creation()
+        if not job_id:
+            print("❌ Job creation failed")
+            return False
+            
+        if not self.test_get_company_jobs():
+            print("❌ Get jobs failed")
+            return False
+            
+        if not self.test_job_publishing(job_id):
+            print("❌ Job publishing failed")
+            return False
+
+        # Candidate Management Tests
+        print("\n📋 CANDIDATE MANAGEMENT TESTS")
+        candidate_id = self.test_candidate_creation()
+        if not candidate_id:
+            print("❌ Candidate creation failed")
+            return False
+            
+        if not self.test_get_candidates():
+            print("❌ Get candidates failed")
+            return False
+
+        # Application & Pipeline Tests
+        print("\n📋 APPLICATION & PIPELINE TESTS")
+        application_id = self.test_application_creation(job_id, candidate_id)
+        if not application_id:
+            print("❌ Application creation failed")
+            return False
+            
+        if not self.test_get_applications():
+            print("❌ Get applications failed")
+            return False
+            
+        if not self.test_application_stage_update(application_id):
+            print("❌ Application stage update failed")
+            return False
+
+        # Notes Management Tests
+        print("\n📋 NOTES MANAGEMENT TESTS")
+        if not self.test_notes_management(application_id):
+            print("❌ Notes management failed")
+            return False
+
+        # Analytics Tests
+        print("\n📋 ANALYTICS TESTS")
+        if not self.test_analytics_dashboard():
+            print("❌ Analytics dashboard failed")
+            return False
+
+        # Seed Data Tests
+        print("\n📋 SEED DATA TESTS")
+        if not self.test_seed_data():
+            print("❌ Seed data failed")
+            return False
+
+        # Print final results
+        print("\n" + "=" * 50)
+        print(f"📊 FINAL RESULTS: {self.tests_passed}/{self.tests_run} tests passed")
+        
+        if self.tests_passed == self.tests_run:
+            print("🎉 All backend tests passed!")
+            return True
+        else:
+            print(f"❌ {self.tests_run - self.tests_passed} tests failed")
+            return False
 
 def main():
-    print("🚀 Starting SecuHire API Testing...")
-    print("=" * 60)
-    
-    tester = SecuHireAPITester()
-    
-    # Test sequence
-    tests = [
-        ("User Registration", tester.test_user_registration),
-        ("Duplicate Registration Prevention", tester.test_duplicate_registration),
-        ("User Login", tester.test_user_login),
-        ("Invalid Login", tester.test_invalid_login),
-        ("Seed Sample Jobs", tester.test_seed_jobs),
-        ("Get All Jobs", tester.test_get_jobs),
-        ("Get Specific Job", tester.test_get_specific_job),
-        ("Job Application", tester.test_job_application),
-        ("Duplicate Application Prevention", tester.test_duplicate_application),
-        ("Get My Applications", tester.test_get_my_applications),
-        ("Dashboard Statistics", tester.test_dashboard_stats),
-        ("Create AI Monitoring Session", tester.test_create_ai_session),
-        ("Get AI Session Analysis", tester.test_get_session_analysis),
-        ("Unauthorized Access Test", tester.test_unauthorized_access),
-        ("Invalid Job Application", tester.test_invalid_job_application),
-        ("Invalid AI Session Creation", tester.test_invalid_ai_session),
-    ]
-    
-    failed_tests = []
-    
-    for test_name, test_func in tests:
-        try:
-            if not test_func():
-                failed_tests.append(test_name)
-        except Exception as e:
-            print(f"❌ {test_name} failed with exception: {str(e)}")
-            failed_tests.append(test_name)
-    
-    # Print final results
-    print("\n" + "=" * 60)
-    print("📊 FINAL TEST RESULTS")
-    print("=" * 60)
-    print(f"✅ Tests Passed: {tester.tests_passed}/{tester.tests_run}")
-    print(f"❌ Tests Failed: {len(failed_tests)}")
-    
-    if failed_tests:
-        print("\n🔴 Failed Tests:")
-        for test in failed_tests:
-            print(f"   - {test}")
-    else:
-        print("\n🎉 All tests passed!")
-    
-    print(f"\n📧 Test User Email: {tester.test_user_email}")
-    if tester.token:
-        print(f"🔑 Auth Token: {tester.token[:30]}...")
-    
-    return 0 if len(failed_tests) == 0 else 1
+    tester = ATSBackendTester()
+    success = tester.run_all_tests()
+    return 0 if success else 1
 
 if __name__ == "__main__":
     sys.exit(main())
