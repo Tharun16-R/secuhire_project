@@ -993,7 +993,7 @@ const CandidateDashboard = () => {
                           <SelectValue placeholder="All types" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">All types</SelectItem>
+                          <SelectItem value="all">All types</SelectItem>
                           <SelectItem value="Full-time">Full-time</SelectItem>
                           <SelectItem value="Part-time">Part-time</SelectItem>
                           <SelectItem value="Contract">Contract</SelectItem>
