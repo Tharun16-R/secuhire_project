@@ -18,7 +18,7 @@ import {
   ChevronRight, Star, Clock, CheckCircle, User, Edit,
   BarChart3, PieChart, Target, Award, Zap, Brain, Building2,
   Eye, Heart, Send, Video, AlertTriangle, Verified, Lock,
-  Camera, Monitor, X, ExternalLink, Copy, Volume2
+  Camera, Monitor, X, ExternalLink, Copy, Volume2, Timer
 } from "lucide-react";
 import "./App.css";
 
