@@ -1679,7 +1679,7 @@ const ATSDashboard = () => {
           <div className="flex items-center space-x-4">
             <div className="text-right">
               <p className="text-sm text-slate-600">Welcome back,</p>
-              <p className="font-semibold text-slate-800">{recruiter?.full_name}</p>
+              <p className="font-semibold text-slate-800">{user?.full_name}</p>
             </div>
             <Button variant="outline" className="border-purple-300 text-purple-700 hover:bg-purple-50" onClick={logout}>Logout</Button>
           </div>
