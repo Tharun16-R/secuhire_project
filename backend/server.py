@@ -425,7 +425,12 @@ async def verify_email(user_id: str, verification_code: str):
     if not verification:
         raise HTTPException(status_code=400, detail="Invalid verification code")
     
-    if datetime.now(timezone.utc) > verification["expires_at"]:
+    # Handle timezone comparison properly
+    expires_at = verification["expires_at"]
+    if isinstance(expires_at, datetime) and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    
+    if datetime.now(timezone.utc) > expires_at:
         raise HTTPException(status_code=400, detail="Verification code expired")
     
     # Mark as verified
