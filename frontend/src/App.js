@@ -2106,9 +2106,9 @@ const ApplicationCard = ({ application, candidate, job }) => {
 
 // Main App Component
 function App() {
-  const { token, loading, recruiter } = useAuth();
+  const { token, loading, user, userRole } = useAuth();
 
-  console.log('App render - Token:', token ? 'exists' : 'none', 'Loading:', loading, 'Recruiter:', recruiter?.full_name);
+  console.log('App render - Token:', token ? 'exists' : 'none', 'Loading:', loading, 'User:', user?.full_name, 'Role:', userRole);
 
   if (loading) {
     return (
@@ -2127,7 +2127,14 @@ function App() {
         <Routes>
           <Route path="/" element={token ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
           <Route path="/auth" element={token ? <Navigate to="/dashboard" replace /> : <AuthPage />} />
-          <Route path="/dashboard" element={token ? <ATSDashboard /> : <Navigate to="/auth" replace />} />
+          <Route 
+            path="/dashboard" 
+            element={
+              token ? 
+                (userRole === 'recruiter' ? <ATSDashboard /> : <CandidateDashboard />) : 
+                <Navigate to="/auth" replace />
+            } 
+          />
         </Routes>
       </BrowserRouter>
     </div>
