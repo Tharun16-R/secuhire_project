@@ -1841,24 +1841,33 @@ const SecureInterviewSession = ({ interview, onEndInterview }) => {
 
   const setupVideoMonitoring = async () => {
     try {
-      // Get camera access
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      // Get high-quality camera access with strict constraints
+      const cameraStream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
-          width: 1280, 
-          height: 720, 
+          width: { ideal: 1920, min: 1280 }, 
+          height: { ideal: 1080, min: 720 }, 
           facingMode: 'user',
-          frameRate: { ideal: 30 }
+          frameRate: { ideal: 30, min: 24 }
         }, 
-        audio: true 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 44100
+        }
       });
       
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+        videoRef.current.srcObject = cameraStream;
       }
 
-      // Get screen recording for monitoring
+      // Get screen recording for comprehensive monitoring
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: { mediaSource: 'screen' },
+        video: { 
+          mediaSource: 'screen',
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 15 }
+        },
         audio: true
       });
       
@@ -1866,13 +1875,130 @@ const SecureInterviewSession = ({ interview, onEndInterview }) => {
         screenRef.current.srcObject = screenStream;
       }
 
+      // Set up recording for both streams
+      const combinedRecorder = new MediaRecorder(cameraStream);
+      const screenRecorder = new MediaRecorder(screenStream);
+      
+      // Monitor for stream interruptions
+      cameraStream.getVideoTracks().forEach(track => {
+        track.onended = () => {
+          logSecurityViolation('Camera stream interrupted - potential security bypass');
+          showCriticalSecurityAlert('Camera monitoring was disabled! Restart immediately.');
+        };
+      });
+
+      screenStream.getVideoTracks().forEach(track => {
+        track.onended = () => {
+          logSecurityViolation('Screen sharing stopped - critical security violation');
+          showCriticalSecurityAlert('Screen sharing must remain active during interview!');
+        };
+      });
+
+      // Advanced motion detection for candidate monitoring
+      setupMotionDetection(cameraStream);
+
+      // Screen change detection
+      setupScreenChangeDetection(screenStream);
+
       setIsRecording(true);
-      logSecurityEvent('Video and screen monitoring activated');
+      logSecurityEvent('Enhanced video and screen monitoring activated with motion detection');
     } catch (error) {
       console.error('Camera/screen access failed:', error);
-      logSecurityViolation('Failed to access camera or screen');
-      alert('Camera and screen access is REQUIRED for secure interviews. Please grant permissions.');
+      logSecurityViolation(`Failed to access camera or screen: ${error.message}`);
+      showCriticalSecurityAlert('Camera and screen access is MANDATORY for secure interviews. Interview cannot proceed without permissions.');
+      // In production, this would terminate the interview
     }
+  };
+
+  const setupMotionDetection = (stream) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const tempVideo = document.createElement('video');
+    tempVideo.srcObject = stream;
+    tempVideo.play();
+
+    let previousFrame = null;
+    const motionThreshold = 30; // Configurable sensitivity
+    let noMotionCount = 0;
+
+    const detectMotion = () => {
+      if (tempVideo.readyState === tempVideo.HAVE_ENOUGH_DATA) {
+        canvas.width = tempVideo.videoWidth;
+        canvas.height = tempVideo.videoHeight;
+        ctx.drawImage(tempVideo, 0, 0);
+        
+        const currentFrame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        
+        if (previousFrame) {
+          let totalDiff = 0;
+          for (let i = 0; i < currentFrame.data.length; i += 4) {
+            const diff = Math.abs(currentFrame.data[i] - previousFrame.data[i]);
+            totalDiff += diff;
+          }
+          
+          const avgDiff = totalDiff / (currentFrame.data.length / 4);
+          
+          if (avgDiff < motionThreshold) {
+            noMotionCount++;
+            if (noMotionCount > 100) { // ~10 seconds at 10fps
+              logSecurityViolation('No candidate motion detected - possible absence');
+              showSecurityWarning('Please ensure you remain visible and active during the interview');
+              noMotionCount = 0;
+            }
+          } else {
+            noMotionCount = 0;
+            setLastActivity(Date.now());
+          }
+        }
+        
+        previousFrame = currentFrame;
+      }
+      
+      setTimeout(detectMotion, 100); // 10fps motion detection
+    };
+
+    tempVideo.onloadedmetadata = () => {
+      detectMotion();
+    };
+  };
+
+  const setupScreenChangeDetection = (stream) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const tempVideo = document.createElement('video');
+    tempVideo.srcObject = stream;
+    tempVideo.play();
+
+    let previousScreenshot = null;
+    let suspiciousActivityCount = 0;
+
+    const detectScreenChanges = () => {
+      if (tempVideo.readyState === tempVideo.HAVE_ENOUGH_DATA) {
+        canvas.width = tempVideo.videoWidth;
+        canvas.height = tempVideo.videoHeight;
+        ctx.drawImage(tempVideo, 0, 0);
+        
+        const currentScreenshot = canvas.toDataURL();
+        
+        if (previousScreenshot && currentScreenshot !== previousScreenshot) {
+          // Significant screen changes detected
+          suspiciousActivityCount++;
+          if (suspiciousActivityCount > 5) {
+            logSecurityViolation('Frequent screen changes detected - possible unauthorized application switching');
+            showSecurityWarning('Minimize screen changes during interview to avoid security flags');
+            suspiciousActivityCount = 0;
+          }
+        }
+        
+        previousScreenshot = currentScreenshot;
+      }
+      
+      setTimeout(detectScreenChanges, 2000); // Check every 2 seconds
+    };
+
+    tempVideo.onloadedmetadata = () => {
+      detectScreenChanges();
+    };
   };
 
   const startSecurityMonitoring = () => {
