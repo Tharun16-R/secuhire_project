@@ -230,9 +230,13 @@ const AuthPage = () => {
         ? { email: formData.email, password: formData.password }
         : formData;
 
+      console.log('Submitting to:', `${API}${endpoint}`, payload);
       const response = await axios.post(`${API}${endpoint}`, payload);
+      console.log('Auth response:', response.data);
+      
       login(response.data.recruiter, response.data.company, response.data.token);
     } catch (error) {
+      console.error('Auth error:', error);
       alert(error.response?.data?.detail || 'Authentication failed');
     } finally {
       setLoading(false);
