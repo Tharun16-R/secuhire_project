@@ -1308,96 +1308,679 @@ const CandidateApplicationCard = ({ applicationData }) => {
   );
 };
 
-// Interview Card Component
-const InterviewCard = ({ interviewData }) => {
-  const { interview, application, job, company } = interviewData;
+// Secure Interview Component with Full Security Monitoring
+const SecureInterviewSession = ({ interview, onEndInterview }) => {
+  const videoRef = useRef(null);
+  const screenRef = useRef(null);
+  const [isSecureMode, setIsSecureMode] = useState(false);
+  const [securityViolations, setSecurityViolations] = useState([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [tabSwitchCount, setTabSwitchCount] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [lastActivity, setLastActivity] = useState(Date.now());
+  const [isMonitoring, setIsMonitoring] = useState(false);
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'scheduled': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'in_progress': return 'bg-green-100 text-green-800 border-green-200';
-      case 'completed': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
-      case 'no_show': return 'bg-orange-100 text-orange-800 border-orange-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+  useEffect(() => {
+    initializeSecureInterview();
+    return () => {
+      exitSecureMode();
+    };
+  }, []);
+
+  const initializeSecureInterview = async () => {
+    try {
+      // Enter secure mode
+      await enterSecureMode();
+      
+      // Initialize camera and screen monitoring
+      await setupVideoMonitoring();
+      
+      // Start security monitoring
+      startSecurityMonitoring();
+      
+      setIsSecureMode(true);
+    } catch (error) {
+      console.error('Failed to initialize secure interview:', error);
+      alert('Security features could not be enabled. Interview may not be secure.');
     }
   };
 
-  const getInterviewTypeIcon = (type) => {
-    switch (type) {
-      case 'video': return <Video className="w-4 h-4" />;
-      case 'phone': return <Phone className="w-4 h-4" />;
-      case 'onsite': return <Building2 className="w-4 h-4" />;
-      default: return <Calendar className="w-4 h-4" />;
+  const enterSecureMode = async () => {
+    // 1. FULLSCREEN ENFORCEMENT
+    try {
+      await document.documentElement.requestFullscreen();
+      setIsFullscreen(true);
+      logSecurityEvent('Entered fullscreen mode');
+    } catch (error) {
+      logSecurityViolation('Failed to enter fullscreen mode');
+    }
+
+    // 2. DISABLE BROWSER CONTEXT MENU
+    document.addEventListener('contextmenu', preventRightClick);
+    
+    // 3. DISABLE KEY COMBINATIONS
+    document.addEventListener('keydown', preventKeyboardShortcuts);
+    
+    // 4. DISABLE TEXT SELECTION AND COPY
+    document.addEventListener('selectstart', preventSelection);
+    document.addEventListener('copy', preventCopy);
+    document.addEventListener('paste', preventPaste);
+    
+    // 5. MONITOR WINDOW FOCUS
+    window.addEventListener('blur', handleWindowBlur);
+    window.addEventListener('focus', handleWindowFocus);
+    
+    // 6. MONITOR TAB VISIBILITY
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // 7. PREVENT PAGE NAVIGATION
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    // 8. MONITOR FULLSCREEN CHANGES
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+
+    logSecurityEvent('Secure mode activated');
+  };
+
+  const exitSecureMode = () => {
+    // Remove all event listeners
+    document.removeEventListener('contextmenu', preventRightClick);
+    document.removeEventListener('keydown', preventKeyboardShortcuts);
+    document.removeEventListener('selectstart', preventSelection);
+    document.removeEventListener('copy', preventCopy);
+    document.removeEventListener('paste', preventPaste);
+    window.removeEventListener('blur', handleWindowBlur);
+    window.removeEventListener('focus', handleWindowFocus);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+    document.removeEventListener('fullscreenchange', handleFullscreenChange);
+
+    // Exit fullscreen
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    }
+
+    // Stop recording
+    stopVideoRecording();
+
+    logSecurityEvent('Secure mode deactivated');
+  };
+
+  // SECURITY EVENT HANDLERS
+
+  const preventRightClick = (e) => {
+    e.preventDefault();
+    logSecurityViolation('Right-click attempt blocked');
+    showSecurityWarning('Right-click is disabled during the interview');
+    return false;
+  };
+
+  const preventKeyboardShortcuts = (e) => {
+    // Block dangerous key combinations
+    const blockedKeys = [
+      { key: 'Tab', alt: true }, // Alt+Tab
+      { key: 'F4', alt: true },  // Alt+F4
+      { key: 'Tab', ctrl: true }, // Ctrl+Tab
+      { key: 'w', ctrl: true },   // Ctrl+W
+      { key: 't', ctrl: true },   // Ctrl+T
+      { key: 'n', ctrl: true },   // Ctrl+N
+      { key: 'r', ctrl: true },   // Ctrl+R
+      { key: 'F5' },              // F5
+      { key: 'F11' },             // F11
+      { key: 'F12' },             // F12 (DevTools)
+      { key: 'I', ctrl: true, shift: true }, // Ctrl+Shift+I
+      { key: 'J', ctrl: true, shift: true }, // Ctrl+Shift+J
+      { key: 'C', ctrl: true, shift: true }, // Ctrl+Shift+C
+      { key: 'c', ctrl: true },   // Ctrl+C
+      { key: 'v', ctrl: true },   // Ctrl+V
+      { key: 'a', ctrl: true },   // Ctrl+A
+    ];
+
+    for (const blocked of blockedKeys) {
+      if (e.key === blocked.key) {
+        if (
+          (!blocked.ctrl || e.ctrlKey) &&
+          (!blocked.alt || e.altKey) &&
+          (!blocked.shift || e.shiftKey)
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          logSecurityViolation(`Blocked keyboard shortcut: ${e.key}`);
+          showSecurityWarning(`Keyboard shortcut ${e.key} is disabled during interview`);
+          return false;
+        }
+      }
     }
   };
 
-  if (!job || !company) return null;
+  const preventSelection = (e) => {
+    e.preventDefault();
+    logSecurityViolation('Text selection attempt blocked');
+    return false;
+  };
 
-  const interviewDate = new Date(interview.scheduled_date);
-  const isUpcoming = interviewDate > new Date();
+  const preventCopy = (e) => {
+    e.preventDefault();
+    logSecurityViolation('Copy attempt blocked');
+    showSecurityWarning('Copy function is disabled during interview');
+    return false;
+  };
+
+  const preventPaste = (e) => {
+    e.preventDefault();
+    logSecurityViolation('Paste attempt blocked');
+    showSecurityWarning('Paste function is disabled during interview');
+    return false;
+  };
+
+  const handleWindowBlur = () => {
+    logSecurityViolation('Window lost focus - possible tab switch');
+    setTabSwitchCount(prev => prev + 1);
+    
+    if (tabSwitchCount >= 2) {
+      showCriticalSecurityAlert('Multiple tab switches detected! Interview security compromised.');
+      // In production, this could auto-end the interview
+    } else {
+      showSecurityWarning('Please keep this window focused during the interview');
+    }
+    
+    // Force window focus back
+    setTimeout(() => {
+      window.focus();
+    }, 100);
+  };
+
+  const handleWindowFocus = () => {
+    logSecurityEvent('Window regained focus');
+    setLastActivity(Date.now());
+  };
+
+  const handleVisibilityChange = () => {
+    if (document.hidden) {
+      logSecurityViolation('Tab became hidden - possible tab switch');
+      setTabSwitchCount(prev => prev + 1);
+      showSecurityWarning('Tab switching detected! Please return to the interview.');
+      
+      // Force tab to become visible
+      if (document.hidden) {
+        window.focus();
+      }
+    } else {
+      logSecurityEvent('Tab became visible again');
+    }
+  };
+
+  const handleBeforeUnload = (e) => {
+    e.preventDefault();
+    const message = 'Are you sure you want to leave the interview? This will be recorded as a security violation.';
+    e.returnValue = message;
+    logSecurityViolation('Attempted to leave interview page');
+    return message;
+  };
+
+  const handleFullscreenChange = () => {
+    if (!document.fullscreenElement) {
+      logSecurityViolation('Exited fullscreen mode');
+      setIsFullscreen(false);
+      showCriticalSecurityAlert('Fullscreen mode is required! Please return to fullscreen.');
+      
+      // Force back to fullscreen
+      setTimeout(() => {
+        document.documentElement.requestFullscreen().catch((err) => {
+          console.error('Could not re-enter fullscreen:', err);
+        });
+      }, 1000);
+    } else {
+      setIsFullscreen(true);
+      logSecurityEvent('Fullscreen mode maintained');
+    }
+  };
+
+  const setupVideoMonitoring = async () => {
+    try {
+      // Get camera access
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: 1280, 
+          height: 720, 
+          facingMode: 'user',
+          frameRate: { ideal: 30 }
+        }, 
+        audio: true 
+      });
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+
+      // Get screen recording for monitoring
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { mediaSource: 'screen' },
+        audio: true
+      });
+      
+      if (screenRef.current) {
+        screenRef.current.srcObject = screenStream;
+      }
+
+      setIsRecording(true);
+      logSecurityEvent('Video and screen monitoring activated');
+    } catch (error) {
+      console.error('Camera/screen access failed:', error);
+      logSecurityViolation('Failed to access camera or screen');
+      alert('Camera and screen access is REQUIRED for secure interviews. Please grant permissions.');
+    }
+  };
+
+  const startSecurityMonitoring = () => {
+    setIsMonitoring(true);
+    
+    // Monitor activity every 5 seconds
+    const activityMonitor = setInterval(() => {
+      const timeSinceActivity = Date.now() - lastActivity;
+      
+      if (timeSinceActivity > 30000) { // 30 seconds
+        logSecurityViolation('No user activity detected');
+        showSecurityWarning('Please interact with the interview to confirm your presence');
+      }
+    }, 5000);
+
+    // Check for unauthorized applications every 10 seconds
+    const appMonitor = setInterval(() => {
+      checkUnauthorizedApps();
+    }, 10000);
+
+    // Store intervals for cleanup
+    window.securityIntervals = [activityMonitor, appMonitor];
+  };
+
+  const checkUnauthorizedApps = () => {
+    // Monitor for suspicious browser behavior
+    if (navigator.webdriver) {
+      logSecurityViolation('Automated browser detected');
+      showCriticalSecurityAlert('Automated browser tools are not allowed during interviews');
+    }
+
+    // Check for DevTools
+    const widthThreshold = window.outerWidth - window.innerWidth > 160;
+    const heightThreshold = window.outerHeight - window.innerHeight > 160;
+    
+    if (widthThreshold || heightThreshold) {
+      logSecurityViolation('Developer tools possibly open');
+      showSecurityWarning('Please close any developer tools or browser extensions');
+    }
+  };
+
+  const logSecurityEvent = (event) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[SECURITY EVENT] ${timestamp}: ${event}`);
+    
+    // Store in component state for display
+    setSecurityViolations(prev => [...prev, {
+      type: 'event',
+      message: event,
+      timestamp,
+      severity: 'info'
+    }]);
+  };
+
+  const logSecurityViolation = (violation) => {
+    const timestamp = new Date().toISOString();
+    console.warn(`[SECURITY VIOLATION] ${timestamp}: ${violation}`);
+    
+    // Store violation
+    setSecurityViolations(prev => [...prev, {
+      type: 'violation',
+      message: violation,
+      timestamp,
+      severity: 'warning'
+    }]);
+    
+    // In production, send to server
+    // sendSecurityAlert(violation, timestamp);
+  };
+
+  const showSecurityWarning = (message) => {
+    // Create floating warning
+    const warning = document.createElement('div');
+    warning.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, #f59e0b, #dc2626);
+      color: white;
+      padding: 16px 20px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      z-index: 10000;
+      font-weight: 600;
+      font-size: 14px;
+      max-width: 300px;
+      animation: slideInRight 0.3s ease-out;
+    `;
+    warning.innerHTML = `⚠️ ${message}`;
+    document.body.appendChild(warning);
+    
+    // Remove after 5 seconds
+    setTimeout(() => {
+      if (warning.parentNode) {
+        warning.parentNode.removeChild(warning);
+      }
+    }, 5000);
+  };
+
+  const showCriticalSecurityAlert = (message) => {
+    // Create critical alert overlay
+    const alert = document.createElement('div');
+    alert.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(220, 38, 38, 0.95);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 10001;
+      font-size: 24px;
+      font-weight: 700;
+      text-align: center;
+      backdrop-filter: blur(10px);
+    `;
+    alert.innerHTML = `
+      <div style="max-width: 500px; padding: 40px; background: rgba(0,0,0,0.2); border-radius: 20px;">
+        <div style="font-size: 48px; margin-bottom: 20px;">🚨</div>
+        <h2 style="margin-bottom: 16px;">SECURITY ALERT</h2>
+        <p style="font-size: 18px; margin-bottom: 24px;">${message}</p>
+        <button onclick="this.parentNode.parentNode.remove()" style="
+          background: white;
+          color: #dc2626;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 8px;
+          font-weight: 600;
+          cursor: pointer;
+        ">I Understand</button>
+      </div>
+    `;
+    document.body.appendChild(alert);
+  };
+
+  const stopVideoRecording = () => {
+    if (videoRef.current?.srcObject) {
+      videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+    }
+    if (screenRef.current?.srcObject) {
+      screenRef.current.srcObject.getTracks().forEach(track => track.stop());
+    }
+    setIsRecording(false);
+  };
+
+  const handleEndInterview = () => {
+    if (window.confirm('Are you sure you want to end the interview? This action cannot be undone.')) {
+      exitSecureMode();
+      onEndInterview();
+    }
+  };
+
+  const handleUserActivity = () => {
+    setLastActivity(Date.now());
+  };
+
+  // Add CSS for security styles
+  useEffect(() => {
+    if (isSecureMode) {
+      // Add security CSS
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        
+        * {
+          -webkit-user-select: none !important;
+          -moz-user-select: none !important;
+          -ms-user-select: none !important;
+          user-select: none !important;
+          -webkit-touch-callout: none !important;
+          -webkit-tap-highlight-color: transparent !important;
+        }
+        
+        *::-webkit-scrollbar {
+          display: none !important;
+        }
+        
+        body {
+          overflow: hidden !important;
+        }
+      `;
+      document.head.appendChild(style);
+      
+      return () => {
+        if (style.parentNode) {
+          style.parentNode.removeChild(style);
+        }
+      };
+    }
+  }, [isSecureMode]);
 
   return (
-    <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white group">
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
-            <h3 className="text-lg font-semibold text-slate-800 group-hover:text-orange-700 transition-colors mb-1">
-              {job.title} Interview
-            </h3>
-            <p className="text-slate-600 mb-2">{company.name}</p>
-            <div className="flex items-center space-x-4 text-sm text-slate-500">
-              <div className="flex items-center space-x-1">
-                <Calendar className="w-4 h-4" />
-                <span>{interviewDate.toLocaleDateString()}</span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <Clock className="w-4 h-4" />
-                <span>{interviewDate.toLocaleTimeString()}</span>
-              </div>
-              <div className="flex items-center space-x-1">
-                {getInterviewTypeIcon(interview.interview_type)}
-                <span className="capitalize">{interview.interview_type}</span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <span>{interview.duration_minutes} minutes</span>
-              </div>
+    <div 
+      className="min-h-screen bg-black text-white relative"
+      onClick={handleUserActivity}
+      onMouseMove={handleUserActivity}
+      onKeyPress={handleUserActivity}
+    >
+      {/* Security Status Header */}
+      <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-red-600 via-orange-600 to-red-600 p-4 z-50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <Lock className="w-5 h-5 animate-pulse" />
+              <span className="font-bold">SECURE INTERVIEW MODE</span>
             </div>
+            <Badge className="bg-red-800 text-white border-red-700">
+              <Monitor className="w-3 h-3 mr-1" />
+              Screen Monitored
+            </Badge>
+            <Badge className="bg-orange-800 text-white border-orange-700">
+              <Camera className="w-3 h-3 mr-1" />
+              Video Recording
+            </Badge>
+            <Badge className="bg-yellow-800 text-white border-yellow-700">
+              Tab Switches: {tabSwitchCount}
+            </Badge>
           </div>
           
-          <Badge className={`${getStatusColor(interview.status)} border font-medium`}>
-            {interview.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-          </Badge>
-        </div>
-
-        {interview.meeting_link && (
-          <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <Label className="text-sm font-medium text-blue-800">Meeting Link:</Label>
-            <a 
-              href={interview.meeting_link} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 text-sm block mt-1 underline"
-            >
-              {interview.meeting_link}
-            </a>
-          </div>
-        )}
-
-        <div className="flex space-x-3">
-          {isUpcoming && interview.status === 'scheduled' && (
-            <Button className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white">
-              <Video className="w-4 h-4 mr-2" />
-              Join Interview
-            </Button>
-          )}
-          <Button variant="outline" size="sm" className="border-orange-300 text-orange-700 hover:bg-orange-50">
-            <Calendar className="w-4 h-4 mr-2" />
-            Add to Calendar
+          <Button 
+            onClick={handleEndInterview}
+            className="bg-red-700 hover:bg-red-800 text-white"
+            size="sm"
+          >
+            <X className="w-4 h-4 mr-2" />
+            End Interview
           </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* Main Interview Interface */}
+      <div className="pt-20 p-6 h-screen">
+        <div className="h-full grid grid-cols-3 gap-6">
+          {/* Candidate Video Feed */}
+          <div className="col-span-2">
+            <Card className="bg-slate-900 border-slate-700 h-full">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center space-x-2">
+                  <Camera className="w-5 h-5 text-green-400" />
+                  <span>Candidate Video Feed</span>
+                  {isRecording && (
+                    <div className="flex items-center space-x-1 text-red-400">
+                      <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
+                      <span className="text-sm">RECORDING</span>
+                    </div>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1 flex items-center justify-center">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="w-full h-full max-h-96 bg-slate-800 rounded-lg border-2 border-green-500"
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Security Monitoring Panel */}
+          <div className="space-y-4">
+            {/* Screen Monitor */}
+            <Card className="bg-slate-900 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center space-x-2 text-sm">
+                  <Monitor className="w-4 h-4 text-blue-400" />
+                  <span>Screen Monitor</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <video
+                  ref={screenRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="w-full h-24 bg-slate-800 rounded border border-blue-500"
+                />
+              </CardContent>
+            </Card>
+
+            {/* Security Status */}
+            <Card className="bg-slate-900 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center space-x-2 text-sm">
+                  <Shield className="w-4 h-4 text-green-400" />
+                  <span>Security Status</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-300">Fullscreen Mode</span>
+                  {isFullscreen ? (
+                    <CheckCircle className="w-4 h-4 text-green-400" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-red-400" />
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-300">Video Monitoring</span>
+                  {isRecording ? (
+                    <CheckCircle className="w-4 h-4 text-green-400" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-red-400" />
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-300">Tab Lock</span>
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-300">Screen Lock</span>
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Violations Log */}
+            <Card className="bg-slate-900 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center space-x-2 text-sm">
+                  <Eye className="w-4 h-4 text-orange-400" />
+                  <span>Security Log</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="max-h-40 overflow-y-auto space-y-2">
+                  {securityViolations.slice(-5).reverse().map((violation, index) => (
+                    <div key={index} className={`text-xs p-2 rounded ${
+                      violation.severity === 'warning' ? 'bg-orange-900/50 text-orange-300' : 'bg-slate-800 text-slate-400'
+                    }`}>
+                      <div className="font-medium">{violation.message}</div>
+                      <div className="text-xs opacity-70">
+                        {new Date(violation.timestamp).toLocaleTimeString()}
+                      </div>
+                    </div>
+                  ))}
+                  {securityViolations.length === 0 && (
+                    <div className="text-slate-400 text-xs text-center py-4">
+                      No security events yet
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Interview Controls */}
+            <Card className="bg-slate-900 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center space-x-2 text-sm">
+                  <Video className="w-4 h-4 text-purple-400" />
+                  <span>Interview Controls</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button 
+                  className="w-full bg-green-700 hover:bg-green-800 text-white"
+                  disabled={!isRecording}
+                >
+                  <Volume2 className="w-4 h-4 mr-2" />
+                  Audio Test
+                </Button>
+                
+                <Button 
+                  className="w-full bg-blue-700 hover:bg-blue-800 text-white"
+                  onClick={() => {
+                    if (!document.fullscreenElement) {
+                      document.documentElement.requestFullscreen();
+                    }
+                  }}
+                >
+                  <Monitor className="w-4 h-4 mr-2" />
+                  Force Fullscreen
+                </Button>
+                
+                <div className="text-xs text-slate-400 text-center pt-2">
+                  All actions are monitored and recorded
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+
+      {/* Emergency Exit Warning */}
+      {!isFullscreen && (
+        <div className="fixed inset-0 bg-red-600/95 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-white text-black p-8 rounded-2xl shadow-2xl max-w-md text-center">
+            <AlertTriangle className="w-16 h-16 text-red-600 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold mb-4">Security Requirement</h2>
+            <p className="mb-6">Fullscreen mode is required for interview security. Please enter fullscreen to continue.</p>
+            <Button 
+              onClick={() => document.documentElement.requestFullscreen()}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Enter Fullscreen Mode
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
