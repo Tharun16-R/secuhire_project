@@ -514,8 +514,8 @@ async def get_analytics_dashboard(current_recruiter: Recruiter = Depends(get_cur
         pipeline_stages[stage.value] = count
     
     # Recent activity (last 30 days)
-    thirty_days_ago = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    thirty_days_ago = thirty_days_ago.replace(day=thirty_days_ago.day - 30)
+    from datetime import timedelta
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
     
     recent_applications = await db.applications.count_documents({
         "company_id": company_id,
