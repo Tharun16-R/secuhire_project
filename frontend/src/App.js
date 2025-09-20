@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import axios from "axios";
 import { Button } from "./components/ui/button";
@@ -17,7 +17,8 @@ import {
   MapPin, DollarSign, Calendar, Phone, Mail, FileText, 
   ChevronRight, Star, Clock, CheckCircle, User, Edit,
   BarChart3, PieChart, Target, Award, Zap, Brain, Building2,
-  Eye, Heart, Send, Video, AlertTriangle, Verified
+  Eye, Heart, Send, Video, AlertTriangle, Verified, Lock,
+  Camera, Monitor, X, ExternalLink, Copy, Volume2
 } from "lucide-react";
 import "./App.css";
 
