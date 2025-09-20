@@ -24,7 +24,7 @@ import "./App.css";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-// Auth Context for Recruiters
+// Auth Context for Both Recruiters and Candidates
 const AuthContext = React.createContext();
 
 const useAuth = () => {
@@ -36,9 +36,10 @@ const useAuth = () => {
 };
 
 const AuthProvider = ({ children }) => {
-  const [recruiter, setRecruiter] = useState(null);
+  const [user, setUser] = useState(null);
   const [company, setCompany] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('recruiter_token'));
+  const [token, setToken] = useState(localStorage.getItem('secuhire_token'));
+  const [userRole, setUserRole] = useState(localStorage.getItem('user_role'));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -48,25 +49,33 @@ const AuthProvider = ({ children }) => {
     setLoading(false);
   }, [token]);
 
-  const login = (recruiterData, companyData, userToken) => {
-    console.log('Login called with:', { recruiterData, companyData, userToken });
-    setRecruiter(recruiterData);
+  const login = (userData, userToken, role, companyData = null) => {
+    console.log('Login called with:', { userData, userToken, role, companyData });
+    setUser(userData);
     setCompany(companyData);
     setToken(userToken);
-    localStorage.setItem('recruiter_token', userToken);
+    setUserRole(role);
+    localStorage.setItem('secuhire_token', userToken);
+    localStorage.setItem('user_role', role);
+    if (companyData) {
+      localStorage.setItem('company_data', JSON.stringify(companyData));
+    }
     axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
   };
 
   const logout = () => {
-    setRecruiter(null);
+    setUser(null);
     setCompany(null);
     setToken(null);
-    localStorage.removeItem('recruiter_token');
+    setUserRole(null);
+    localStorage.removeItem('secuhire_token');
+    localStorage.removeItem('user_role');
+    localStorage.removeItem('company_data');
     delete axios.defaults.headers.common['Authorization'];
   };
 
   return (
-    <AuthContext.Provider value={{ recruiter, company, token, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, company, token, userRole, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
