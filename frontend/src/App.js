@@ -307,9 +307,13 @@ const LandingPage = () => {
   );
 };
 
-// Auth Component for Recruiters
+// Dual Auth Component for Both Recruiters and Candidates
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [userType, setUserType] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('type') || 'recruiter';
+  });
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -317,9 +321,26 @@ const AuthPage = () => {
     company_name: '',
     company_domain: '',
     company_size: '',
-    industry: ''
+    industry: '',
+    phone: '',
+    location: '',
+    current_title: '',
+    current_company: '',
+    experience_years: '',
+    education: '',
+    skills: '',
+    expected_salary: '',
+    linkedin_url: '',
+    portfolio_url: '',
+    bio: ''
   });
   const [loading, setLoading] = useState(false);
+  const [verificationStep, setVerificationStep] = useState(null);
+  const [verificationCodes, setVerificationCodes] = useState({});
+  const [verificationInputs, setVerificationInputs] = useState({
+    emailCode: '',
+    phoneOtp: ''
+  });
   const { login } = useAuth();
 
   const handleSubmit = async (e) => {
@@ -327,16 +348,61 @@ const AuthPage = () => {
     setLoading(true);
 
     try {
-      const endpoint = isLogin ? '/auth/login' : '/auth/register';
-      const payload = isLogin 
-        ? { email: formData.email, password: formData.password }
-        : formData;
+      const endpoint = isLogin ? 
+        (userType === 'recruiter' ? '/recruiters/auth/login' : '/candidates/auth/login') :
+        (userType === 'recruiter' ? '/recruiters/auth/register' : '/candidates/auth/register');
+      
+      let payload;
+      if (isLogin) {
+        payload = { email: formData.email, password: formData.password };
+      } else {
+        if (userType === 'recruiter') {
+          payload = {
+            email: formData.email,
+            password: formData.password,
+            full_name: formData.full_name,
+            company_name: formData.company_name,
+            company_domain: formData.company_domain,
+            company_size: formData.company_size,
+            industry: formData.industry
+          };
+        } else {
+          payload = {
+            email: formData.email,
+            password: formData.password,
+            full_name: formData.full_name,
+            phone: formData.phone,
+            location: formData.location,
+            current_title: formData.current_title,
+            current_company: formData.current_company,
+            experience_years: parseInt(formData.experience_years) || 0,
+            education: formData.education,
+            skills: formData.skills.split(',').map(s => s.trim()).filter(s => s),
+            expected_salary: formData.expected_salary ? parseInt(formData.expected_salary) : null,
+            linkedin_url: formData.linkedin_url,
+            portfolio_url: formData.portfolio_url,
+            bio: formData.bio
+          };
+        }
+      }
 
       console.log('Submitting to:', `${API}${endpoint}`, payload);
       const response = await axios.post(`${API}${endpoint}`, payload);
       console.log('Auth response:', response.data);
       
-      login(response.data.recruiter, response.data.company, response.data.token);
+      if (response.data.verification_required && userType === 'candidate' && !isLogin) {
+        // Handle verification flow for new candidates
+        setVerificationCodes({
+          email: response.data.email_verification_code,
+          phone: response.data.phone_otp,
+          userId: response.data.user.id
+        });
+        setVerificationStep('verify');
+        login(response.data.user, response.data.token, response.data.role, response.data.company);
+      } else {
+        // Direct login
+        login(response.data.user, response.data.token, response.data.role, response.data.company);
+      }
     } catch (error) {
       console.error('Auth error:', error);
       alert(error.response?.data?.detail || 'Authentication failed');
@@ -345,48 +411,176 @@ const AuthPage = () => {
     }
   };
 
+  const handleVerification = async (type) => {
+    try {
+      setLoading(true);
+      const endpoint = type === 'email' ? '/candidates/verify-email' : '/candidates/verify-phone';
+      const code = type === 'email' ? verificationInputs.emailCode : verificationInputs.phoneOtp;
+      
+      await axios.post(`${API}${endpoint}`, {
+        user_id: verificationCodes.userId,
+        [type === 'email' ? 'verification_code' : 'otp_code']: code
+      });
+      
+      alert(`${type === 'email' ? 'Email' : 'Phone'} verified successfully!`);
+      
+      // Check if both are verified, then proceed
+      if (type === 'email') {
+        setVerificationInputs({...verificationInputs, emailVerified: true});
+      } else {
+        setVerificationInputs({...verificationInputs, phoneVerified: true});
+      }
+      
+    } catch (error) {
+      alert(error.response?.data?.detail || `${type} verification failed`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (verificationStep === 'verify') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-teal-50 flex items-center justify-center p-6">
+        <Card className="w-full max-w-md shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
+          <CardHeader className="text-center pb-6">
+            <div className="flex justify-center mb-4">
+              <Verified className="w-12 h-12 text-teal-600" />
+            </div>
+            <CardTitle className="text-2xl font-bold text-slate-800">
+              Verify Your Account
+            </CardTitle>
+            <CardDescription className="text-slate-600">
+              Complete verification to secure your account
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className="space-y-6">
+            {/* Email Verification */}
+            <div className="space-y-3">
+              <Label className="text-slate-700 font-medium">Email Verification</Label>
+              <div className="flex space-x-2">
+                <Input
+                  placeholder="Enter email code"
+                  value={verificationInputs.emailCode}
+                  onChange={(e) => setVerificationInputs({...verificationInputs, emailCode: e.target.value})}
+                  className="flex-1"
+                />
+                <Button 
+                  onClick={() => handleVerification('email')}
+                  disabled={loading || !verificationInputs.emailCode}
+                  className="bg-teal-600 hover:bg-teal-700"
+                >
+                  Verify
+                </Button>
+              </div>
+              <p className="text-xs text-slate-500">Demo code: {verificationCodes.email}</p>
+            </div>
+
+            {/* Phone Verification */}
+            <div className="space-y-3">
+              <Label className="text-slate-700 font-medium">Phone Verification</Label>
+              <div className="flex space-x-2">
+                <Input
+                  placeholder="Enter OTP"
+                  value={verificationInputs.phoneOtp}
+                  onChange={(e) => setVerificationInputs({...verificationInputs, phoneOtp: e.target.value})}
+                  className="flex-1"
+                />
+                <Button 
+                  onClick={() => handleVerification('phone')}
+                  disabled={loading || !verificationInputs.phoneOtp}
+                  className="bg-orange-600 hover:bg-orange-700"
+                >
+                  Verify
+                </Button>
+              </div>
+              <p className="text-xs text-slate-500">Demo OTP: {verificationCodes.phone}</p>
+            </div>
+
+            <Button 
+              onClick={() => setVerificationStep(null)}
+              className="w-full bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700"
+            >
+              Continue to Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-teal-50 flex items-center justify-center p-6">
-      <Card className="w-full max-w-md shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
+      <Card className="w-full max-w-2xl shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
         <CardHeader className="text-center pb-6">
           <div className="flex justify-center mb-4">
             <div className="relative">
-              <Shield className="w-12 h-12 text-transparent bg-gradient-to-r from-purple-600 to-teal-600 bg-clip-text" style={{WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'}} />
-              <Shield className="w-12 h-12 text-purple-600 absolute top-0" />
+              {userType === 'recruiter' ? (
+                <Building2 className="w-12 h-12 text-purple-600" />
+              ) : (
+                <User className="w-12 h-12 text-teal-600" />
+              )}
             </div>
           </div>
+          
+          {/* User Type Selector */}
+          <div className="flex justify-center space-x-2 mb-6">
+            <Button
+              variant={userType === 'recruiter' ? 'default' : 'outline'}
+              className={userType === 'recruiter' ? 'bg-purple-600 hover:bg-purple-700' : 'border-purple-300 text-purple-700'}
+              onClick={() => setUserType('recruiter')}
+            >
+              <Building2 className="w-4 h-4 mr-2" />
+              Recruiter
+            </Button>
+            <Button
+              variant={userType === 'candidate' ? 'default' : 'outline'}
+              className={userType === 'candidate' ? 'bg-teal-600 hover:bg-teal-700' : 'border-teal-300 text-teal-700'}
+              onClick={() => setUserType('candidate')}
+            >
+              <User className="w-4 h-4 mr-2" />
+              Candidate
+            </Button>
+          </div>
+
           <CardTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-teal-600 bg-clip-text text-transparent">
-            {isLogin ? 'Welcome Back to SecuHire' : 'Create Your SecuHire Account'}
+            {isLogin ? 'Welcome Back to SecuHire' : `Join SecuHire as ${userType === 'recruiter' ? 'a Recruiter' : 'a Candidate'}`}
           </CardTitle>
           <CardDescription className="text-slate-600">
-            {isLogin ? 'Sign in to your recruiting dashboard' : 'Start your secure hiring journey today'}
+            {isLogin ? 
+              `Sign in to your ${userType} dashboard` : 
+              `Create your ${userType} account and get started`
+            }
           </CardDescription>
         </CardHeader>
 
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="email" className="text-slate-700 font-medium">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
-                required
-                className="mt-1 border-slate-300 focus:border-purple-500 focus:ring-purple-500"
-              />
-            </div>
+            {/* Common Fields */}
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="email" className="text-slate-700 font-medium">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  required
+                  className="mt-1 border-slate-300 focus:border-purple-500 focus:ring-purple-500"
+                />
+              </div>
 
-            <div>
-              <Label htmlFor="password" className="text-slate-700 font-medium">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({...formData, password: e.target.value})}
-                required
-                className="mt-1 border-slate-300 focus:border-purple-500 focus:ring-purple-500"
-              />
+              <div>
+                <Label htmlFor="password" className="text-slate-700 font-medium">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  required
+                  className="mt-1 border-slate-300 focus:border-purple-500 focus:ring-purple-500"
+                />
+              </div>
             </div>
 
             {!isLogin && (
@@ -402,60 +596,212 @@ const AuthPage = () => {
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="company_name" className="text-slate-700 font-medium">Company Name</Label>
-                  <Input
-                    id="company_name"
-                    value={formData.company_name}
-                    onChange={(e) => setFormData({...formData, company_name: e.target.value})}
-                    required
-                    className="mt-1 border-slate-300 focus:border-purple-500 focus:ring-purple-500"
-                  />
-                </div>
+                {userType === 'recruiter' ? (
+                  // Recruiter-specific fields
+                  <>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="company_name" className="text-slate-700 font-medium">Company Name</Label>
+                        <Input
+                          id="company_name"
+                          value={formData.company_name}
+                          onChange={(e) => setFormData({...formData, company_name: e.target.value})}
+                          required
+                          className="mt-1"
+                        />
+                      </div>
 
-                <div>
-                  <Label htmlFor="company_domain" className="text-slate-700 font-medium">Company Domain</Label>
-                  <Input
-                    id="company_domain"
-                    value={formData.company_domain}
-                    onChange={(e) => setFormData({...formData, company_domain: e.target.value})}
-                    required
-                    className="mt-1 border-slate-300 focus:border-purple-500 focus:ring-purple-500"
-                    placeholder="company.com"
-                  />
-                </div>
+                      <div>
+                        <Label htmlFor="company_domain" className="text-slate-700 font-medium">Company Domain</Label>
+                        <Input
+                          id="company_domain"
+                          value={formData.company_domain}
+                          onChange={(e) => setFormData({...formData, company_domain: e.target.value})}
+                          required
+                          className="mt-1"
+                          placeholder="company.com"
+                        />
+                      </div>
+                    </div>
 
-                <div>
-                  <Label htmlFor="company_size" className="text-slate-700 font-medium">Company Size</Label>
-                  <Select onValueChange={(value) => setFormData({...formData, company_size: value})}>
-                    <SelectTrigger className="mt-1 border-slate-300 focus:border-purple-500 focus:ring-purple-500">
-                      <SelectValue placeholder="Select company size" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1-10">1-10 employees</SelectItem>
-                      <SelectItem value="11-50">11-50 employees</SelectItem>
-                      <SelectItem value="51-200">51-200 employees</SelectItem>
-                      <SelectItem value="200+">200+ employees</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="company_size" className="text-slate-700 font-medium">Company Size</Label>
+                        <Select onValueChange={(value) => setFormData({...formData, company_size: value})}>
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Select company size" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1-10">1-10 employees</SelectItem>
+                            <SelectItem value="11-50">11-50 employees</SelectItem>
+                            <SelectItem value="51-200">51-200 employees</SelectItem>
+                            <SelectItem value="200+">200+ employees</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                <div>
-                  <Label htmlFor="industry" className="text-slate-700 font-medium">Industry</Label>
-                  <Select onValueChange={(value) => setFormData({...formData, industry: value})}>
-                    <SelectTrigger className="mt-1 border-slate-300 focus:border-purple-500 focus:ring-purple-500">
-                      <SelectValue placeholder="Select industry" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Technology">Technology</SelectItem>
-                      <SelectItem value="Healthcare">Healthcare</SelectItem>
-                      <SelectItem value="Finance">Finance</SelectItem>
-                      <SelectItem value="Education">Education</SelectItem>
-                      <SelectItem value="Retail">Retail</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                      <div>
+                        <Label htmlFor="industry" className="text-slate-700 font-medium">Industry</Label>
+                        <Select onValueChange={(value) => setFormData({...formData, industry: value})}>
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Select industry" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Technology">Technology</SelectItem>
+                            <SelectItem value="Healthcare">Healthcare</SelectItem>
+                            <SelectItem value="Finance">Finance</SelectItem>
+                            <SelectItem value="Education">Education</SelectItem>
+                            <SelectItem value="Retail">Retail</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  // Candidate-specific fields
+                  <>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="phone" className="text-slate-700 font-medium">Phone Number</Label>
+                        <Input
+                          id="phone"
+                          type="tel"
+                          value={formData.phone}
+                          onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                          required
+                          className="mt-1"
+                          placeholder="+1234567890"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="location" className="text-slate-700 font-medium">Location</Label>
+                        <Input
+                          id="location"
+                          value={formData.location}
+                          onChange={(e) => setFormData({...formData, location: e.target.value})}
+                          required
+                          className="mt-1"
+                          placeholder="City, State"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="current_title" className="text-slate-700 font-medium">Current Job Title</Label>
+                        <Input
+                          id="current_title"
+                          value={formData.current_title}
+                          onChange={(e) => setFormData({...formData, current_title: e.target.value})}
+                          required
+                          className="mt-1"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="current_company" className="text-slate-700 font-medium">Current Company</Label>
+                        <Input
+                          id="current_company"
+                          value={formData.current_company}
+                          onChange={(e) => setFormData({...formData, current_company: e.target.value})}
+                          required
+                          className="mt-1"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="experience_years" className="text-slate-700 font-medium">Years of Experience</Label>
+                        <Input
+                          id="experience_years"
+                          type="number"
+                          value={formData.experience_years}
+                          onChange={(e) => setFormData({...formData, experience_years: e.target.value})}
+                          required
+                          className="mt-1"
+                          min="0"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="education" className="text-slate-700 font-medium">Education</Label>
+                        <Input
+                          id="education"
+                          value={formData.education}
+                          onChange={(e) => setFormData({...formData, education: e.target.value})}
+                          required
+                          className="mt-1"
+                          placeholder="BS Computer Science"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="expected_salary" className="text-slate-700 font-medium">Expected Salary</Label>
+                        <Input
+                          id="expected_salary"
+                          type="number"
+                          value={formData.expected_salary}
+                          onChange={(e) => setFormData({...formData, expected_salary: e.target.value})}
+                          className="mt-1"
+                          placeholder="120000"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="skills" className="text-slate-700 font-medium">Skills (comma-separated)</Label>
+                      <Input
+                        id="skills"
+                        value={formData.skills}
+                        onChange={(e) => setFormData({...formData, skills: e.target.value})}
+                        required
+                        className="mt-1"
+                        placeholder="React, Python, JavaScript, MongoDB"
+                      />
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="linkedin_url" className="text-slate-700 font-medium">LinkedIn URL (Optional)</Label>
+                        <Input
+                          id="linkedin_url"
+                          type="url"
+                          value={formData.linkedin_url}
+                          onChange={(e) => setFormData({...formData, linkedin_url: e.target.value})}
+                          className="mt-1"
+                          placeholder="https://linkedin.com/in/yourprofile"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="portfolio_url" className="text-slate-700 font-medium">Portfolio URL (Optional)</Label>
+                        <Input
+                          id="portfolio_url"
+                          type="url"
+                          value={formData.portfolio_url}
+                          onChange={(e) => setFormData({...formData, portfolio_url: e.target.value})}
+                          className="mt-1"
+                          placeholder="https://yourportfolio.com"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="bio" className="text-slate-700 font-medium">Professional Bio (Optional)</Label>
+                      <Textarea
+                        id="bio"
+                        value={formData.bio}
+                        onChange={(e) => setFormData({...formData, bio: e.target.value})}
+                        className="mt-1"
+                        rows={3}
+                        placeholder="Tell us about your professional background and goals..."
+                      />
+                    </div>
+                  </>
+                )}
               </>
             )}
 
