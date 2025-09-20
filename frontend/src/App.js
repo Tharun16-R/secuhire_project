@@ -846,7 +846,9 @@ const ApplicationCard = ({ application, candidate, job }) => {
 
 // Main App Component
 function App() {
-  const { token, loading } = useAuth();
+  const { token, loading, recruiter } = useAuth();
+
+  console.log('App render - Token:', token ? 'exists' : 'none', 'Loading:', loading, 'Recruiter:', recruiter?.full_name);
 
   if (loading) {
     return (
@@ -860,9 +862,9 @@ function App() {
     <div className="App">
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={token ? <Navigate to="/dashboard" /> : <LandingPage />} />
-          <Route path="/auth" element={token ? <Navigate to="/dashboard" /> : <AuthPage />} />
-          <Route path="/dashboard" element={token ? <ATSDashboard /> : <Navigate to="/auth" />} />
+          <Route path="/" element={token ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+          <Route path="/auth" element={token ? <Navigate to="/dashboard" replace /> : <AuthPage />} />
+          <Route path="/dashboard" element={token ? <ATSDashboard /> : <Navigate to="/auth" replace />} />
         </Routes>
       </BrowserRouter>
     </div>
