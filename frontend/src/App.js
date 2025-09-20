@@ -1527,30 +1527,54 @@ const SecureInterviewSession = ({ interview, onEndInterview }) => {
     }
 
     // 2. DISABLE BROWSER CONTEXT MENU
-    document.addEventListener('contextmenu', preventRightClick);
+    document.addEventListener('contextmenu', preventRightClick, { passive: false });
     
     // 3. DISABLE KEY COMBINATIONS
-    document.addEventListener('keydown', preventKeyboardShortcuts);
+    document.addEventListener('keydown', preventKeyboardShortcuts, { passive: false });
     
     // 4. DISABLE TEXT SELECTION AND COPY
-    document.addEventListener('selectstart', preventSelection);
-    document.addEventListener('copy', preventCopy);
-    document.addEventListener('paste', preventPaste);
+    document.addEventListener('selectstart', preventSelection, { passive: false });
+    document.addEventListener('copy', preventCopy, { passive: false });
+    document.addEventListener('paste', preventPaste, { passive: false });
+    document.addEventListener('cut', preventCut, { passive: false });
+    document.addEventListener('drag', preventDrag, { passive: false });
+    document.addEventListener('dragstart', preventDrag, { passive: false });
     
     // 5. MONITOR WINDOW FOCUS
-    window.addEventListener('blur', handleWindowBlur);
-    window.addEventListener('focus', handleWindowFocus);
+    window.addEventListener('blur', handleWindowBlur, { passive: false });
+    window.addEventListener('focus', handleWindowFocus, { passive: false });
     
     // 6. MONITOR TAB VISIBILITY
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange, { passive: false });
     
     // 7. PREVENT PAGE NAVIGATION
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('beforeunload', handleBeforeUnload, { passive: false });
+    window.addEventListener('unload', handleUnload, { passive: false });
     
     // 8. MONITOR FULLSCREEN CHANGES
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('fullscreenchange', handleFullscreenChange, { passive: false });
 
-    logSecurityEvent('Secure mode activated');
+    // 9. BLOCK DEVELOPER TOOLS
+    document.addEventListener('keypress', blockDevTools, { passive: false });
+    
+    // 10. MONITOR MOUSE MOVEMENTS FOR SUSPICIOUS ACTIVITY
+    document.addEventListener('mouseleave', handleMouseLeave, { passive: false });
+    document.addEventListener('mouseenter', handleMouseEnter, { passive: false });
+
+    // 11. PREVENT PRINT SCREEN
+    document.addEventListener('keydown', preventPrintScreen, { passive: false });
+    
+    // 12. DISABLE BROWSER ZOOM
+    document.addEventListener('wheel', preventZoom, { passive: false });
+    document.addEventListener('keydown', preventZoomKeys, { passive: false });
+
+    // 13. BLOCK CLIPBOARD ACCESS
+    navigator.clipboard = undefined;
+
+    // 14. DISABLE BROWSER EXTENSIONS COMMUNICATION
+    window.postMessage = () => {};
+
+    logSecurityEvent('Secure mode activated with enhanced protection');
   };
 
   const exitSecureMode = () => {
