@@ -2683,7 +2683,7 @@ const SecureInterviewSession = ({ interview, onEndInterview }) => {
           </div>
           
           <Button 
-            onClick={handleEndInterview}
+            onClick={finalizeInterview}
             className="bg-red-700 hover:bg-red-800 text-white"
             size="sm"
           >
