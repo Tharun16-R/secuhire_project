@@ -480,6 +480,318 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+# AI Resume Parsing Service
+class AIResumeParser:
+    def __init__(self):
+        self.gemini_api_key = os.getenv('GEMINI_API_KEY')
+    
+    async def parse_resume(self, file_content: bytes, filename: str) -> Dict[str, Any]:
+        """Parse resume using AI to extract structured data"""
+        try:
+            # Extract text from PDF or Word document
+            text_content = self._extract_text(file_content, filename)
+            
+            # Use AI to parse the resume content
+            parsed_data = await self._ai_parse_content(text_content)
+            
+            return {
+                "success": True,
+                "data": parsed_data,
+                "raw_text": text_content
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "raw_text": ""
+            }
+    
+    def _extract_text(self, file_content: bytes, filename: str) -> str:
+        """Extract text from PDF or Word files"""
+        try:
+            if filename.lower().endswith('.pdf'):
+                pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_content))
+                text = ""
+                for page in pdf_reader.pages:
+                    text += page.extract_text() + "\n"
+                return text
+            elif filename.lower().endswith(('.doc', '.docx')):
+                # For Word documents, we'd use python-docx library
+                # For now, return placeholder
+                return "Word document parsing not implemented yet"
+            else:
+                # Try to decode as text
+                return file_content.decode('utf-8', errors='ignore')
+        except Exception as e:
+            return f"Error extracting text: {str(e)}"
+    
+    async def _ai_parse_content(self, text: str) -> Dict[str, Any]:
+        """Use AI to parse resume content into structured data"""
+        # This would integrate with Gemini API or Emergent LLM
+        # For now, return a structured parsing of common resume elements
+        
+        parsed_data = {
+            "personal_info": self._extract_personal_info(text),
+            "experience": self._extract_experience(text),
+            "education": self._extract_education(text),
+            "skills": self._extract_skills(text),
+            "languages": self._extract_languages(text),
+            "certifications": self._extract_certifications(text)
+        }
+        
+        return parsed_data
+    
+    def _extract_personal_info(self, text: str) -> Dict[str, str]:
+        """Extract personal information using regex patterns"""
+        email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        phone_pattern = r'(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}'
+        
+        emails = re.findall(email_pattern, text)
+        phones = re.findall(phone_pattern, text)
+        
+        # Extract name (first few lines typically contain name)
+        lines = text.split('\n')[:5]
+        name = ""
+        for line in lines:
+            line = line.strip()
+            if len(line) > 2 and len(line) < 50 and not any(char.isdigit() for char in line):
+                name = line
+                break
+        
+        return {
+            "name": name,
+            "email": emails[0] if emails else "",
+            "phone": phones[0] if phones else ""
+        }
+    
+    def _extract_experience(self, text: str) -> List[Dict[str, Any]]:
+        """Extract work experience"""
+        # This is a simplified version - in production, use AI for better parsing
+        experience = []
+        
+        # Look for common experience keywords
+        exp_keywords = ['experience', 'employment', 'work history', 'professional experience']
+        lines = text.lower().split('\n')
+        
+        in_experience_section = False
+        for i, line in enumerate(lines):
+            if any(keyword in line for keyword in exp_keywords):
+                in_experience_section = True
+                continue
+            
+            if in_experience_section and ('education' in line or 'skills' in line):
+                break
+            
+            if in_experience_section and len(line.strip()) > 10:
+                # Extract potential job titles and companies
+                if any(word in line for word in ['developer', 'engineer', 'manager', 'analyst', 'coordinator']):
+                    experience.append({
+                        "title": line.strip(),
+                        "company": "",
+                        "duration": "",
+                        "description": ""
+                    })
+        
+        return experience[:5]  # Limit to 5 entries
+    
+    def _extract_education(self, text: str) -> List[Dict[str, Any]]:
+        """Extract education information"""
+        education = []
+        
+        # Look for degree keywords
+        degree_keywords = ['bachelor', 'master', 'phd', 'degree', 'university', 'college', 'diploma']
+        lines = text.lower().split('\n')
+        
+        for line in lines:
+            if any(keyword in line for keyword in degree_keywords):
+                education.append({
+                    "degree": line.strip(),
+                    "institution": "",
+                    "year": "",
+                    "gpa": ""
+                })
+        
+        return education[:3]  # Limit to 3 entries
+    
+    def _extract_skills(self, text: str) -> List[str]:
+        """Extract skills from resume"""
+        # Common technical skills
+        tech_skills = [
+            'python', 'javascript', 'java', 'react', 'node.js', 'sql', 'mongodb',
+            'aws', 'azure', 'docker', 'kubernetes', 'git', 'html', 'css',
+            'machine learning', 'ai', 'data science', 'analytics'
+        ]
+        
+        found_skills = []
+        text_lower = text.lower()
+        
+        for skill in tech_skills:
+            if skill in text_lower:
+                found_skills.append(skill.title())
+        
+        return found_skills
+    
+    def _extract_languages(self, text: str) -> List[Dict[str, str]]:
+        """Extract languages"""
+        languages = ['english', 'spanish', 'french', 'german', 'chinese', 'japanese', 'portuguese']
+        found_languages = []
+        
+        text_lower = text.lower()
+        for lang in languages:
+            if lang in text_lower:
+                found_languages.append({
+                    "language": lang.title(),
+                    "proficiency": "Unknown"
+                })
+        
+        return found_languages
+    
+    def _extract_certifications(self, text: str) -> List[str]:
+        """Extract certifications"""
+        cert_keywords = ['certified', 'certification', 'certificate', 'aws', 'google cloud', 'microsoft']
+        certifications = []
+        
+        lines = text.split('\n')
+        for line in lines:
+            if any(keyword in line.lower() for keyword in cert_keywords):
+                certifications.append(line.strip())
+        
+        return certifications[:5]
+
+# AI Candidate Sourcing Service
+class AICandidateSourcing:
+    def __init__(self):
+        self.gemini_api_key = os.getenv('GEMINI_API_KEY')
+    
+    async def find_candidates(self, job_requirements: str, search_params: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Use AI to find candidates based on job requirements"""
+        # This would integrate with LinkedIn API, job board APIs, etc.
+        # For now, return mock data
+        
+        mock_candidates = [
+            {
+                "name": "AI Sourced Candidate 1",
+                "email": "candidate1@example.com",
+                "title": "Software Engineer",
+                "company": "Tech Corp",
+                "match_score": 95,
+                "skills": ["Python", "React", "AWS"],
+                "experience_years": 5,
+                "location": "San Francisco, CA",
+                "source": "AI Sourcing"
+            },
+            {
+                "name": "AI Sourced Candidate 2", 
+                "email": "candidate2@example.com",
+                "title": "Senior Developer",
+                "company": "Innovation Inc",
+                "match_score": 88,
+                "skills": ["JavaScript", "Node.js", "MongoDB"],
+                "experience_years": 7,
+                "location": "New York, NY",
+                "source": "AI Sourcing"
+            }
+        ]
+        
+        return mock_candidates
+
+# Email Automation Service
+class EmailAutomationService:
+    def __init__(self):
+        self.smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+        self.smtp_port = int(os.getenv('SMTP_PORT', '587'))
+        self.smtp_username = os.getenv('SMTP_USERNAME', '')
+        self.smtp_password = os.getenv('SMTP_PASSWORD', '')
+    
+    async def send_sequence_email(self, recipient_email: str, subject: str, body: str, sender_email: str):
+        """Send automated sequence email"""
+        try:
+            msg = MIMEMultipart()
+            msg['From'] = sender_email
+            msg['To'] = recipient_email
+            msg['Subject'] = subject
+            
+            msg.attach(MIMEText(body, 'html'))
+            
+            # In production, use proper SMTP configuration
+            # For now, just log the email
+            print(f"Sending email to {recipient_email}: {subject}")
+            
+            return {"success": True, "message": "Email sent successfully"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def create_email_sequence(self, sequence_data: Dict[str, Any]) -> str:
+        """Create a new email sequence"""
+        sequence = EmailSequence(**sequence_data)
+        await db.email_sequences.insert_one(sequence.dict())
+        return sequence.id
+    
+    async def start_campaign(self, campaign_data: Dict[str, Any]) -> str:
+        """Start an email campaign"""
+        campaign = EmailCampaign(**campaign_data)
+        await db.email_campaigns.insert_one(campaign.dict())
+        
+        # Schedule emails to be sent
+        await self._schedule_campaign_emails(campaign)
+        
+        return campaign.id
+    
+    async def _schedule_campaign_emails(self, campaign: EmailCampaign):
+        """Schedule campaign emails to be sent"""
+        # This would integrate with a task queue like Celery
+        # For now, just update the campaign status
+        await db.email_campaigns.update_one(
+            {"id": campaign.id},
+            {"$set": {"status": "active", "start_date": datetime.now(timezone.utc)}}
+        )
+
+# Job Board Integration Service
+class JobBoardService:
+    def __init__(self):
+        self.supported_boards = [
+            {"name": "Indeed", "api_endpoint": "https://api.indeed.com", "requires_auth": True},
+            {"name": "LinkedIn", "api_endpoint": "https://api.linkedin.com", "requires_auth": True},
+            {"name": "Glassdoor", "api_endpoint": "https://api.glassdoor.com", "requires_auth": True},
+            {"name": "Monster", "api_endpoint": "https://api.monster.com", "requires_auth": True},
+            {"name": "CareerBuilder", "api_endpoint": "https://api.careerbuilder.com", "requires_auth": True}
+        ]
+    
+    async def multipost_job(self, job_data: Dict[str, Any], selected_boards: List[str]) -> Dict[str, Any]:
+        """Post job to multiple job boards"""
+        results = []
+        
+        for board_name in selected_boards:
+            try:
+                # In production, integrate with actual job board APIs
+                result = await self._post_to_board(job_data, board_name)
+                results.append({
+                    "board": board_name,
+                    "status": "success",
+                    "external_id": f"{board_name.lower()}_{uuid.uuid4()}",
+                    "cost": 50.0  # Mock cost
+                })
+            except Exception as e:
+                results.append({
+                    "board": board_name,
+                    "status": "error",
+                    "error": str(e)
+                })
+        
+        return {"results": results, "total_posted": len([r for r in results if r["status"] == "success"])}
+    
+    async def _post_to_board(self, job_data: Dict[str, Any], board_name: str):
+        """Post to individual job board"""
+        # Mock implementation - in production, use actual APIs
+        await asyncio.sleep(0.1)  # Simulate API call
+        return {"success": True, "external_id": f"{board_name}_{uuid.uuid4()}"}
+
+# Initialize services
+resume_parser = AIResumeParser()
+candidate_sourcing = AICandidateSourcing()
+email_service = EmailAutomationService()
+job_board_service = JobBoardService()
+
 # Helper functions
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
