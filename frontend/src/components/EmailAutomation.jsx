@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Mail, Send, Clock, Users, BarChart3, Plus, Edit, Trash2, 
-  Play, Pause, Stop, Eye, CheckCircle, XCircle, AlertTriangle,
-  MessageSquare, Linkedin, Smartphone, Calendar, Target
+  Play, Pause, Square, Eye, CheckCircle, XCircle, AlertTriangle,
+  MessageSquare, Linkedin, Smartphone, Calendar, Target, X
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
