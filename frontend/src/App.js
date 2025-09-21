@@ -3717,7 +3717,65 @@ const ATSDashboard = () => {
               </div>
             </TabsContent>
 
-            {/* Analytics */}
+            {/* AI Tools Tab */}
+            <TabsContent value="ai-tools" className="space-y-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-3xl font-bold text-slate-800">AI-Powered Tools</h2>
+                  <p className="text-slate-600">Leverage artificial intelligence to supercharge your recruitment</p>
+                </div>
+              </div>
+
+              <Tabs defaultValue="resume-parser" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="resume-parser" className="flex items-center space-x-2">
+                    <Upload className="w-4 h-4" />
+                    <span>Resume Parser</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="candidate-search" className="flex items-center space-x-2">
+                    <Search className="w-4 h-4" />
+                    <span>Advanced Search</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="ai-sourcing" className="flex items-center space-x-2">
+                    <Bot className="w-4 h-4" />
+                    <span>AI Sourcing</span>
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="resume-parser" className="mt-6">
+                  <AIResumeParser onCandidatesParsed={(candidates) => {
+                    console.log('Parsed candidates:', candidates);
+                  }} />
+                </TabsContent>
+
+                <TabsContent value="candidate-search" className="mt-6">
+                  <AdvancedCandidateSearch onSearchResults={(results) => {
+                    console.log('Search results:', results);
+                  }} />
+                </TabsContent>
+
+                <TabsContent value="ai-sourcing" className="mt-6">
+                  <AICandidateSourcing />
+                </TabsContent>
+              </Tabs>
+            </TabsContent>
+
+            {/* Email Automation Tab */}
+            <TabsContent value="automation" className="space-y-6">
+              <EmailAutomationSystem />
+            </TabsContent>
+
+            {/* Job Multiposting Tab */}
+            <TabsContent value="multipost" className="space-y-6">
+              <JobMultipostingSystem />
+            </TabsContent>
+
+            {/* Advanced Analytics Tab */}
+            <TabsContent value="advanced" className="space-y-6">
+              <AdvancedAnalyticsDashboard />
+            </TabsContent>
+
+            {/* Analytics Overview */}
             <TabsContent value="analytics" className="space-y-6">
               <h2 className="text-3xl font-bold text-slate-800">Analytics & Reports</h2>
               
