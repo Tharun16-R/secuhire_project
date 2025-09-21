@@ -596,6 +596,9 @@ class SecuHireBackendTester:
         
         if success and 'file_url' in response:
             print(f"   File URL: {response['file_url']}")
+            # Extract filename from file_url for later testing
+            filename = response['file_url'].split('/')[-1]
+            self.uploaded_filenames.append(filename)
             return True
         return False
 
