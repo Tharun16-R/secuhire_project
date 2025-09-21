@@ -2870,6 +2870,345 @@ const SecureInterviewSession = ({ interview, onEndInterview }) => {
   );
 };
 
+// Recruiter Live Interview Monitoring Dashboard
+const RecruiterInterviewMonitor = ({ interview, onClose }) => {
+  const [monitoringData, setMonitoringData] = useState(null);
+  const [securityViolations, setSecurityViolations] = useState([]);
+  const [isLive, setIsLive] = useState(false);
+  const [websocket, setWebsocket] = useState(null);
+  const candidateVideoRef = useRef(null);
+  const candidateScreenRef = useRef(null);
+
+  useEffect(() => {
+    fetchMonitoringData();
+    initializeRecruiterWebSocket();
+    
+    return () => {
+      if (websocket) {
+        websocket.close();
+      }
+    };
+  }, []);
+
+  const fetchMonitoringData = async () => {
+    try {
+      const response = await axios.get(`${API}/interviews/${interview.id}/monitoring`);
+      setMonitoringData(response.data);
+      setSecurityViolations(response.data.security_violations || []);
+      setIsLive(response.data.is_live || false);
+    } catch (error) {
+      console.error('Failed to fetch monitoring data:', error);
+    }
+  };
+
+  const initializeRecruiterWebSocket = () => {
+    const wsUrl = `${BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws://')}/api/interviews/${interview.id}/ws/recruiter`;
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      console.log('Recruiter monitoring connected');
+      setIsLive(true);
+    };
+
+    ws.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      handleCandidateUpdate(message);
+    };
+
+    ws.onerror = (error) => {
+      console.error('Recruiter WebSocket error:', error);
+      setIsLive(false);
+    };
+
+    ws.onclose = () => {
+      console.log('Recruiter monitoring disconnected');
+      setIsLive(false);
+    };
+
+    setWebsocket(ws);
+  };
+
+  const handleCandidateUpdate = (message) => {
+    switch (message.type) {
+      case 'security_violation':
+        setSecurityViolations(prev => [...prev, message.violation]);
+        break;
+      case 'interview_started':
+        setIsLive(true);
+        break;
+      case 'interview_ended':
+        setIsLive(false);
+        break;
+      default:
+        console.log('Received candidate update:', message);
+    }
+  };
+
+  const sendCommandToCandidate = (command) => {
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
+      websocket.send(JSON.stringify(command));
+    }
+  };
+
+  const endInterviewFromRecruiter = () => {
+    if (window.confirm('Are you sure you want to end this interview? This will terminate the candidate session.')) {
+      sendCommandToCandidate({ type: 'end_interview' });
+    }
+  };
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case 'critical': return 'bg-red-100 text-red-800 border-red-200';
+      case 'warning': return 'bg-orange-100 text-orange-800 border-orange-200';
+      default: return 'bg-blue-100 text-blue-800 border-blue-200';
+    }
+  };
+
+  if (!monitoringData) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-white text-center">
+          <Shield className="w-12 h-12 mx-auto mb-4 animate-spin" />
+          <p>Loading interview monitoring...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-white">
+      {/* Header */}
+      <div className="bg-slate-800 p-4 border-b border-slate-700">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Button onClick={onClose} variant="outline" size="sm" className="border-slate-600 text-slate-300">
+              <X className="w-4 h-4 mr-2" />
+              Close Monitor
+            </Button>
+            <div className="flex items-center space-x-2">
+              <Shield className="w-6 h-6 text-purple-400" />
+              <h1 className="text-xl font-bold">Live Interview Monitor</h1>
+            </div>
+            {isLive && (
+              <Badge className="bg-red-600 text-white animate-pulse">
+                <div className="w-2 h-2 bg-white rounded-full mr-2"></div>
+                LIVE
+              </Badge>
+            )}
+          </div>
+          
+          <div className="flex items-center space-x-3">
+            <Badge className="bg-slate-700 text-slate-300">
+              Interview ID: {interview.id.slice(-8)}
+            </Badge>
+            <Button 
+              onClick={endInterviewFromRecruiter}
+              className="bg-red-600 hover:bg-red-700"
+              size="sm"
+            >
+              End Interview
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6">
+        <div className="grid grid-cols-4 gap-6 h-screen">
+          {/* Candidate Info & Controls */}
+          <div className="space-y-4">
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center space-x-2">
+                  <User className="w-5 h-5 text-blue-400" />
+                  <span>Candidate Info</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {monitoringData.candidate && (
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <Label className="text-slate-400">Name</Label>
+                      <p className="text-white font-medium">{monitoringData.candidate.full_name}</p>
+                    </div>
+                    <div>
+                      <Label className="text-slate-400">Email</Label>
+                      <p className="text-slate-300">{monitoringData.candidate.email}</p>
+                    </div>
+                    <div>
+                      <Label className="text-slate-400">Experience</Label>
+                      <p className="text-slate-300">{monitoringData.candidate.experience_years} years</p>
+                    </div>
+                    <div>
+                      <Label className="text-slate-400">Current Title</Label>
+                      <p className="text-slate-300">{monitoringData.candidate.current_title}</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Security Status */}
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center space-x-2">
+                  <Shield className="w-5 h-5 text-green-400" />
+                  <span>Security Status</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-300">Recording Status</span>
+                  {isLive ? (
+                    <CheckCircle className="w-4 h-4 text-green-400" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-red-400" />
+                  )}
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-300">Screen Monitoring</span>
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-300">Video Monitoring</span>
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-300">Violations</span>
+                  <Badge className={securityViolations.length > 0 ? "bg-red-600" : "bg-green-600"}>
+                    {securityViolations.length}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Interview Controls */}
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center space-x-2">
+                  <Video className="w-5 h-5 text-purple-400" />
+                  <span>Interview Controls</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button 
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  onClick={() => sendCommandToCandidate({type: 'security_alert', message: 'Please maintain focus on the interview'})}
+                >
+                  <AlertTriangle className="w-4 h-4 mr-2" />
+                  Send Focus Alert
+                </Button>
+                <Button 
+                  className="w-full bg-green-600 hover:bg-green-700"
+                  onClick={() => fetchMonitoringData()}
+                >
+                  <Eye className="w-4 h-4 mr-2" />
+                  Refresh Data
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Live Video Feeds */}
+          <div className="col-span-2 space-y-4">
+            {/* Candidate Video */}
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center space-x-2">
+                  <Camera className="w-5 h-5 text-green-400" />
+                  <span>Candidate Video Feed</span>
+                  {isLive && (
+                    <div className="flex items-center space-x-1 text-red-400">
+                      <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
+                      <span className="text-sm">LIVE</span>
+                    </div>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="aspect-video bg-slate-900 rounded-lg border-2 border-green-500 flex items-center justify-center">
+                  {isLive ? (
+                    <video
+                      ref={candidateVideoRef}
+                      className="w-full h-full rounded-lg"
+                      autoPlay
+                      muted
+                      playsInline
+                    />
+                  ) : (
+                    <div className="text-center text-slate-400">
+                      <Camera className="w-12 h-12 mx-auto mb-2" />
+                      <p>No live video feed</p>
+                      <p className="text-sm">Interview not in progress</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Candidate Screen */}
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center space-x-2">
+                  <Monitor className="w-5 h-5 text-blue-400" />
+                  <span>Candidate Screen Share</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="aspect-video bg-slate-900 rounded-lg border-2 border-blue-500 flex items-center justify-center">
+                  {isLive ? (
+                    <video
+                      ref={candidateScreenRef}
+                      className="w-full h-full rounded-lg"
+                      autoPlay
+                      muted
+                      playsInline
+                    />
+                  ) : (
+                    <div className="text-center text-slate-400">
+                      <Monitor className="w-12 h-12 mx-auto mb-2" />
+                      <p>No screen sharing active</p>
+                      <p className="text-sm">Interview not in progress</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Security Violations Log */}
+          <div>
+            <Card className="bg-slate-800 border-slate-700 h-full">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center space-x-2">
+                  <Eye className="w-5 h-5 text-orange-400" />
+                  <span>Security Log</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="max-h-96 overflow-y-auto space-y-2">
+                  {securityViolations.length > 0 ? securityViolations.slice(-10).reverse().map((violation, index) => (
+                    <div key={index} className={`text-xs p-3 rounded border ${getSeverityColor(violation.severity)}`}>
+                      <div className="font-medium">{violation.violation_type}</div>
+                      <div className="text-xs opacity-80 mb-1">{violation.description}</div>
+                      <div className="text-xs opacity-70">
+                        {new Date(violation.timestamp).toLocaleTimeString()}
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="text-slate-400 text-sm text-center py-8">
+                      <Shield className="w-8 h-8 mx-auto mb-2" />
+                      <p>No security violations</p>
+                      <p className="text-xs">All systems secure</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </div>
+
 // Candidate Profile Component
 const CandidateProfile = ({ user }) => {
   const [isEditing, setIsEditing] = useState(false);
