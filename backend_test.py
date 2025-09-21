@@ -547,14 +547,12 @@ class SecuHireBackendTester:
         webcam_file = io.BytesIO(webcam_data)
         
         files = {'file': ('webcam_recording.webm', webcam_file, 'video/webm')}
-        data = {'recording_type': 'webcam'}
         
         success, response = self.run_test(
             "Upload Webcam Recording",
             "POST",
-            f"/interviews/{interview_id}/upload-recording",
+            f"/interviews/{interview_id}/upload-recording?recording_type=webcam",
             200,
-            data=data,
             files=files,
             token=self.candidate_token
         )
@@ -567,14 +565,12 @@ class SecuHireBackendTester:
         screen_file = io.BytesIO(screen_data)
         
         files = {'file': ('screen_recording.webm', screen_file, 'video/webm')}
-        data = {'recording_type': 'screen'}
         
         success, response = self.run_test(
             "Upload Screen Recording",
             "POST",
-            f"/interviews/{interview_id}/upload-recording",
+            f"/interviews/{interview_id}/upload-recording?recording_type=screen",
             200,
-            data=data,
             files=files,
             token=self.candidate_token
         )
@@ -587,14 +583,12 @@ class SecuHireBackendTester:
         audio_file = io.BytesIO(audio_data)
         
         files = {'file': ('audio_recording.webm', audio_file, 'audio/webm')}
-        data = {'recording_type': 'audio'}
         
         success, response = self.run_test(
             "Upload Audio Recording",
             "POST",
-            f"/interviews/{interview_id}/upload-recording",
+            f"/interviews/{interview_id}/upload-recording?recording_type=audio",
             200,
-            data=data,
             files=files,
             token=self.candidate_token
         )
