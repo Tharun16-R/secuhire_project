@@ -872,7 +872,9 @@ const CandidateDashboard = () => {
       alert('Application submitted successfully!');
       fetchCandidateData(); // Refresh data
     } catch (error) {
-      alert(error.response?.data?.detail || 'Application failed');
+      console.error('Application failed:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Application failed';
+      alert(errorMessage);
     }
   };
 
