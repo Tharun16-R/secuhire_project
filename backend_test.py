@@ -885,6 +885,50 @@ class SecuHireBackendTester:
             print("❌ CORS/API prefix tests failed")
             return False
 
+        # 5. NEW INTERVIEW RECORDING AND MONITORING TESTS
+        print("\n📋 INTERVIEW RECORDING AND MONITORING TESTS")
+        print("-" * 40)
+        
+        if not self.test_start_interview_recording():
+            print("❌ Start interview recording failed")
+            return False
+            
+        if not self.test_upload_interview_recording():
+            print("❌ Upload interview recording failed")
+            return False
+            
+        if not self.test_log_security_violation():
+            print("❌ Log security violation failed")
+            return False
+            
+        if not self.test_get_interview_monitoring_data():
+            print("❌ Get interview monitoring data failed")
+            return False
+            
+        if not self.test_serve_recording_file():
+            print("❌ Serve recording file failed")
+            return False
+            
+        if not self.test_end_interview_recording():
+            print("❌ End interview recording failed")
+            return False
+
+        # 6. WEBSOCKET AND DATABASE TESTS
+        print("\n📋 WEBSOCKET AND DATABASE TESTS")
+        print("-" * 40)
+        
+        if not self.test_websocket_connection():
+            print("❌ WebSocket connection test failed")
+            return False
+            
+        if not self.test_database_collections():
+            print("❌ Database collections test failed")
+            return False
+            
+        if not self.test_jwt_authentication_for_new_endpoints():
+            print("❌ JWT authentication for new endpoints failed")
+            return False
+
         # Print final results
         print("\n" + "=" * 60)
         print(f"📊 FINAL RESULTS: {self.tests_passed}/{self.tests_run} tests passed")
