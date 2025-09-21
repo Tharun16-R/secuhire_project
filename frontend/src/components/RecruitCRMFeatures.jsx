@@ -4,7 +4,7 @@ import {
   Brain, Zap, Phone, LinkedinIcon, Target, DollarSign, 
   FileText, Clock, TrendingUp, Filter, Download, Send,
   Plus, Edit, Trash2, Eye, ExternalLink, Copy, Star,
-  CheckCircle, AlertTriangle, XCircle, RefreshCw
+  CheckCircle, AlertTriangle, XCircle, RefreshCw, Bot, X
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
