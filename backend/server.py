@@ -235,6 +235,192 @@ class SecurityViolation(BaseModel):
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     screenshot_url: Optional[str] = None
 
+# Advanced RecruitCRM Models
+
+class Deal(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    client_id: str
+    recruiter_id: str
+    company_id: str
+    job_id: Optional[str] = None
+    candidate_id: Optional[str] = None
+    value: float
+    currency: str = "USD"
+    probability: int = 50  # 0-100%
+    stage: str = "prospecting"  # prospecting, proposal, negotiation, closed_won, closed_lost
+    expected_close_date: Optional[datetime] = None
+    actual_close_date: Optional[datetime] = None
+    commission_rate: float = 0.0
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class EmailSequence(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    recruiter_id: str
+    company_id: str
+    sequence_type: str  # candidate_outreach, client_follow_up, interview_reminder
+    steps: List[Dict[str, Any]] = []  # [{delay_days: 1, subject: "", body: "", channel: "email"}]
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class EmailCampaign(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    sequence_id: str
+    recruiter_id: str
+    company_id: str
+    recipients: List[str] = []  # candidate_ids or contact_ids
+    status: str = "draft"  # draft, active, paused, completed
+    start_date: Optional[datetime] = None
+    stats: Dict[str, int] = {"sent": 0, "opened": 0, "replied": 0, "clicked": 0}
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class WorkflowAutomation(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    recruiter_id: str
+    company_id: str
+    trigger: Dict[str, Any]  # {type: "candidate_added", conditions: {...}}
+    actions: List[Dict[str, Any]] = []  # [{type: "send_email", params: {...}}]
+    is_active: bool = True
+    execution_count: int = 0
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class CandidateHotlist(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    description: Optional[str] = None
+    recruiter_id: str
+    company_id: str
+    candidate_ids: List[str] = []
+    tags: List[str] = []
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ClientPortalSubmission(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    job_id: str
+    client_id: str
+    recruiter_id: str
+    company_id: str
+    candidate_ids: List[str] = []
+    message: Optional[str] = None
+    feedback: List[Dict[str, Any]] = []  # [{candidate_id: "", status: "approved/rejected", notes: ""}]
+    submitted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    expires_at: Optional[datetime] = None
+
+class Invoice(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    invoice_number: str
+    client_id: str
+    deal_id: Optional[str] = None
+    recruiter_id: str
+    company_id: str
+    amount: float
+    currency: str = "USD"
+    tax_rate: float = 0.0
+    status: str = "draft"  # draft, sent, paid, overdue, cancelled
+    due_date: datetime
+    paid_date: Optional[datetime] = None
+    items: List[Dict[str, Any]] = []  # [{description: "", quantity: 1, rate: 100.0, amount: 100.0}]
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class CalendarEvent(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    description: Optional[str] = None
+    recruiter_id: str
+    company_id: str
+    attendees: List[str] = []  # email addresses
+    start_time: datetime
+    end_time: datetime
+    location: Optional[str] = None
+    meeting_link: Optional[str] = None
+    event_type: str = "interview"  # interview, call, meeting
+    candidate_id: Optional[str] = None
+    job_id: Optional[str] = None
+    status: str = "scheduled"  # scheduled, completed, cancelled, no_show
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class CandidateSource(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    candidate_id: str
+    source_type: str  # linkedin, jobboard, referral, website, chrome_extension
+    source_details: Dict[str, Any] = {}  # URL, referrer info, etc.
+    recruiter_id: str
+    company_id: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class JobBoard(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    website: str
+    api_endpoint: Optional[str] = None
+    requires_auth: bool = False
+    posting_cost: float = 0.0
+    currency: str = "USD"
+    category: str = "general"  # general, tech, healthcare, finance, etc.
+    is_active: bool = True
+
+class JobPosting(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    job_id: str
+    job_board_id: str
+    external_id: Optional[str] = None  # ID on the job board
+    status: str = "posted"  # posted, expired, removed
+    posted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    expires_at: Optional[datetime] = None
+    cost: float = 0.0
+    applications_received: int = 0
+
+class CandidateEnrichment(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    candidate_id: str
+    email_verified: bool = False
+    phone_verified: bool = False
+    social_profiles: Dict[str, str] = {}  # {linkedin: "url", github: "url"}
+    employment_history: List[Dict[str, Any]] = []
+    skills_verified: List[str] = []
+    enrichment_source: str  # clearbit, hunter, apollo
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class TeamMember(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str  # recruiter_id
+    company_id: str
+    role: str = "recruiter"  # admin, manager, recruiter, coordinator
+    permissions: List[str] = []  # view_all_jobs, edit_candidates, manage_invoices, etc.
+    team_lead_id: Optional[str] = None
+    hire_date: Optional[datetime] = None
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class AnalyticsMetric(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    company_id: str
+    recruiter_id: Optional[str] = None
+    metric_type: str  # time_to_hire, placement_rate, revenue, candidate_source_effectiveness
+    metric_value: float
+    date_period: str  # daily, weekly, monthly, quarterly
+    date: datetime
+    metadata: Dict[str, Any] = {}
+
+class CommunicationLog(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    sender_id: str
+    recipient_id: str
+    recipient_type: str  # candidate, client, team_member
+    communication_type: str  # email, linkedin, sms, call
+    subject: Optional[str] = None
+    content: str
+    status: str = "sent"  # sent, delivered, opened, replied
+    thread_id: Optional[str] = None
+    metadata: Dict[str, Any] = {}  # tracking_id, campaign_id, etc.
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 # WebSocket Connection Manager for Real-time Interview Monitoring
 class ConnectionManager:
     def __init__(self):
