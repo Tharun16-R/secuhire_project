@@ -2334,6 +2334,388 @@ async def get_team_members(
     
     return [TeamMember(**member) for member in members]
 
+# Workflow Automation
+@api_router.post("/automation/workflows")
+async def create_workflow(
+    workflow_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Create no-code workflow automation"""
+    workflow_data.update({
+        "recruiter_id": current_recruiter.id,
+        "company_id": current_recruiter.company_id
+    })
+    
+    workflow = WorkflowAutomation(**workflow_data)
+    await db.workflow_automations.insert_one(workflow.dict())
+    
+    return {
+        "message": "Workflow automation created successfully",
+        "workflow": workflow
+    }
+
+@api_router.get("/automation/workflows")
+async def get_workflows(
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get all workflow automations"""
+    workflows = await db.workflow_automations.find({
+        "company_id": current_recruiter.company_id
+    }).to_list(100)
+    
+    return [WorkflowAutomation(**workflow) for workflow in workflows]
+
+# Bulk Operations
+@api_router.post("/candidates/bulk-email")
+async def send_bulk_email(
+    email_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Send bulk personalized emails"""
+    candidate_ids = email_data.get("candidate_ids", [])
+    subject = email_data.get("subject", "")
+    body = email_data.get("body", "")
+    
+    sent_count = 0
+    errors = []
+    
+    for candidate_id in candidate_ids:
+        try:
+            candidate = await db.candidates.find_one({"id": candidate_id})
+            if candidate:
+                # Personalize email
+                personalized_body = body.replace("{candidate_name}", candidate.get("full_name", ""))
+                personalized_subject = subject.replace("{candidate_name}", candidate.get("full_name", ""))
+                
+                # Send email (mock implementation)
+                result = await email_service.send_sequence_email(
+                    candidate["email"],
+                    personalized_subject,
+                    personalized_body,
+                    current_recruiter.email
+                )
+                
+                if result["success"]:
+                    sent_count += 1
+                    
+                    # Log communication
+                    comm_log = CommunicationLog(
+                        sender_id=current_recruiter.id,
+                        recipient_id=candidate_id,
+                        recipient_type="candidate",
+                        communication_type="email",
+                        subject=personalized_subject,
+                        content=personalized_body,
+                        status="sent"
+                    )
+                    await db.communication_logs.insert_one(comm_log.dict())
+                else:
+                    errors.append(f"Failed to send to {candidate['email']}: {result['error']}")
+        except Exception as e:
+            errors.append(f"Error processing candidate {candidate_id}: {str(e)}")
+    
+    return {
+        "message": f"Bulk email completed. Sent: {sent_count}, Errors: {len(errors)}",
+        "sent_count": sent_count,
+        "error_count": len(errors),
+        "errors": errors[:10]  # Limit error messages
+    }
+
+# Data Enrichment
+@api_router.post("/candidates/{candidate_id}/enrich")
+async def enrich_candidate_data(
+    candidate_id: str,
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Enrich candidate data with verified emails, phone numbers, social profiles"""
+    
+    candidate = await db.candidates.find_one({
+        "id": candidate_id,
+        "company_id": current_recruiter.company_id
+    })
+    
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    
+    # Mock data enrichment - in production, integrate with services like Clearbit, Hunter, Apollo
+    enriched_data = {
+        "email_verified": True,
+        "phone_verified": False,
+        "social_profiles": {
+            "linkedin": f"https://linkedin.com/in/{candidate['full_name'].lower().replace(' ', '-')}",
+            "github": f"https://github.com/{candidate['full_name'].lower().replace(' ', '')}"
+        },
+        "employment_history": [
+            {
+                "company": candidate.get("current_company", "Unknown"),
+                "title": candidate.get("current_title", "Unknown"),
+                "duration": "2+ years",
+                "verified": False
+            }
+        ],
+        "skills_verified": candidate.get("skills", [])[:5],
+        "enrichment_source": "mock_service"
+    }
+    
+    enrichment = CandidateEnrichment(
+        candidate_id=candidate_id,
+        **enriched_data
+    )
+    
+    # Update or insert enrichment data
+    await db.candidate_enrichments.update_one(
+        {"candidate_id": candidate_id},
+        {"$set": enrichment.dict()},
+        upsert=True
+    )
+    
+    return {
+        "message": "Candidate data enriched successfully",
+        "enrichment": enrichment
+    }
+
+# Chrome Extension Support (Mock endpoint for sourcing)
+@api_router.post("/candidates/chrome-import")
+async def chrome_extension_import(
+    profile_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Import candidate from Chrome extension (LinkedIn, Xing, etc.)"""
+    
+    # Create candidate from Chrome extension data
+    candidate_data = {
+        "id": str(uuid.uuid4()),
+        "full_name": profile_data.get("name", "Unknown"),
+        "email": profile_data.get("email", ""),
+        "phone": profile_data.get("phone", ""),
+        "current_title": profile_data.get("title", ""),
+        "current_company": profile_data.get("company", ""),
+        "location": profile_data.get("location", ""),
+        "skills": profile_data.get("skills", []),
+        "bio": profile_data.get("summary", ""),
+        "linkedin_url": profile_data.get("linkedin_url", ""),
+        "experience_years": profile_data.get("experience_years", 0),
+        "company_id": current_recruiter.company_id,
+        "password_hash": hashlib.sha256("temp_password".encode()).hexdigest(),
+        "is_verified": False,
+        "created_at": datetime.now(timezone.utc)
+    }
+    
+    # Check if candidate already exists
+    existing = await db.candidates.find_one({"email": candidate_data["email"]})
+    if existing:
+        return {
+            "message": "Candidate already exists in database",
+            "candidate_id": existing["id"],
+            "duplicate": True
+        }
+    
+    # Insert new candidate
+    await db.candidates.insert_one(candidate_data)
+    
+    # Log the sourcing
+    source_log = CandidateSource(
+        candidate_id=candidate_data["id"],
+        source_type="chrome_extension",
+        source_details={
+            "platform": profile_data.get("platform", "unknown"),
+            "url": profile_data.get("source_url", "")
+        },
+        recruiter_id=current_recruiter.id,
+        company_id=current_recruiter.company_id
+    )
+    await db.candidate_sources.insert_one(source_log.dict())
+    
+    return {
+        "message": "Candidate imported successfully from Chrome extension",
+        "candidate": CandidateUser(**candidate_data),
+        "duplicate": False
+    }
+
+# Advanced Analytics Endpoints
+@api_router.get("/analytics/performance")
+async def get_performance_analytics(
+    period: str = "monthly",
+    recruiter_id: Optional[str] = None,
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get detailed performance analytics"""
+    
+    # Date range calculation
+    now = datetime.now(timezone.utc)
+    if period == "weekly":
+        start_date = now - timedelta(days=7)
+    elif period == "monthly":
+        start_date = now - timedelta(days=30)
+    elif period == "quarterly":
+        start_date = now - timedelta(days=90)
+    else:
+        start_date = now - timedelta(days=365)
+    
+    query_filter = {
+        "company_id": current_recruiter.company_id,
+        "created_at": {"$gte": start_date}
+    }
+    
+    if recruiter_id:
+        query_filter["recruiter_id"] = recruiter_id
+    
+    # Calculate various metrics
+    metrics = {}
+    
+    # Time to hire
+    hired_applications = await db.candidate_applications.find({
+        **query_filter,
+        "stage": "hired"
+    }).to_list(1000)
+    
+    if hired_applications:
+        time_to_hire_days = []
+        for app in hired_applications:
+            if app.get("hired_date") and app.get("created_at"):
+                days = (app["hired_date"] - app["created_at"]).days
+                time_to_hire_days.append(days)
+        
+        if time_to_hire_days:
+            metrics["average_time_to_hire"] = round(statistics.mean(time_to_hire_days), 1)
+            metrics["median_time_to_hire"] = round(statistics.median(time_to_hire_days), 1)
+        else:
+            metrics["average_time_to_hire"] = 0
+            metrics["median_time_to_hire"] = 0
+    
+    # Source effectiveness
+    sources = await db.candidate_sources.find(query_filter).to_list(1000)
+    source_stats = {}
+    for source in sources:
+        source_type = source.get("source_type", "unknown")
+        if source_type not in source_stats:
+            source_stats[source_type] = {"count": 0, "hired": 0}
+        source_stats[source_type]["count"] += 1
+        
+        # Check if this candidate was hired
+        hired = await db.candidate_applications.find_one({
+            "candidate_id": source["candidate_id"],
+            "stage": "hired"
+        })
+        if hired:
+            source_stats[source_type]["hired"] += 1
+    
+    # Calculate conversion rates
+    for source_type, stats in source_stats.items():
+        if stats["count"] > 0:
+            stats["conversion_rate"] = round(stats["hired"] / stats["count"] * 100, 2)
+        else:
+            stats["conversion_rate"] = 0
+    
+    metrics["source_effectiveness"] = source_stats
+    
+    # Interview statistics
+    interviews = await db.interviews.find(query_filter).to_list(1000)
+    interview_stats = {
+        "total": len(interviews),
+        "completed": len([i for i in interviews if i.get("status") == "completed"]),
+        "no_show": len([i for i in interviews if i.get("status") == "no_show"]),
+        "cancelled": len([i for i in interviews if i.get("status") == "cancelled"])
+    }
+    
+    if interview_stats["total"] > 0:
+        interview_stats["completion_rate"] = round(interview_stats["completed"] / interview_stats["total"] * 100, 2)
+        interview_stats["no_show_rate"] = round(interview_stats["no_show"] / interview_stats["total"] * 100, 2)
+    else:
+        interview_stats["completion_rate"] = 0
+        interview_stats["no_show_rate"] = 0
+    
+    metrics["interview_stats"] = interview_stats
+    
+    # Revenue metrics
+    deals = await db.deals.find({
+        "company_id": current_recruiter.company_id,
+        "created_at": {"$gte": start_date}
+    }).to_list(1000)
+    
+    revenue_stats = {
+        "total_deals": len(deals),
+        "won_deals": len([d for d in deals if d.get("stage") == "closed_won"]),
+        "lost_deals": len([d for d in deals if d.get("stage") == "closed_lost"]),
+        "pipeline_value": sum(d.get("value", 0) for d in deals if d.get("stage") not in ["closed_won", "closed_lost"]),
+        "won_value": sum(d.get("value", 0) for d in deals if d.get("stage") == "closed_won")
+    }
+    
+    if revenue_stats["total_deals"] > 0:
+        revenue_stats["win_rate"] = round(revenue_stats["won_deals"] / revenue_stats["total_deals"] * 100, 2)
+    else:
+        revenue_stats["win_rate"] = 0
+    
+    metrics["revenue_stats"] = revenue_stats
+    
+    return {
+        "period": period,
+        "date_range": {"start": start_date, "end": now},
+        "metrics": metrics
+    }
+
+# Communication Tracking
+@api_router.get("/communications/log")
+async def get_communication_log(
+    recipient_id: Optional[str] = None,
+    communication_type: Optional[str] = None,
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get communication log with filters"""
+    
+    query = {"sender_id": current_recruiter.id}
+    
+    if recipient_id:
+        query["recipient_id"] = recipient_id
+    
+    if communication_type:
+        query["communication_type"] = communication_type
+    
+    communications = await db.communication_logs.find(query).limit(100).to_list(100)
+    
+    return [CommunicationLog(**comm) for comm in communications]
+
+# Integration Hub (Mock endpoints for popular integrations)
+@api_router.get("/integrations/available")
+async def get_available_integrations():
+    """Get list of available integrations"""
+    integrations = [
+        {"name": "LinkedIn Recruiter", "type": "sourcing", "status": "available"},
+        {"name": "Indeed API", "type": "job_boards", "status": "available"},
+        {"name": "Zoom", "type": "video_calls", "status": "available"},
+        {"name": "Google Calendar", "type": "calendar", "status": "available"},
+        {"name": "Outlook Calendar", "type": "calendar", "status": "available"},
+        {"name": "Slack", "type": "communication", "status": "available"},
+        {"name": "Microsoft Teams", "type": "communication", "status": "available"},
+        {"name": "Zapier", "type": "automation", "status": "available"},
+        {"name": "Clearbit", "type": "data_enrichment", "status": "available"},
+        {"name": "HubSpot", "type": "crm", "status": "available"}
+    ]
+    
+    return integrations
+
+@api_router.post("/integrations/{integration_name}/connect")
+async def connect_integration(
+    integration_name: str,
+    connection_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Connect to external integration"""
+    
+    # Mock integration connection - in production, handle OAuth flows
+    connection_result = {
+        "integration": integration_name,
+        "status": "connected",
+        "connected_at": datetime.now(timezone.utc),
+        "account_info": connection_data.get("account_info", {}),
+        "features_enabled": connection_data.get("features", [])
+    }
+    
+    return {
+        "message": f"Successfully connected to {integration_name}",
+        "connection": connection_result
+    }
+
 # Include the router in the main app
 app.include_router(api_router)
 
