@@ -3526,12 +3526,16 @@ const ATSDashboard = () => {
         <div className="max-w-7xl mx-auto">
           {/* Main Navigation Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid grid-cols-5 w-full max-w-2xl bg-white border border-purple-200 shadow-sm">
-              <TabsTrigger value="dashboard" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white">Dashboard</TabsTrigger>
-              <TabsTrigger value="jobs" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white">Jobs</TabsTrigger>
-              <TabsTrigger value="candidates" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white">Candidates</TabsTrigger>
-              <TabsTrigger value="pipeline" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white">Pipeline</TabsTrigger>
-              <TabsTrigger value="analytics" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white">Analytics</TabsTrigger>
+            <TabsList className="grid grid-cols-9 w-full bg-white border border-purple-200 shadow-sm">
+              <TabsTrigger value="dashboard" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs">Dashboard</TabsTrigger>
+              <TabsTrigger value="jobs" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs">Jobs</TabsTrigger>
+              <TabsTrigger value="candidates" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs">Candidates</TabsTrigger>
+              <TabsTrigger value="ai-tools" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs">AI Tools</TabsTrigger>
+              <TabsTrigger value="automation" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs">Automation</TabsTrigger>
+              <TabsTrigger value="multipost" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs">Multipost</TabsTrigger>
+              <TabsTrigger value="pipeline" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs">Pipeline</TabsTrigger>
+              <TabsTrigger value="analytics" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs">Analytics</TabsTrigger>
+              <TabsTrigger value="advanced" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs">Advanced</TabsTrigger>
             </TabsList>
 
             {/* Dashboard Overview */}
