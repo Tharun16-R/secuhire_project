@@ -204,6 +204,89 @@ class Note(BaseModel):
     type: str = "general"  # general, interview, feedback
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+class InterviewRecording(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    interview_id: str
+    candidate_id: str
+    recruiter_id: str
+    webcam_recording_url: Optional[str] = None
+    screen_recording_url: Optional[str] = None
+    audio_recording_url: Optional[str] = None
+    security_log: List[Dict] = []
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    ended_at: Optional[datetime] = None
+    status: str = "recording"  # recording, completed, failed
+    file_size_mb: Optional[float] = None
+
+class SecurityViolation(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    interview_id: str
+    candidate_id: str
+    violation_type: str
+    description: str
+    severity: str  # info, warning, critical
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    screenshot_url: Optional[str] = None
+
+# WebSocket Connection Manager for Real-time Interview Monitoring
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: Dict[str, List[WebSocket]] = {}
+        self.interview_sessions: Dict[str, Dict] = {}
+
+    async def connect(self, websocket: WebSocket, interview_id: str, user_type: str):
+        await websocket.accept()
+        if interview_id not in self.active_connections:
+            self.active_connections[interview_id] = []
+        self.active_connections[interview_id].append(websocket)
+        
+        # Store session info
+        if interview_id not in self.interview_sessions:
+            self.interview_sessions[interview_id] = {
+                'candidate': None,
+                'recruiters': [],
+                'started_at': datetime.now(timezone.utc)
+            }
+        
+        if user_type == 'candidate':
+            self.interview_sessions[interview_id]['candidate'] = websocket
+        else:
+            self.interview_sessions[interview_id]['recruiters'].append(websocket)
+
+    def disconnect(self, websocket: WebSocket, interview_id: str):
+        if interview_id in self.active_connections:
+            self.active_connections[interview_id].remove(websocket)
+            if not self.active_connections[interview_id]:
+                del self.active_connections[interview_id]
+                
+        # Clean up session info
+        if interview_id in self.interview_sessions:
+            session = self.interview_sessions[interview_id]
+            if session['candidate'] == websocket:
+                session['candidate'] = None
+            elif websocket in session['recruiters']:
+                session['recruiters'].remove(websocket)
+
+    async def send_to_recruiters(self, interview_id: str, message: dict):
+        if interview_id in self.interview_sessions:
+            recruiters = self.interview_sessions[interview_id]['recruiters']
+            for recruiter_ws in recruiters:
+                try:
+                    await recruiter_ws.send_text(json.dumps(message))
+                except:
+                    pass  # Handle disconnected recruiters
+
+    async def send_to_candidate(self, interview_id: str, message: dict):
+        if interview_id in self.interview_sessions:
+            candidate_ws = self.interview_sessions[interview_id]['candidate']
+            if candidate_ws:
+                try:
+                    await candidate_ws.send_text(json.dumps(message))
+                except:
+                    pass  # Handle disconnected candidate
+
+manager = ConnectionManager()
+
 # Helper functions
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
