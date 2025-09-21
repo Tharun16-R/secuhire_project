@@ -3208,6 +3208,8 @@ const RecruiterInterviewMonitor = ({ interview, onClose }) => {
         </div>
       </div>
     </div>
+  );
+};
 
 // Candidate Profile Component
 const CandidateProfile = ({ user }) => {
