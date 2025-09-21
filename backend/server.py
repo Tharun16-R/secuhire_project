@@ -1741,6 +1741,599 @@ async def serve_recording(interview_id: str, filename: str):
     
     return {"file_path": str(file_path), "message": "File exists"}  # In production, return actual file
 
+# ==============================================
+# RECRUITCRM FEATURE ENDPOINTS
+# ==============================================
+
+# AI Resume Parsing Endpoints
+@api_router.post("/candidates/parse-resume")
+async def parse_resume_endpoint(
+    file: UploadFile = File(...),
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """AI-powered resume parsing with multi-language support"""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+    
+    file_content = await file.read()
+    parsing_result = await resume_parser.parse_resume(file_content, file.filename)
+    
+    if not parsing_result["success"]:
+        raise HTTPException(status_code=400, detail=f"Resume parsing failed: {parsing_result['error']}")
+    
+    return {
+        "message": "Resume parsed successfully",
+        "data": parsing_result["data"],
+        "raw_text": parsing_result["raw_text"][:500] + "..." if len(parsing_result["raw_text"]) > 500 else parsing_result["raw_text"]
+    }
+
+@api_router.post("/candidates/bulk-parse")
+async def bulk_parse_resumes(
+    files: List[UploadFile] = File(...),
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Bulk resume parsing for multiple files"""
+    results = []
+    
+    for file in files:
+        if not file.filename:
+            continue
+        
+        file_content = await file.read()
+        parsing_result = await resume_parser.parse_resume(file_content, file.filename)
+        
+        results.append({
+            "filename": file.filename,
+            "success": parsing_result["success"],
+            "data": parsing_result.get("data"),
+            "error": parsing_result.get("error")
+        })
+    
+    return {
+        "message": f"Processed {len(results)} resumes",
+        "results": results,
+        "success_count": len([r for r in results if r["success"]]),
+        "error_count": len([r for r in results if not r["success"]])
+    }
+
+# Advanced Candidate Search
+@api_router.post("/candidates/advanced-search")
+async def advanced_candidate_search(
+    search_params: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Advanced Boolean and radius-based candidate search"""
+    
+    # Build MongoDB query from search parameters
+    query = {"company_id": current_recruiter.company_id}
+    
+    # Boolean search in skills, title, description
+    if search_params.get("boolean_query"):
+        boolean_query = search_params["boolean_query"]
+        query["$or"] = [
+            {"skills": {"$regex": boolean_query, "$options": "i"}},
+            {"current_title": {"$regex": boolean_query, "$options": "i"}},
+            {"bio": {"$regex": boolean_query, "$options": "i"}}
+        ]
+    
+    # Skills filter
+    if search_params.get("required_skills"):
+        query["skills"] = {"$in": search_params["required_skills"]}
+    
+    # Experience range
+    if search_params.get("min_experience"):
+        query["experience_years"] = {"$gte": search_params["min_experience"]}
+    if search_params.get("max_experience"):
+        if "experience_years" in query:
+            query["experience_years"]["$lte"] = search_params["max_experience"]
+        else:
+            query["experience_years"] = {"$lte": search_params["max_experience"]}
+    
+    # Location/radius search (simplified)
+    if search_params.get("location"):
+        query["location"] = {"$regex": search_params["location"], "$options": "i"}
+    
+    # Education level
+    if search_params.get("education_level"):
+        query["education"] = {"$regex": search_params["education_level"], "$options": "i"}
+    
+    # Salary range
+    if search_params.get("min_salary"):
+        query["expected_salary"] = {"$gte": search_params["min_salary"]}
+    if search_params.get("max_salary"):
+        if "expected_salary" in query:
+            query["expected_salary"]["$lte"] = search_params["max_salary"]
+        else:
+            query["expected_salary"] = {"$lte": search_params["max_salary"]}
+    
+    candidates = await db.candidates.find(query).limit(100).to_list(100)
+    
+    return {
+        "candidates": [CandidateUser(**candidate) for candidate in candidates],
+        "total_found": len(candidates),
+        "search_params": search_params
+    }
+
+# AI Candidate Sourcing
+@api_router.post("/candidates/ai-source")
+async def ai_candidate_sourcing(
+    sourcing_request: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """AI-powered candidate sourcing with natural language prompts"""
+    
+    job_requirements = sourcing_request.get("job_requirements", "")
+    search_params = sourcing_request.get("search_params", {})
+    
+    # Use AI to find candidates
+    sourced_candidates = await candidate_sourcing.find_candidates(job_requirements, search_params)
+    
+    # Save sourced candidates to database
+    for candidate_data in sourced_candidates:
+        candidate_data.update({
+            "id": str(uuid.uuid4()),
+            "company_id": current_recruiter.company_id,
+            "password_hash": hashlib.sha256("temp_password".encode()).hexdigest(),
+            "is_verified": False,
+            "created_at": datetime.now(timezone.utc)
+        })
+        
+        # Check if candidate already exists
+        existing = await db.candidates.find_one({"email": candidate_data["email"]})
+        if not existing:
+            await db.candidates.insert_one(candidate_data)
+            
+            # Log the sourcing activity  
+            source_log = CandidateSource(
+                candidate_id=candidate_data["id"],
+                source_type="ai_sourcing",
+                source_details={"prompt": job_requirements, "match_score": candidate_data.get("match_score", 0)},
+                recruiter_id=current_recruiter.id,
+                company_id=current_recruiter.company_id
+            )
+            await db.candidate_sources.insert_one(source_log.dict())
+    
+    return {
+        "message": f"Found {len(sourced_candidates)} candidates using AI",
+        "candidates": sourced_candidates,
+        "job_requirements": job_requirements
+    }
+
+# Email Automation Endpoints
+@api_router.post("/automation/email-sequences")
+async def create_email_sequence(
+    sequence_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Create automated email sequence"""
+    sequence_data.update({
+        "recruiter_id": current_recruiter.id,
+        "company_id": current_recruiter.company_id
+    })
+    
+    sequence_id = await email_service.create_email_sequence(sequence_data)
+    
+    return {
+        "message": "Email sequence created successfully",
+        "sequence_id": sequence_id
+    }
+
+@api_router.get("/automation/email-sequences")
+async def get_email_sequences(
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get all email sequences for the company"""
+    sequences = await db.email_sequences.find({
+        "company_id": current_recruiter.company_id
+    }).to_list(100)
+    
+    return [EmailSequence(**seq) for seq in sequences]
+
+@api_router.post("/automation/email-campaigns")
+async def start_email_campaign(
+    campaign_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Start an email campaign"""
+    campaign_data.update({
+        "recruiter_id": current_recruiter.id,
+        "company_id": current_recruiter.company_id
+    })
+    
+    campaign_id = await email_service.start_campaign(campaign_data)
+    
+    return {
+        "message": "Email campaign started successfully",
+        "campaign_id": campaign_id
+    }
+
+@api_router.get("/automation/email-campaigns")
+async def get_email_campaigns(
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get all email campaigns"""
+    campaigns = await db.email_campaigns.find({
+        "company_id": current_recruiter.company_id
+    }).to_list(100)
+    
+    return [EmailCampaign(**campaign) for campaign in campaigns]
+
+# Job Multiposting Endpoints
+@api_router.get("/job-boards")
+async def get_job_boards():
+    """Get list of available job boards"""
+    job_boards = await db.job_boards.find({"is_active": True}).to_list(1000)
+    
+    if not job_boards:
+        # Initialize with default job boards
+        default_boards = [
+            {"name": "Indeed", "website": "indeed.com", "category": "general", "posting_cost": 50.0},
+            {"name": "LinkedIn", "website": "linkedin.com", "category": "professional", "posting_cost": 100.0},
+            {"name": "Glassdoor", "website": "glassdoor.com", "category": "general", "posting_cost": 75.0},
+            {"name": "Monster", "website": "monster.com", "category": "general", "posting_cost": 60.0},
+            {"name": "CareerBuilder", "website": "careerbuilder.com", "category": "general", "posting_cost": 55.0},
+            {"name": "Dice", "website": "dice.com", "category": "tech", "posting_cost": 80.0},
+            {"name": "AngelList", "website": "angel.co", "category": "startup", "posting_cost": 40.0},
+            {"name": "Stack Overflow Jobs", "website": "stackoverflow.com", "category": "tech", "posting_cost": 90.0}
+        ]
+        
+        for board_data in default_boards:
+            board = JobBoard(**board_data)
+            await db.job_boards.insert_one(board.dict())
+        
+        job_boards = await db.job_boards.find({"is_active": True}).to_list(1000)
+    
+    return [JobBoard(**board) for board in job_boards]
+
+@api_router.post("/jobs/{job_id}/multipost")
+async def multipost_job(
+    job_id: str,
+    posting_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Post job to multiple job boards"""
+    
+    # Get job details
+    job = await db.jobs.find_one({"id": job_id, "company_id": current_recruiter.company_id})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    selected_boards = posting_data.get("job_boards", [])
+    
+    # Post to selected job boards
+    posting_results = await job_board_service.multipost_job(job, selected_boards)
+    
+    # Save posting records
+    for result in posting_results["results"]:
+        if result["status"] == "success":
+            posting = JobPosting(
+                job_id=job_id,
+                job_board_id=result.get("board_id", result["board"]),
+                external_id=result.get("external_id"),
+                cost=result.get("cost", 0.0)
+            )
+            await db.job_postings.insert_one(posting.dict())
+    
+    return {
+        "message": f"Job posted to {posting_results['total_posted']} job boards",
+        "results": posting_results["results"],
+        "total_posted": posting_results["total_posted"]
+    }
+
+# Candidate Hotlists Management
+@api_router.post("/candidates/hotlists")
+async def create_hotlist(
+    hotlist_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Create candidate hotlist/talent pool"""
+    hotlist_data.update({
+        "recruiter_id": current_recruiter.id,
+        "company_id": current_recruiter.company_id
+    })
+    
+    hotlist = CandidateHotlist(**hotlist_data)
+    await db.candidate_hotlists.insert_one(hotlist.dict())
+    
+    return {
+        "message": "Hotlist created successfully",
+        "hotlist": hotlist
+    }
+
+@api_router.get("/candidates/hotlists")
+async def get_hotlists(
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get all hotlists for the company"""
+    hotlists = await db.candidate_hotlists.find({
+        "company_id": current_recruiter.company_id
+    }).to_list(100)
+    
+    return [CandidateHotlist(**hotlist) for hotlist in hotlists]
+
+@api_router.post("/candidates/hotlists/{hotlist_id}/add-candidates")
+async def add_candidates_to_hotlist(
+    hotlist_id: str,
+    candidate_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Add candidates to hotlist"""
+    candidate_ids = candidate_data.get("candidate_ids", [])
+    
+    await db.candidate_hotlists.update_one(
+        {"id": hotlist_id, "company_id": current_recruiter.company_id},
+        {"$addToSet": {"candidate_ids": {"$each": candidate_ids}}}
+    )
+    
+    return {
+        "message": f"Added {len(candidate_ids)} candidates to hotlist"
+    }
+
+# Deal Management Endpoints
+@api_router.post("/deals")
+async def create_deal(
+    deal_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Create new deal"""
+    deal_data.update({
+        "recruiter_id": current_recruiter.id,
+        "company_id": current_recruiter.company_id
+    })
+    
+    deal = Deal(**deal_data)
+    await db.deals.insert_one(deal.dict())
+    
+    return {
+        "message": "Deal created successfully",
+        "deal": deal
+    }
+
+@api_router.get("/deals")
+async def get_deals(
+    stage: Optional[str] = None,
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get all deals with optional stage filter"""
+    query = {"company_id": current_recruiter.company_id}
+    if stage:
+        query["stage"] = stage
+    
+    deals = await db.deals.find(query).to_list(100)
+    
+    return [Deal(**deal) for deal in deals]
+
+@api_router.put("/deals/{deal_id}")
+async def update_deal(
+    deal_id: str,
+    deal_updates: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Update deal"""
+    deal_updates["updated_at"] = datetime.now(timezone.utc)
+    
+    await db.deals.update_one(
+        {"id": deal_id, "company_id": current_recruiter.company_id},
+        {"$set": deal_updates}
+    )
+    
+    return {"message": "Deal updated successfully"}
+
+# Client Portal Endpoints
+@api_router.post("/client-portal/submissions")
+async def create_client_submission(
+    submission_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Submit candidates to client portal"""
+    submission_data.update({
+        "recruiter_id": current_recruiter.id,
+        "company_id": current_recruiter.company_id
+    })
+    
+    submission = ClientPortalSubmission(**submission_data)
+    await db.client_submissions.insert_one(submission.dict())
+    
+    return {
+        "message": "Candidates submitted to client portal",
+        "submission": submission
+    }
+
+@api_router.get("/client-portal/submissions")
+async def get_client_submissions(
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get all client submissions"""
+    submissions = await db.client_submissions.find({
+        "company_id": current_recruiter.company_id
+    }).to_list(100)
+    
+    return [ClientPortalSubmission(**submission) for submission in submissions]
+
+# Invoice Management
+@api_router.post("/invoices")
+async def create_invoice(
+    invoice_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Create invoice"""
+    invoice_data.update({
+        "recruiter_id": current_recruiter.id,
+        "company_id": current_recruiter.company_id,
+        "invoice_number": f"INV-{int(datetime.now().timestamp())}"
+    })
+    
+    invoice = Invoice(**invoice_data)
+    await db.invoices.insert_one(invoice.dict())
+    
+    return {
+        "message": "Invoice created successfully",
+        "invoice": invoice
+    }
+
+@api_router.get("/invoices")
+async def get_invoices(
+    status: Optional[str] = None,
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get invoices with optional status filter"""
+    query = {"company_id": current_recruiter.company_id}
+    if status:
+        query["status"] = status
+    
+    invoices = await db.invoices.find(query).to_list(100)
+    
+    return [Invoice(**invoice) for invoice in invoices]
+
+# Calendar Integration
+@api_router.post("/calendar/events")
+async def create_calendar_event(
+    event_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Create calendar event"""
+    event_data.update({
+        "recruiter_id": current_recruiter.id,
+        "company_id": current_recruiter.company_id
+    })
+    
+    event = CalendarEvent(**event_data)
+    await db.calendar_events.insert_one(event.dict())
+    
+    return {
+        "message": "Calendar event created successfully",
+        "event": event
+    }
+
+@api_router.get("/calendar/events")
+async def get_calendar_events(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get calendar events with optional date range"""
+    query = {"company_id": current_recruiter.company_id}
+    
+    if start_date and end_date:
+        query["start_time"] = {
+            "$gte": datetime.fromisoformat(start_date),
+            "$lte": datetime.fromisoformat(end_date)
+        }
+    
+    events = await db.calendar_events.find(query).to_list(100)
+    
+    return [CalendarEvent(**event) for event in events]
+
+# Analytics and Reporting
+@api_router.get("/analytics/dashboard")
+async def get_analytics_dashboard(
+    period: str = "monthly",
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get comprehensive analytics dashboard"""
+    
+    # Calculate date range based on period
+    now = datetime.now(timezone.utc)
+    if period == "weekly":
+        start_date = now - timedelta(days=7)
+    elif period == "monthly":
+        start_date = now - timedelta(days=30)
+    elif period == "quarterly":
+        start_date = now - timedelta(days=90)
+    else:
+        start_date = now - timedelta(days=365)
+    
+    # Get various metrics
+    analytics = {
+        "period": period,
+        "date_range": {"start": start_date, "end": now},
+        "metrics": {}
+    }
+    
+    # Total candidates
+    total_candidates = await db.candidates.count_documents({
+        "company_id": current_recruiter.company_id,
+        "created_at": {"$gte": start_date}
+    })
+    analytics["metrics"]["total_candidates"] = total_candidates
+    
+    # Total jobs
+    total_jobs = await db.jobs.count_documents({
+        "company_id": current_recruiter.company_id,
+        "created_at": {"$gte": start_date}
+    })
+    analytics["metrics"]["total_jobs"] = total_jobs
+    
+    # Total applications
+    total_applications = await db.candidate_applications.count_documents({
+        "company_id": current_recruiter.company_id,
+        "created_at": {"$gte": start_date}
+    })
+    analytics["metrics"]["total_applications"] = total_applications
+    
+    # Active deals value
+    deals = await db.deals.find({
+        "company_id": current_recruiter.company_id,
+        "stage": {"$nin": ["closed_won", "closed_lost"]}
+    }).to_list(1000)
+    
+    total_deal_value = sum(deal.get("value", 0) for deal in deals)
+    analytics["metrics"]["pipeline_value"] = total_deal_value
+    analytics["metrics"]["active_deals"] = len(deals)
+    
+    # Interview stats
+    interviews = await db.interviews.find({
+        "company_id": current_recruiter.company_id,
+        "scheduled_date": {"$gte": start_date}
+    }).to_list(1000)
+    
+    analytics["metrics"]["total_interviews"] = len(interviews)
+    analytics["metrics"]["completed_interviews"] = len([i for i in interviews if i.get("status") == "completed"])
+    
+    # Placement rate calculation
+    placements = await db.candidate_applications.count_documents({
+        "company_id": current_recruiter.company_id,
+        "stage": "hired",
+        "created_at": {"$gte": start_date}
+    })
+    
+    placement_rate = (placements / total_applications * 100) if total_applications > 0 else 0
+    analytics["metrics"]["placement_rate"] = round(placement_rate, 2)
+    analytics["metrics"]["total_placements"] = placements
+    
+    return analytics
+
+# Team Management
+@api_router.post("/team/members")
+async def add_team_member(
+    member_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Add team member"""
+    member_data.update({
+        "company_id": current_recruiter.company_id
+    })
+    
+    team_member = TeamMember(**member_data)
+    await db.team_members.insert_one(team_member.dict())
+    
+    return {
+        "message": "Team member added successfully",
+        "member": team_member
+    }
+
+@api_router.get("/team/members")
+async def get_team_members(
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get all team members"""
+    members = await db.team_members.find({
+        "company_id": current_recruiter.company_id,
+        "is_active": True
+    }).to_list(100)
+    
+    return [TeamMember(**member) for member in members]
+
 # Include the router in the main app
 app.include_router(api_router)
 
