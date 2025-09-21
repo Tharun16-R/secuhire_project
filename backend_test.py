@@ -34,12 +34,16 @@ class SecuHireBackendTester:
         self.websocket_messages = []
         self.websocket_connected = False
 
-    def run_test(self, name, method, endpoint, expected_status, data=None, token=None):
+    def run_test(self, name, method, endpoint, expected_status, data=None, token=None, files=None):
         """Run a single API test"""
         url = f"{self.api_url}{endpoint}"
-        headers = {'Content-Type': 'application/json'}
+        headers = {}
         if token:
             headers['Authorization'] = f'Bearer {token}'
+        
+        # Only set Content-Type for JSON requests, not for file uploads
+        if not files:
+            headers['Content-Type'] = 'application/json'
 
         self.tests_run += 1
         print(f"\n🔍 Testing {name}...")
@@ -49,7 +53,12 @@ class SecuHireBackendTester:
             if method == 'GET':
                 response = requests.get(url, headers=headers)
             elif method == 'POST':
-                response = requests.post(url, json=data, headers=headers)
+                if files:
+                    # Remove Content-Type header for file uploads
+                    headers.pop('Content-Type', None)
+                    response = requests.post(url, data=data, files=files, headers=headers)
+                else:
+                    response = requests.post(url, json=data, headers=headers)
             elif method == 'PUT':
                 response = requests.put(url, json=data, headers=headers)
 
