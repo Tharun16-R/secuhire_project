@@ -4,6 +4,10 @@ import json
 from datetime import datetime, timezone
 import time
 import uuid
+import websocket
+import threading
+import io
+import os
 
 class SecuHireBackendTester:
     def __init__(self, base_url="https://interview-shield-1.preview.emergentagent.com"):
