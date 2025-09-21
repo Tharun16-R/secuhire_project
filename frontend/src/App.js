@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
 import { Progress } from "./components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "./components/ui/alert";
-import { AIResumeParser, AdvancedCandidateSearch } from './components/RecruitCRMFeatures';
+import { AIResumeParser, AdvancedCandidateSearch, AICandidateSourcing } from './components/RecruitCRMFeatures';
 import EmailAutomationSystem from './components/EmailAutomation';
 import JobMultipostingSystem from './components/JobMultiposting';
 import AdvancedAnalyticsDashboard from './components/AdvancedAnalytics';
