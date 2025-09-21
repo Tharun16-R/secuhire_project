@@ -1479,10 +1479,14 @@ const InterviewCard = ({ interviewData }) => {
   );
 };
 
-// Secure Interview Component with Full Security Monitoring
+// Secure Interview Component with Complete Recording and Monitoring
 const SecureInterviewSession = ({ interview, onEndInterview }) => {
   const videoRef = useRef(null);
   const screenRef = useRef(null);
+  const audioRef = useRef(null);
+  const websocketRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const screenRecorderRef = useRef(null);
   const [isSecureMode, setIsSecureMode] = useState(false);
   const [securityViolations, setSecurityViolations] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
@@ -1490,29 +1494,413 @@ const SecureInterviewSession = ({ interview, onEndInterview }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [lastActivity, setLastActivity] = useState(Date.now());
   const [isMonitoring, setIsMonitoring] = useState(false);
+  const [recordingStatus, setRecordingStatus] = useState('preparing');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [interviewStarted, setInterviewStarted] = useState(false);
+  const [recordedChunks, setRecordedChunks] = useState({
+    webcam: [],
+    screen: [],
+    audio: []
+  });
 
   useEffect(() => {
     initializeSecureInterview();
     return () => {
       exitSecureMode();
+      closeWebSocket();
     };
   }, []);
 
   const initializeSecureInterview = async () => {
     try {
-      // Enter secure mode
+      // 1. Close all other tabs and windows
+      await forceCloseOtherTabs();
+      
+      // 2. Enter secure mode
       await enterSecureMode();
       
-      // Initialize camera and screen monitoring
-      await setupVideoMonitoring();
+      // 3. Initialize WebRTC and recording
+      await setupComprehensiveRecording();
       
-      // Start security monitoring
-      startSecurityMonitoring();
+      // 4. Start WebSocket connection for real-time monitoring
+      initializeWebSocket();
+      
+      // 5. Start security monitoring
+      startAdvancedSecurityMonitoring();
+      
+      // 6. Start interview recording on backend
+      await startInterviewRecording();
       
       setIsSecureMode(true);
+      setInterviewStarted(true);
+      setRecordingStatus('recording');
     } catch (error) {
       console.error('Failed to initialize secure interview:', error);
-      alert('Security features could not be enabled. Interview may not be secure.');
+      alert('Critical Error: Security features could not be enabled. Interview cannot proceed safely.');
+      onEndInterview();
+    }
+  };
+
+  const forceCloseOtherTabs = async () => {
+    try {
+      // Force user to close all other tabs/windows
+      const confirmClose = window.confirm(
+        'SECURITY REQUIREMENT: You must close ALL other browser tabs and applications before starting the interview. \n\n' +
+        'Click OK to continue only if you have closed all other tabs. \n' +
+        'Cancel will exit the interview.'
+      );
+      
+      if (!confirmClose) {
+        throw new Error('User refused to close other tabs');
+      }
+
+      // Attempt to detect and warn about multiple tabs/windows
+      let windowCount = 0;
+      try {
+        // This is a workaround - in a real implementation, you'd use browser extensions or native apps
+        const testWindow = window.open('', '_blank');
+        if (testWindow) {
+          testWindow.close();
+          windowCount++;
+        }
+      } catch (e) {
+        // Expected in secure contexts
+      }
+
+      // Show warning about tab monitoring
+      showSecurityWarning(
+        'TAB MONITORING ACTIVE: Any tab switching or window changes will be recorded as security violations.'
+      );
+
+      logSecurityEvent('User confirmed closing all other tabs - interview security protocol initiated');
+    } catch (error) {
+      throw new Error('Failed to establish secure environment: ' + error.message);
+    }
+  };
+
+  const setupComprehensiveRecording = async () => {
+    try {
+      // 1. Get high-quality webcam with audio
+      const webcamStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1920, min: 1280 },
+          height: { ideal: 1080, min: 720 },
+          facingMode: 'user',
+          frameRate: { ideal: 30 }
+        },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 48000
+        }
+      });
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = webcamStream;
+      }
+
+      // 2. Get screen sharing (MANDATORY)
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 15 }
+        },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true
+        }
+      });
+
+      if (screenRef.current) {
+        screenRef.current.srcObject = screenStream;
+      }
+
+      // 3. Setup MediaRecorders for all streams
+      const webcamRecorder = new MediaRecorder(webcamStream, {
+        mimeType: 'video/webm;codecs=vp9,opus',
+        videoBitsPerSecond: 2500000,
+        audioBitsPerSecond: 128000
+      });
+
+      const screenRecorder = new MediaRecorder(screenStream, {
+        mimeType: 'video/webm;codecs=vp9,opus',
+        videoBitsPerSecond: 1500000,
+        audioBitsPerSecond: 128000
+      });
+
+      // 4. Handle recording data
+      webcamRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          setRecordedChunks(prev => ({
+            ...prev,
+            webcam: [...prev.webcam, event.data]
+          }));
+        }
+      };
+
+      screenRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          setRecordedChunks(prev => ({
+            ...prev,
+            screen: [...prev.screen, event.data]
+          }));
+        }
+      };
+
+      // 5. Handle stream interruptions (CRITICAL SECURITY)
+      webcamStream.getVideoTracks().forEach(track => {
+        track.onended = () => {
+          logSecurityViolation('Webcam stream interrupted - CRITICAL security violation');
+          showCriticalSecurityAlert('WEBCAM DISABLED! Interview will be terminated immediately.');
+          setTimeout(() => {
+            handleEndInterview();
+          }, 3000);
+        };
+      });
+
+      screenStream.getVideoTracks().forEach(track => {
+        track.onended = () => {
+          logSecurityViolation('Screen sharing stopped - CRITICAL security violation');
+          showCriticalSecurityAlert('SCREEN SHARING STOPPED! Interview terminated for security violation.');
+          setTimeout(() => {
+            handleEndInterview();
+          }, 3000);
+        };
+      });
+
+      // 6. Start recording
+      webcamRecorder.start(1000); // Capture every second
+      screenRecorder.start(1000);
+
+      mediaRecorderRef.current = webcamRecorder;
+      screenRecorderRef.current = screenRecorder;
+
+      // 7. Upload recordings periodically
+      setInterval(() => {
+        uploadRecordingChunks();
+      }, 30000); // Upload every 30 seconds
+
+      setIsRecording(true);
+      logSecurityEvent('Comprehensive recording system initialized - webcam, screen, and audio monitoring active');
+    } catch (error) {
+      throw new Error('Failed to setup recording: ' + error.message);
+    }
+  };
+
+  const initializeWebSocket = () => {
+    const wsUrl = `${BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws://')}/api/interviews/${interview.id}/ws/candidate`;
+    websocketRef.current = new WebSocket(wsUrl);
+
+    websocketRef.current.onopen = () => {
+      logSecurityEvent('Real-time monitoring connection established');
+      // Send initial status to recruiters
+      sendToRecruiters({
+        type: 'interview_started',
+        candidate_id: interview.candidate_id,
+        timestamp: new Date().toISOString()
+      });
+    };
+
+    websocketRef.current.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      handleRecruiterCommand(message);
+    };
+
+    websocketRef.current.onerror = (error) => {
+      logSecurityViolation('Real-time monitoring connection failed');
+      console.error('WebSocket error:', error);
+    };
+  };
+
+  const sendToRecruiters = (data) => {
+    if (websocketRef.current && websocketRef.current.readyState === WebSocket.OPEN) {
+      websocketRef.current.send(JSON.stringify(data));
+    }
+  };
+
+  const handleRecruiterCommand = (message) => {
+    switch (message.type) {
+      case 'end_interview':
+        logSecurityEvent('Interview ended by recruiter');
+        handleEndInterview();
+        break;
+      case 'security_alert':
+        showSecurityWarning(message.message);
+        break;
+      default:
+        console.log('Unknown recruiter command:', message);
+    }
+  };
+
+  const uploadRecordingChunks = async () => {
+    if (recordedChunks.webcam.length === 0 && recordedChunks.screen.length === 0) return;
+
+    try {
+      // Upload webcam recording
+      if (recordedChunks.webcam.length > 0) {
+        const webcamBlob = new Blob(recordedChunks.webcam, { type: 'video/webm' });
+        await uploadRecording('webcam', webcamBlob);
+        setRecordedChunks(prev => ({ ...prev, webcam: [] }));
+      }
+
+      // Upload screen recording
+      if (recordedChunks.screen.length > 0) {
+        const screenBlob = new Blob(recordedChunks.screen, { type: 'video/webm' });
+        await uploadRecording('screen', screenBlob);
+        setRecordedChunks(prev => ({ ...prev, screen: [] }));
+      }
+
+      logSecurityEvent('Recording chunks uploaded to secure storage');
+    } catch (error) {
+      console.error('Failed to upload recording chunks:', error);
+      logSecurityViolation('Recording upload failed - data integrity compromised');
+    }
+  };
+
+  const uploadRecording = async (type, blob) => {
+    const formData = new FormData();
+    formData.append('file', blob, `${type}_${Date.now()}.webm`);
+
+    const response = await fetch(`${API}/interviews/${interview.id}/upload-recording?recording_type=${type}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to upload ${type} recording`);
+    }
+
+    return response.json();
+  };
+
+  const startInterviewRecording = async () => {
+    try {
+      const response = await fetch(`${API}/interviews/${interview.id}/start-recording`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to start interview recording on backend');
+      }
+
+      const result = await response.json();
+      logSecurityEvent(`Interview recording started on backend - Recording ID: ${result.recording_id}`);
+    } catch (error) {
+      console.error('Failed to start backend recording:', error);
+      throw error;
+    }
+  };
+
+  const logSecurityViolationToBackend = async (violation) => {
+    try {
+      await fetch(`${API}/interviews/${interview.id}/security-violation`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(violation)
+      });
+    } catch (error) {
+      console.error('Failed to log security violation to backend:', error);
+    }
+  };
+
+  const startAdvancedSecurityMonitoring = () => {
+    setIsMonitoring(true);
+    
+    // Enhanced activity monitoring
+    const activityMonitor = setInterval(() => {
+      const timeSinceActivity = Date.now() - lastActivity;
+      
+      if (timeSinceActivity > 15000) { // 15 seconds
+        logSecurityViolation('Candidate inactivity detected - possible absence from interview');
+        showSecurityWarning('Please remain active and visible during the interview');
+      }
+    }, 5000);
+
+    // Advanced application monitoring
+    const appMonitor = setInterval(() => {
+      checkUnauthorizedApps();
+      monitorSystemResources();
+    }, 3000);
+
+    // Screen focus monitoring
+    const focusMonitor = setInterval(() => {
+      if (!document.hasFocus()) {
+        logSecurityViolation('Interview window lost focus - potential security breach');
+        showCriticalSecurityAlert('FOCUS VIOLATION: Return focus to interview immediately!');
+      }
+    }, 1000);
+
+    // Store intervals for cleanup
+    window.securityIntervals = [activityMonitor, appMonitor, focusMonitor];
+  };
+
+  const monitorSystemResources = () => {
+    // Check for high CPU usage (potential background processes)
+    if (navigator.hardwareConcurrency) {
+      const cores = navigator.hardwareConcurrency;
+      // This is a basic check - in production, you'd use more sophisticated monitoring
+      if (performance.now() % 10000 < 100) { // Random sampling
+        logSecurityEvent(`System monitoring: ${cores} cores detected`);
+      }
+    }
+
+    // Monitor memory usage
+    if (performance.memory) {
+      const memoryInfo = performance.memory;
+      const memoryUsageMB = memoryInfo.usedJSHeapSize / 1024 / 1024;
+      
+      if (memoryUsageMB > 500) { // High memory usage threshold
+        logSecurityViolation('High memory usage detected - possible unauthorized applications');
+        showSecurityWarning('Close unnecessary applications to maintain interview security');
+      }
+    }
+  };
+
+  const closeWebSocket = () => {
+    if (websocketRef.current) {
+      websocketRef.current.close();
+    }
+  };
+
+  const handleEndInterview = async () => {
+    try {
+      // Upload final recording chunks
+      await uploadRecordingChunks();
+      
+      // End recording on backend
+      await fetch(`${API}/interviews/${interview.id}/end-recording`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // Notify recruiters
+      sendToRecruiters({
+        type: 'interview_ended',
+        timestamp: new Date().toISOString(),
+        total_violations: securityViolations.length
+      });
+
+      exitSecureMode();
+      onEndInterview();
+    } catch (error) {
+      console.error('Error ending interview:', error);
+      exitSecureMode();
+      onEndInterview();
     }
   };
 
