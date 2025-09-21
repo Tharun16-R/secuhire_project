@@ -33,6 +33,7 @@ class SecuHireBackendTester:
         }
         self.websocket_messages = []
         self.websocket_connected = False
+        self.uploaded_filenames = []
 
     def run_test(self, name, method, endpoint, expected_status, data=None, token=None, files=None):
         """Run a single API test"""
