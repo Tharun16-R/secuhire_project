@@ -1041,6 +1041,196 @@ async def seed_demo_data(current_recruiter: Recruiter = Depends(get_current_recr
     
     return {"message": "Demo data seeded successfully"}
 
+# Interview Recording and Monitoring Routes
+@api_router.post("/interviews/{interview_id}/start-recording")
+async def start_interview_recording(
+    interview_id: str,
+    current_candidate: CandidateUser = Depends(get_current_candidate)
+):
+    # Verify interview exists and belongs to candidate
+    interview = await db.interviews.find_one({
+        "id": interview_id,
+        "candidate_id": current_candidate.id
+    })
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    
+    # Create recording record
+    recording = InterviewRecording(
+        interview_id=interview_id,
+        candidate_id=current_candidate.id,
+        recruiter_id=interview["interviewer_id"]
+    )
+    
+    await db.interview_recordings.insert_one(recording.dict())
+    
+    # Update interview status
+    await db.interviews.update_one(
+        {"id": interview_id},
+        {"$set": {"status": "in_progress"}}
+    )
+    
+    return {"message": "Recording started", "recording_id": recording.id}
+
+@api_router.post("/interviews/{interview_id}/upload-recording")
+async def upload_interview_recording(
+    interview_id: str,
+    recording_type: str,  # webcam, screen, audio
+    file: UploadFile = File(...),
+    current_candidate: CandidateUser = Depends(get_current_candidate)
+):
+    # Verify interview recording exists
+    recording = await db.interview_recordings.find_one({
+        "interview_id": interview_id,
+        "candidate_id": current_candidate.id
+    })
+    if not recording:
+        raise HTTPException(status_code=404, detail="Interview recording not found")
+    
+    # Create recordings directory if it doesn't exist
+    recordings_dir = ROOT_DIR / "recordings" / interview_id
+    recordings_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Save file
+    file_extension = file.filename.split('.')[-1] if file.filename else 'webm'
+    filename = f"{recording_type}_{int(datetime.now().timestamp())}.{file_extension}"
+    file_path = recordings_dir / filename
+    
+    content = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(content)
+    
+    # Update recording record
+    file_url = f"/recordings/{interview_id}/{filename}"
+    update_data = {f"{recording_type}_recording_url": file_url}
+    
+    if not recording.get("file_size_mb"):
+        update_data["file_size_mb"] = len(content) / (1024 * 1024)  # Convert to MB
+    else:
+        update_data["file_size_mb"] = recording["file_size_mb"] + len(content) / (1024 * 1024)
+    
+    await db.interview_recordings.update_one(
+        {"interview_id": interview_id, "candidate_id": current_candidate.id},
+        {"$set": update_data}
+    )
+    
+    return {"message": f"{recording_type} recording uploaded successfully", "file_url": file_url}
+
+@api_router.post("/interviews/{interview_id}/end-recording")
+async def end_interview_recording(
+    interview_id: str,
+    current_candidate: CandidateUser = Depends(get_current_candidate)
+):
+    # Update recording status
+    await db.interview_recordings.update_one(
+        {"interview_id": interview_id, "candidate_id": current_candidate.id},
+        {"$set": {
+            "status": "completed",
+            "ended_at": datetime.now(timezone.utc)
+        }}
+    )
+    
+    # Update interview status
+    await db.interviews.update_one(
+        {"id": interview_id},
+        {"$set": {"status": "completed"}}
+    )
+    
+    return {"message": "Recording ended and interview completed"}
+
+@api_router.post("/interviews/{interview_id}/security-violation")
+async def log_security_violation(
+    interview_id: str,
+    violation_data: Dict[str, Any],
+    current_candidate: CandidateUser = Depends(get_current_candidate)
+):
+    # Create security violation record
+    violation = SecurityViolation(
+        interview_id=interview_id,
+        candidate_id=current_candidate.id,
+        violation_type=violation_data.get("type", "unknown"),
+        description=violation_data.get("description", ""),
+        severity=violation_data.get("severity", "warning")
+    )
+    
+    await db.security_violations.insert_one(violation.dict())
+    
+    # Add to interview recording security log
+    await db.interview_recordings.update_one(
+        {"interview_id": interview_id, "candidate_id": current_candidate.id},
+        {"$push": {"security_log": violation.dict()}}
+    )
+    
+    # Notify recruiters via WebSocket
+    await manager.send_to_recruiters(interview_id, {
+        "type": "security_violation",
+        "violation": violation.dict()
+    })
+    
+    return {"message": "Security violation logged"}
+
+# Recruiter Interview Monitoring Routes
+@api_router.get("/interviews/{interview_id}/monitoring")
+async def get_interview_monitoring_data(
+    interview_id: str,
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    # Verify interview belongs to recruiter's company
+    interview = await db.interviews.find_one({
+        "id": interview_id,
+        "company_id": current_recruiter.company_id
+    })
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    
+    # Get recording data
+    recording = await db.interview_recordings.find_one({"interview_id": interview_id})
+    
+    # Get security violations
+    violations = await db.security_violations.find({"interview_id": interview_id}).to_list(1000)
+    
+    # Get candidate info
+    candidate = await db.candidates.find_one({"id": interview["candidate_id"]})
+    
+    return {
+        "interview": Interview(**interview),
+        "candidate": CandidateUser(**candidate) if candidate else None,
+        "recording": InterviewRecording(**recording) if recording else None,
+        "security_violations": [SecurityViolation(**v) for v in violations],
+        "is_live": recording["status"] == "recording" if recording else False
+    }
+
+# WebSocket endpoint for real-time interview monitoring
+@api_router.websocket("/interviews/{interview_id}/ws/{user_type}")
+async def interview_websocket(websocket: WebSocket, interview_id: str, user_type: str):
+    await manager.connect(websocket, interview_id, user_type)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            message = json.loads(data)
+            
+            if user_type == "candidate":
+                # Forward candidate data to recruiters
+                await manager.send_to_recruiters(interview_id, {
+                    "type": message.get("type", "candidate_data"),
+                    "data": message
+                })
+            elif user_type == "recruiter":
+                # Forward recruiter commands to candidate
+                await manager.send_to_candidate(interview_id, message)
+                
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, interview_id)
+
+# File serving endpoint for recordings
+@api_router.get("/recordings/{interview_id}/{filename}")
+async def serve_recording(interview_id: str, filename: str):
+    file_path = ROOT_DIR / "recordings" / interview_id / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Recording not found")
+    
+    return {"file_path": str(file_path), "message": "File exists"}  # In production, return actual file
+
 # Include the router in the main app
 app.include_router(api_router)
 
