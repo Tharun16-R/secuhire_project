@@ -27,8 +27,12 @@ class SecuHireBackendTester:
             'jobs': [],
             'candidates': [],
             'applications': [],
-            'interviews': []
+            'interviews': [],
+            'recordings': [],
+            'violations': []
         }
+        self.websocket_messages = []
+        self.websocket_connected = False
 
     def run_test(self, name, method, endpoint, expected_status, data=None, token=None):
         """Run a single API test"""
