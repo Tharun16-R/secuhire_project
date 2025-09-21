@@ -654,10 +654,15 @@ async def get_available_jobs(
 
 @api_router.post("/candidates/applications")
 async def apply_for_job(
-    job_id: str,
-    cover_letter: str,
+    application_data: Dict[str, Any],
     current_candidate: CandidateUser = Depends(get_current_candidate)
 ):
+    job_id = application_data.get("job_id")
+    cover_letter = application_data.get("cover_letter")
+    
+    if not job_id or not cover_letter:
+        raise HTTPException(status_code=422, detail="job_id and cover_letter are required")
+    
     # Check if job exists and is active
     job = await db.jobs.find_one({"id": job_id, "status": "active"})
     if not job:
