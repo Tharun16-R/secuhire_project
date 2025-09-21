@@ -446,4 +446,196 @@ export const AdvancedCandidateSearch = ({ onSearchResults }) => {
   );
 };
 
-export default { AIResumeParser, AdvancedCandidateSearch };
+// AI Candidate Sourcing Component
+export const AICandidateSourcing = () => {
+  const [sourcing, setSourcing] = useState(false);
+  const [jobRequirements, setJobRequirements] = useState('');
+  const [sourcedCandidates, setSourcedCandidates] = useState([]);
+  const [searchParams, setSearchParams] = useState({
+    location: '',
+    experience_level: '',
+    skills: []
+  });
+
+  const performAISourcing = async () => {
+    setSourcing(true);
+    
+    try {
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/candidates/ai-source`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          job_requirements: jobRequirements,
+          search_params: searchParams
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSourcedCandidates(data.candidates);
+      }
+    } catch (error) {
+      console.error('AI sourcing failed:', error);
+    } finally {
+      setSourcing(false);
+    }
+  };
+
+  return (
+    <Card className="w-full">
+      <CardHeader>
+        <CardTitle className="flex items-center space-x-2">
+          <Bot className="w-5 h-5 text-green-500" />
+          <span>AI Candidate Sourcing</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div>
+          <Label className="font-medium">Job Requirements (Natural Language)</Label>
+          <Textarea
+            placeholder="I need a Senior React Developer with 5+ years experience in San Francisco. Must have experience with TypeScript, Next.js, and Redux. Prefer candidates from tech companies like Google, Facebook, or startups."
+            value={jobRequirements}
+            onChange={(e) => setJobRequirements(e.target.value)}
+            rows={4}
+            className="mt-1"
+          />
+          <p className="text-sm text-gray-500 mt-1">
+            Describe your ideal candidate in natural language. AI will find matching profiles.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-4">
+          <div>
+            <Label>Preferred Location</Label>
+            <Input
+              placeholder="San Francisco, CA"
+              value={searchParams.location}
+              onChange={(e) => setSearchParams(prev => ({ ...prev, location: e.target.value }))}
+            />
+          </div>
+          <div>
+            <Label>Experience Level</Label>
+            <Select value={searchParams.experience_level} onValueChange={(value) => setSearchParams(prev => ({ ...prev, experience_level: value }))}>
+              <SelectTrigger>
+                <SelectValue placeholder="Any" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Any</SelectItem>
+                <SelectItem value="junior">Junior (0-2 years)</SelectItem>
+                <SelectItem value="mid">Mid-level (3-5 years)</SelectItem>
+                <SelectItem value="senior">Senior (6+ years)</SelectItem>
+                <SelectItem value="lead">Lead/Principal (10+ years)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Source Platform</Label>
+            <Select defaultValue="all">
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Platforms</SelectItem>
+                <SelectItem value="linkedin">LinkedIn</SelectItem>
+                <SelectItem value="github">GitHub</SelectItem>
+                <SelectItem value="stackoverflow">Stack Overflow</SelectItem>
+                <SelectItem value="xing">Xing</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <Button 
+          onClick={performAISourcing} 
+          disabled={!jobRequirements.trim() || sourcing}
+          className="bg-green-600 hover:bg-green-700 w-full"
+        >
+          {sourcing ? (
+            <>
+              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              AI is sourcing candidates...
+            </>
+          ) : (
+            <>
+              <Bot className="w-4 h-4 mr-2" />
+              Find Candidates with AI
+            </>
+          )}
+        </Button>
+
+        {sourcedCandidates.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="font-semibold text-lg">AI Sourced Candidates ({sourcedCandidates.length})</h3>
+            <div className="grid gap-4">
+              {sourcedCandidates.map((candidate, index) => (
+                <Card key={index} className="border-l-4 border-l-green-500">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <h4 className="font-semibold text-lg">{candidate.name}</h4>
+                          <Badge className="bg-green-100 text-green-800">
+                            {candidate.match_score}% match
+                          </Badge>
+                          <Badge variant="outline">
+                            {candidate.source}
+                          </Badge>
+                        </div>
+                        
+                        <p className="text-gray-600 mb-2">
+                          {candidate.title} at {candidate.company}
+                        </p>
+                        <p className="text-sm text-gray-500 mb-2">
+                          {candidate.location} • {candidate.experience_years} years experience
+                        </p>
+                        
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {candidate.skills?.slice(0, 6).map((skill, i) => (
+                            <Badge key={i} variant="secondary" className="text-xs">
+                              {skill}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div className="flex space-x-2">
+                        <Button size="sm" variant="outline">
+                          <Eye className="w-4 h-4 mr-1" />
+                          View Profile
+                        </Button>
+                        <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                          <Plus className="w-4 h-4 mr-1" />
+                          Add to CRM
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            
+            <div className="flex justify-center">
+              <Button variant="outline">
+                <Download className="w-4 h-4 mr-2" />
+                Export All Candidates
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {sourcedCandidates.length === 0 && jobRequirements && !sourcing && (
+          <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+            <Bot className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No candidates found</h3>
+            <p className="text-gray-500">Try adjusting your requirements or search parameters</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+export default { AIResumeParser, AdvancedCandidateSearch, AICandidateSourcing };
