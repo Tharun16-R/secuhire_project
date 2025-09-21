@@ -516,7 +516,7 @@ const CampaignCard = ({ campaign, onUpdate }) => {
               Analytics
             </Button>
             <Button variant="outline" size="sm" className="text-red-600">
-              <Stop className="w-4 h-4 mr-1" />
+              <Square className="w-4 h-4 mr-1" />
               Stop
             </Button>
           </div>
