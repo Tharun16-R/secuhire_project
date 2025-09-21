@@ -679,12 +679,12 @@ class SecuHireBackendTester:
 
     def test_serve_recording_file(self):
         """Test GET /api/recordings/{interview_id}/{filename}"""
-        if not self.created_ids['interviews']:
-            print("❌ No interview ID available for recording file test")
+        if not self.created_ids['interviews'] or not self.uploaded_filenames:
+            print("❌ No interview ID or uploaded filenames available for recording file test")
             return False
             
         interview_id = self.created_ids['interviews'][0]
-        filename = "webcam_recording.webm"  # This should exist from upload test
+        filename = self.uploaded_filenames[-1]  # Use the last uploaded filename
         
         success, response = self.run_test(
             "Serve Recording File",
