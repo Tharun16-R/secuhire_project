@@ -2590,6 +2590,13 @@ const SecureInterviewSession = ({ interview, onEndInterview }) => {
   };
 
   const stopVideoRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    if (screenRecorderRef.current && screenRecorderRef.current.state === 'recording') {
+      screenRecorderRef.current.stop();
+    }
+    
     if (videoRef.current?.srcObject) {
       videoRef.current.srcObject.getTracks().forEach(track => track.stop());
     }
@@ -2599,10 +2606,9 @@ const SecureInterviewSession = ({ interview, onEndInterview }) => {
     setIsRecording(false);
   };
 
-  const handleEndInterview = () => {
+  const finalizeInterview = () => {
     if (window.confirm('Are you sure you want to end the interview? This action cannot be undone.')) {
-      exitSecureMode();
-      onEndInterview();
+      handleEndInterview();
     }
   };
 
