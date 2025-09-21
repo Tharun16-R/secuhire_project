@@ -3474,6 +3474,21 @@ const ATSDashboard = () => {
     }
   };
 
+  const handleMonitorInterview = (interview) => {
+    setSelectedInterview(interview);
+    setShowInterviewMonitor(true);
+  };
+
+  const closeInterviewMonitor = () => {
+    setShowInterviewMonitor(false);
+    setSelectedInterview(null);
+  };
+
+  // Show interview monitor if selected
+  if (showInterviewMonitor && selectedInterview) {
+    return <RecruiterInterviewMonitor interview={selectedInterview} onClose={closeInterviewMonitor} />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50/20">
       {/* Header */}
