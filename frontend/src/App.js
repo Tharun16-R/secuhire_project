@@ -12,13 +12,19 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
 import { Progress } from "./components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "./components/ui/alert";
+import { AIResumeParser, AdvancedCandidateSearch } from './components/RecruitCRMFeatures';
+import EmailAutomationSystem from './components/EmailAutomation';
+import JobMultipostingSystem from './components/JobMultiposting';
+import AdvancedAnalyticsDashboard from './components/AdvancedAnalytics';
 import { 
   Shield, Users, Briefcase, TrendingUp, Plus, Search, Filter, 
   MapPin, DollarSign, Calendar, Phone, Mail, FileText, 
   ChevronRight, Star, Clock, CheckCircle, User, Edit,
   BarChart3, PieChart, Target, Award, Zap, Brain, Building2,
   Eye, Heart, Send, Video, AlertTriangle, Verified, Lock,
-  Camera, Monitor, X, ExternalLink, Copy, Volume2, Timer
+  Camera, Monitor, X, ExternalLink, Copy, Volume2, Timer,
+  Globe, Share2, Linkedin, MessageSquare, Smartphone, Bot,
+  Upload, Download, RefreshCw, Settings, Trash2, PlayCircle
 } from "lucide-react";
 import "./App.css";
 
