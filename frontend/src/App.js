@@ -3438,6 +3438,8 @@ const ATSDashboard = () => {
   const [jobs, setJobs] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [applications, setApplications] = useState([]);
+  const [selectedInterview, setSelectedInterview] = useState(null);
+  const [showInterviewMonitor, setShowInterviewMonitor] = useState(false);
   const { user, company, logout } = useAuth();
 
   useEffect(() => {
