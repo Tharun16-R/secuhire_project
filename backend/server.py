@@ -1,5 +1,9 @@
+<<<<<<< HEAD
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse
+=======
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, WebSocket, WebSocketDisconnect, BackgroundTasks
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -8,7 +12,11 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
+<<<<<<< HEAD
 from typing import List, Optional, Dict, Any
+=======
+from typing import List, Optional, Dict, Any, Union
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 import uuid
 from datetime import datetime, timezone, timedelta
 import jwt
@@ -21,8 +29,20 @@ import random
 import string
 import json
 import base64
+<<<<<<< HEAD
 
 ROOT_DIR = Path(__file__).resolve().parent
+=======
+import requests
+import asyncio
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import smtplib
+import calendar
+import statistics
+
+ROOT_DIR = Path(__file__).parent
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
@@ -38,6 +58,7 @@ api_router = APIRouter(prefix="/api")
 
 # Security
 security = HTTPBearer()
+<<<<<<< HEAD
 # Load JWT secret from environment for security; fallback used only for development
 JWT_SECRET = os.getenv("JWT_SECRET", "secuhire_secret_key_2025")
 
@@ -61,6 +82,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+=======
+JWT_SECRET = "secuhire_secret_key_2025"
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 
 # Enums for ATS
 class PipelineStage(str, Enum):
@@ -190,6 +214,7 @@ class Job(BaseModel):
     status: JobStatus = JobStatus.DRAFT
     posted_date: Optional[datetime] = None
     application_deadline: Optional[datetime] = None
+<<<<<<< HEAD
     # Enhanced requirements for detailed job posting
     technical_requirements: List[str] = []
     soft_skills: List[str] = []
@@ -198,6 +223,8 @@ class Job(BaseModel):
     work_environment: str = ""  # Remote, Hybrid, On-site
     benefits: List[str] = []
     interview_process: List[str] = []  # Steps in interview process
+=======
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class CandidateApplication(BaseModel):
@@ -255,6 +282,7 @@ class SecurityViolation(BaseModel):
     candidate_id: str
     violation_type: str
     description: str
+<<<<<<< HEAD
     severity: str = "warning"
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -326,6 +354,196 @@ class SecureInterviewSession(BaseModel):
     ai_monitoring_enabled: bool = True
     overall_authenticity_score: Optional[float] = None
     ai_decision: Optional[str] = None  # "PASS", "FAIL", "REVIEW_REQUIRED"
+=======
+    severity: str  # info, warning, critical
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    screenshot_url: Optional[str] = None
+
+# Advanced RecruitCRM Models
+
+class Deal(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    client_id: str
+    recruiter_id: str
+    company_id: str
+    job_id: Optional[str] = None
+    candidate_id: Optional[str] = None
+    value: float
+    currency: str = "USD"
+    probability: int = 50  # 0-100%
+    stage: str = "prospecting"  # prospecting, proposal, negotiation, closed_won, closed_lost
+    expected_close_date: Optional[datetime] = None
+    actual_close_date: Optional[datetime] = None
+    commission_rate: float = 0.0
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class EmailSequence(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    recruiter_id: str
+    company_id: str
+    sequence_type: str  # candidate_outreach, client_follow_up, interview_reminder
+    steps: List[Dict[str, Any]] = []  # [{delay_days: 1, subject: "", body: "", channel: "email"}]
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class EmailCampaign(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    sequence_id: str
+    recruiter_id: str
+    company_id: str
+    recipients: List[str] = []  # candidate_ids or contact_ids
+    status: str = "draft"  # draft, active, paused, completed
+    start_date: Optional[datetime] = None
+    stats: Dict[str, int] = {"sent": 0, "opened": 0, "replied": 0, "clicked": 0}
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class WorkflowAutomation(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    recruiter_id: str
+    company_id: str
+    trigger: Dict[str, Any]  # {type: "candidate_added", conditions: {...}}
+    actions: List[Dict[str, Any]] = []  # [{type: "send_email", params: {...}}]
+    is_active: bool = True
+    execution_count: int = 0
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class CandidateHotlist(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    description: Optional[str] = None
+    recruiter_id: str
+    company_id: str
+    candidate_ids: List[str] = []
+    tags: List[str] = []
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ClientPortalSubmission(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    job_id: str
+    client_id: str
+    recruiter_id: str
+    company_id: str
+    candidate_ids: List[str] = []
+    message: Optional[str] = None
+    feedback: List[Dict[str, Any]] = []  # [{candidate_id: "", status: "approved/rejected", notes: ""}]
+    submitted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    expires_at: Optional[datetime] = None
+
+class Invoice(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    invoice_number: str
+    client_id: str
+    deal_id: Optional[str] = None
+    recruiter_id: str
+    company_id: str
+    amount: float
+    currency: str = "USD"
+    tax_rate: float = 0.0
+    status: str = "draft"  # draft, sent, paid, overdue, cancelled
+    due_date: datetime
+    paid_date: Optional[datetime] = None
+    items: List[Dict[str, Any]] = []  # [{description: "", quantity: 1, rate: 100.0, amount: 100.0}]
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class CalendarEvent(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    description: Optional[str] = None
+    recruiter_id: str
+    company_id: str
+    attendees: List[str] = []  # email addresses
+    start_time: datetime
+    end_time: datetime
+    location: Optional[str] = None
+    meeting_link: Optional[str] = None
+    event_type: str = "interview"  # interview, call, meeting
+    candidate_id: Optional[str] = None
+    job_id: Optional[str] = None
+    status: str = "scheduled"  # scheduled, completed, cancelled, no_show
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class CandidateSource(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    candidate_id: str
+    source_type: str  # linkedin, jobboard, referral, website, chrome_extension
+    source_details: Dict[str, Any] = {}  # URL, referrer info, etc.
+    recruiter_id: str
+    company_id: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class JobBoard(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    website: str
+    api_endpoint: Optional[str] = None
+    requires_auth: bool = False
+    posting_cost: float = 0.0
+    currency: str = "USD"
+    category: str = "general"  # general, tech, healthcare, finance, etc.
+    is_active: bool = True
+
+class JobPosting(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    job_id: str
+    job_board_id: str
+    external_id: Optional[str] = None  # ID on the job board
+    status: str = "posted"  # posted, expired, removed
+    posted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    expires_at: Optional[datetime] = None
+    cost: float = 0.0
+    applications_received: int = 0
+
+class CandidateEnrichment(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    candidate_id: str
+    email_verified: bool = False
+    phone_verified: bool = False
+    social_profiles: Dict[str, str] = {}  # {linkedin: "url", github: "url"}
+    employment_history: List[Dict[str, Any]] = []
+    skills_verified: List[str] = []
+    enrichment_source: str  # clearbit, hunter, apollo
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class TeamMember(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str  # recruiter_id
+    company_id: str
+    role: str = "recruiter"  # admin, manager, recruiter, coordinator
+    permissions: List[str] = []  # view_all_jobs, edit_candidates, manage_invoices, etc.
+    team_lead_id: Optional[str] = None
+    hire_date: Optional[datetime] = None
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class AnalyticsMetric(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    company_id: str
+    recruiter_id: Optional[str] = None
+    metric_type: str  # time_to_hire, placement_rate, revenue, candidate_source_effectiveness
+    metric_value: float
+    date_period: str  # daily, weekly, monthly, quarterly
+    date: datetime
+    metadata: Dict[str, Any] = {}
+
+class CommunicationLog(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    sender_id: str
+    recipient_id: str
+    recipient_type: str  # candidate, client, team_member
+    communication_type: str  # email, linkedin, sms, call
+    subject: Optional[str] = None
+    content: str
+    status: str = "sent"  # sent, delivered, opened, replied
+    thread_id: Optional[str] = None
+    metadata: Dict[str, Any] = {}  # tracking_id, campaign_id, etc.
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # WebSocket Connection Manager for Real-time Interview Monitoring
@@ -347,6 +565,14 @@ class ConnectionManager:
                 'recruiters': [],
                 'started_at': datetime.now(timezone.utc)
             }
+<<<<<<< HEAD
+=======
+        
+        if user_type == 'candidate':
+            self.interview_sessions[interview_id]['candidate'] = websocket
+        else:
+            self.interview_sessions[interview_id]['recruiters'].append(websocket)
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 
     def disconnect(self, websocket: WebSocket, interview_id: str):
         if interview_id in self.active_connections:
@@ -382,6 +608,321 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+<<<<<<< HEAD
+=======
+# AI Resume Parsing Service
+class AIResumeParser:
+    def __init__(self):
+        self.gemini_api_key = os.getenv('GEMINI_API_KEY')
+    
+    async def parse_resume(self, file_content: bytes, filename: str) -> Dict[str, Any]:
+        """Parse resume using AI to extract structured data"""
+        try:
+            # Extract text from PDF or Word document
+            text_content = self._extract_text(file_content, filename)
+            
+            # Use AI to parse the resume content
+            parsed_data = await self._ai_parse_content(text_content)
+            
+            return {
+                "success": True,
+                "data": parsed_data,
+                "raw_text": text_content
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "raw_text": ""
+            }
+    
+    def _extract_text(self, file_content: bytes, filename: str) -> str:
+        """Extract text from PDF or Word files"""
+        try:
+            if filename.lower().endswith('.pdf'):
+                pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_content))
+                text = ""
+                for page in pdf_reader.pages:
+                    text += page.extract_text() + "\n"
+                return text
+            elif filename.lower().endswith(('.doc', '.docx')):
+                # For Word documents, we'd use python-docx library
+                # For now, return placeholder
+                return "Word document parsing not implemented yet"
+            else:
+                # Try to decode as text
+                return file_content.decode('utf-8', errors='ignore')
+        except Exception as e:
+            return f"Error extracting text: {str(e)}"
+    
+    async def _ai_parse_content(self, text: str) -> Dict[str, Any]:
+        """Use AI to parse resume content into structured data"""
+        # This would integrate with Gemini API or Emergent LLM
+        # For now, return a structured parsing of common resume elements
+        
+        parsed_data = {
+            "personal_info": self._extract_personal_info(text),
+            "experience": self._extract_experience(text),
+            "education": self._extract_education(text),
+            "skills": self._extract_skills(text),
+            "languages": self._extract_languages(text),
+            "certifications": self._extract_certifications(text)
+        }
+        
+        return parsed_data
+    
+    def _extract_personal_info(self, text: str) -> Dict[str, str]:
+        """Extract personal information using regex patterns"""
+        email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        phone_pattern = r'(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}'
+        
+        emails = re.findall(email_pattern, text)
+        phones = re.findall(phone_pattern, text)
+        
+        # Extract name (first few lines typically contain name)
+        lines = text.split('\n')[:5]
+        name = ""
+        for line in lines:
+            line = line.strip()
+            if len(line) > 2 and len(line) < 50 and not any(char.isdigit() for char in line):
+                name = line
+                break
+        
+        return {
+            "name": name,
+            "email": emails[0] if emails else "",
+            "phone": phones[0] if phones else ""
+        }
+    
+    def _extract_experience(self, text: str) -> List[Dict[str, Any]]:
+        """Extract work experience"""
+        # This is a simplified version - in production, use AI for better parsing
+        experience = []
+        
+        # Look for common experience keywords
+        exp_keywords = ['experience', 'employment', 'work history', 'professional experience']
+        lines = text.lower().split('\n')
+        
+        in_experience_section = False
+        for i, line in enumerate(lines):
+            if any(keyword in line for keyword in exp_keywords):
+                in_experience_section = True
+                continue
+            
+            if in_experience_section and ('education' in line or 'skills' in line):
+                break
+            
+            if in_experience_section and len(line.strip()) > 10:
+                # Extract potential job titles and companies
+                if any(word in line for word in ['developer', 'engineer', 'manager', 'analyst', 'coordinator']):
+                    experience.append({
+                        "title": line.strip(),
+                        "company": "",
+                        "duration": "",
+                        "description": ""
+                    })
+        
+        return experience[:5]  # Limit to 5 entries
+    
+    def _extract_education(self, text: str) -> List[Dict[str, Any]]:
+        """Extract education information"""
+        education = []
+        
+        # Look for degree keywords
+        degree_keywords = ['bachelor', 'master', 'phd', 'degree', 'university', 'college', 'diploma']
+        lines = text.lower().split('\n')
+        
+        for line in lines:
+            if any(keyword in line for keyword in degree_keywords):
+                education.append({
+                    "degree": line.strip(),
+                    "institution": "",
+                    "year": "",
+                    "gpa": ""
+                })
+        
+        return education[:3]  # Limit to 3 entries
+    
+    def _extract_skills(self, text: str) -> List[str]:
+        """Extract skills from resume"""
+        # Common technical skills
+        tech_skills = [
+            'python', 'javascript', 'java', 'react', 'node.js', 'sql', 'mongodb',
+            'aws', 'azure', 'docker', 'kubernetes', 'git', 'html', 'css',
+            'machine learning', 'ai', 'data science', 'analytics'
+        ]
+        
+        found_skills = []
+        text_lower = text.lower()
+        
+        for skill in tech_skills:
+            if skill in text_lower:
+                found_skills.append(skill.title())
+        
+        return found_skills
+    
+    def _extract_languages(self, text: str) -> List[Dict[str, str]]:
+        """Extract languages"""
+        languages = ['english', 'spanish', 'french', 'german', 'chinese', 'japanese', 'portuguese']
+        found_languages = []
+        
+        text_lower = text.lower()
+        for lang in languages:
+            if lang in text_lower:
+                found_languages.append({
+                    "language": lang.title(),
+                    "proficiency": "Unknown"
+                })
+        
+        return found_languages
+    
+    def _extract_certifications(self, text: str) -> List[str]:
+        """Extract certifications"""
+        cert_keywords = ['certified', 'certification', 'certificate', 'aws', 'google cloud', 'microsoft']
+        certifications = []
+        
+        lines = text.split('\n')
+        for line in lines:
+            if any(keyword in line.lower() for keyword in cert_keywords):
+                certifications.append(line.strip())
+        
+        return certifications[:5]
+
+# AI Candidate Sourcing Service
+class AICandidateSourcing:
+    def __init__(self):
+        self.gemini_api_key = os.getenv('GEMINI_API_KEY')
+    
+    async def find_candidates(self, job_requirements: str, search_params: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Use AI to find candidates based on job requirements"""
+        # This would integrate with LinkedIn API, job board APIs, etc.
+        # For now, return mock data
+        
+        mock_candidates = [
+            {
+                "name": "AI Sourced Candidate 1",
+                "email": "candidate1@example.com",
+                "title": "Software Engineer",
+                "company": "Tech Corp",
+                "match_score": 95,
+                "skills": ["Python", "React", "AWS"],
+                "experience_years": 5,
+                "location": "San Francisco, CA",
+                "source": "AI Sourcing"
+            },
+            {
+                "name": "AI Sourced Candidate 2", 
+                "email": "candidate2@example.com",
+                "title": "Senior Developer",
+                "company": "Innovation Inc",
+                "match_score": 88,
+                "skills": ["JavaScript", "Node.js", "MongoDB"],
+                "experience_years": 7,
+                "location": "New York, NY",
+                "source": "AI Sourcing"
+            }
+        ]
+        
+        return mock_candidates
+
+# Email Automation Service
+class EmailAutomationService:
+    def __init__(self):
+        self.smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+        self.smtp_port = int(os.getenv('SMTP_PORT', '587'))
+        self.smtp_username = os.getenv('SMTP_USERNAME', '')
+        self.smtp_password = os.getenv('SMTP_PASSWORD', '')
+    
+    async def send_sequence_email(self, recipient_email: str, subject: str, body: str, sender_email: str):
+        """Send automated sequence email"""
+        try:
+            msg = MIMEMultipart()
+            msg['From'] = sender_email
+            msg['To'] = recipient_email
+            msg['Subject'] = subject
+            
+            msg.attach(MIMEText(body, 'html'))
+            
+            # In production, use proper SMTP configuration
+            # For now, just log the email
+            print(f"Sending email to {recipient_email}: {subject}")
+            
+            return {"success": True, "message": "Email sent successfully"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    async def create_email_sequence(self, sequence_data: Dict[str, Any]) -> str:
+        """Create a new email sequence"""
+        sequence = EmailSequence(**sequence_data)
+        await db.email_sequences.insert_one(sequence.dict())
+        return sequence.id
+    
+    async def start_campaign(self, campaign_data: Dict[str, Any]) -> str:
+        """Start an email campaign"""
+        campaign = EmailCampaign(**campaign_data)
+        await db.email_campaigns.insert_one(campaign.dict())
+        
+        # Schedule emails to be sent
+        await self._schedule_campaign_emails(campaign)
+        
+        return campaign.id
+    
+    async def _schedule_campaign_emails(self, campaign: EmailCampaign):
+        """Schedule campaign emails to be sent"""
+        # This would integrate with a task queue like Celery
+        # For now, just update the campaign status
+        await db.email_campaigns.update_one(
+            {"id": campaign.id},
+            {"$set": {"status": "active", "start_date": datetime.now(timezone.utc)}}
+        )
+
+# Job Board Integration Service
+class JobBoardService:
+    def __init__(self):
+        self.supported_boards = [
+            {"name": "Indeed", "api_endpoint": "https://api.indeed.com", "requires_auth": True},
+            {"name": "LinkedIn", "api_endpoint": "https://api.linkedin.com", "requires_auth": True},
+            {"name": "Glassdoor", "api_endpoint": "https://api.glassdoor.com", "requires_auth": True},
+            {"name": "Monster", "api_endpoint": "https://api.monster.com", "requires_auth": True},
+            {"name": "CareerBuilder", "api_endpoint": "https://api.careerbuilder.com", "requires_auth": True}
+        ]
+    
+    async def multipost_job(self, job_data: Dict[str, Any], selected_boards: List[str]) -> Dict[str, Any]:
+        """Post job to multiple job boards"""
+        results = []
+        
+        for board_name in selected_boards:
+            try:
+                # In production, integrate with actual job board APIs
+                result = await self._post_to_board(job_data, board_name)
+                results.append({
+                    "board": board_name,
+                    "status": "success",
+                    "external_id": f"{board_name.lower()}_{uuid.uuid4()}",
+                    "cost": 50.0  # Mock cost
+                })
+            except Exception as e:
+                results.append({
+                    "board": board_name,
+                    "status": "error",
+                    "error": str(e)
+                })
+        
+        return {"results": results, "total_posted": len([r for r in results if r["status"] == "success"])}
+    
+    async def _post_to_board(self, job_data: Dict[str, Any], board_name: str):
+        """Post to individual job board"""
+        # Mock implementation - in production, use actual APIs
+        await asyncio.sleep(0.1)  # Simulate API call
+        return {"success": True, "external_id": f"{board_name}_{uuid.uuid4()}"}
+
+# Initialize services
+resume_parser = AIResumeParser()
+candidate_sourcing = AICandidateSourcing()
+email_service = EmailAutomationService()
+job_board_service = JobBoardService()
+
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 # Helper functions
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
@@ -698,6 +1239,7 @@ async def resend_phone_otp(user_id: str):
     
     return {"message": "OTP sent", "otp_code": phone_otp}  # Remove OTP in production
 
+<<<<<<< HEAD
 # Candidate Registration and Authentication
 @api_router.post("/candidates/register")
 async def register_candidate(candidate_data: CandidateRegister):
@@ -774,6 +1316,8 @@ async def login_candidate(login_data: CandidateLogin):
         "candidate": CandidateUser(**candidate)
     }
 
+=======
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 # Candidate Job Routes
 @api_router.get("/candidates/jobs")
 async def get_available_jobs(
@@ -802,6 +1346,7 @@ async def get_available_jobs(
         query["experience_level"] = experience_level
     
     jobs = await db.jobs.find(query).to_list(1000)
+<<<<<<< HEAD
     enriched_jobs = []
     for job_doc in jobs:
         # Sanitize job
@@ -822,12 +1367,30 @@ async def get_available_jobs(
         enriched_jobs.append({
             "job": job_payload,
             "company": company_payload,
+=======
+    
+    # Enrich with company data
+    enriched_jobs = []
+    for job in jobs:
+        company = await db.companies.find_one({"id": job["company_id"]})
+        
+        # Check if candidate already applied
+        existing_application = await db.candidate_applications.find_one({
+            "job_id": job["id"],
+            "candidate_id": current_candidate.id
+        })
+        
+        enriched_jobs.append({
+            "job": Job(**job),
+            "company": Company(**company) if company else None,
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
             "has_applied": bool(existing_application),
             "application_id": existing_application["id"] if existing_application else None
         })
     
     return enriched_jobs
 
+<<<<<<< HEAD
 
 @api_router.post("/candidates/resume")
 async def upload_resume(
@@ -899,6 +1462,18 @@ async def apply_for_job(
 ):
     job_id = request.job_id
     cover_letter = request.cover_letter
+=======
+@api_router.post("/candidates/applications")
+async def apply_for_job(
+    application_data: Dict[str, Any],
+    current_candidate: CandidateUser = Depends(get_current_candidate)
+):
+    job_id = application_data.get("job_id")
+    cover_letter = application_data.get("cover_letter")
+    
+    if not job_id or not cover_letter:
+        raise HTTPException(status_code=422, detail="job_id and cover_letter are required")
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
     
     # Check if job exists and is active
     job = await db.jobs.find_one({"id": job_id, "status": "active"})
@@ -922,6 +1497,7 @@ async def apply_for_job(
     )
     
     await db.candidate_applications.insert_one(application.dict())
+<<<<<<< HEAD
     
     # Automatically schedule interview after successful application
     try:
@@ -985,10 +1561,14 @@ async def get_job(job_id: str):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
+=======
+    return {"message": "Application submitted successfully", "application": application}
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 
 @api_router.get("/candidates/my-applications")
 async def get_my_applications(current_candidate: CandidateUser = Depends(get_current_candidate)):
     applications = await db.candidate_applications.find({"candidate_id": current_candidate.id}).to_list(1000)
+<<<<<<< HEAD
 
     enriched_applications: list[dict] = []
     for app in applications:
@@ -1008,11 +1588,31 @@ async def get_my_applications(current_candidate: CandidateUser = Depends(get_cur
             "interviews": interviews_payload
         })
 
+=======
+    
+    # Enrich with job and company data
+    enriched_applications = []
+    for app in applications:
+        job = await db.jobs.find_one({"id": app["job_id"]})
+        company = await db.companies.find_one({"id": app["company_id"]}) if job else None
+        
+        # Get interviews for this application
+        interviews = await db.interviews.find({"application_id": app["id"]}).to_list(100)
+        
+        enriched_applications.append({
+            "application": CandidateApplication(**app),
+            "job": Job(**job) if job else None,
+            "company": Company(**company) if company else None,
+            "interviews": [Interview(**interview) for interview in interviews]
+        })
+    
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
     return enriched_applications
 
 @api_router.get("/candidates/interviews")
 async def get_my_interviews(current_candidate: CandidateUser = Depends(get_current_candidate)):
     interviews = await db.interviews.find({"candidate_id": current_candidate.id}).to_list(1000)
+<<<<<<< HEAD
 
     enriched_interviews: list[dict] = []
     for iv in interviews:
@@ -1071,6 +1671,22 @@ async def get_completed_interviews(
             "application": application
         })
 
+=======
+    
+    enriched_interviews = []
+    for interview in interviews:
+        application = await db.candidate_applications.find_one({"id": interview["application_id"]})
+        job = await db.jobs.find_one({"id": interview["job_id"]}) if application else None
+        company = await db.companies.find_one({"id": interview["company_id"]}) if job else None
+        
+        enriched_interviews.append({
+            "interview": Interview(**interview),
+            "application": CandidateApplication(**application) if application else None,
+            "job": Job(**job) if job else None,
+            "company": Company(**company) if company else None
+        })
+    
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
     return enriched_interviews
 
 @api_router.put("/candidates/profile")
@@ -1182,6 +1798,7 @@ async def move_application_stage(
     
     return {"message": "Application stage updated successfully"}
 
+<<<<<<< HEAD
 
 @api_router.get("/candidates")
 async def list_candidates(current_recruiter: Recruiter = Depends(get_current_recruiter)):
@@ -1198,6 +1815,8 @@ async def list_candidates(current_recruiter: Recruiter = Depends(get_current_rec
             result.append(c)
     return result
 
+=======
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 # Interview Management Routes
 @api_router.post("/interviews")
 async def schedule_interview(
@@ -1231,6 +1850,10 @@ async def schedule_interview(
     await db.interviews.insert_one(interview.dict())
     return {"message": "Interview scheduled successfully", "interview": interview}
 
+<<<<<<< HEAD
+=======
+# Notes Management
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 @api_router.post("/applications/{application_id}/notes", response_model=Note)
 async def add_note(
     application_id: str,
@@ -1240,19 +1863,31 @@ async def add_note(
 ):
     # Verify application exists and belongs to company
     application = await db.candidate_applications.find_one({
+<<<<<<< HEAD
         "id": application_id,
+=======
+        "id": application_id, 
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
         "company_id": current_recruiter.company_id
     })
     if not application:
         raise HTTPException(status_code=404, detail="Application not found")
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
     note = Note(
         application_id=application_id,
         recruiter_id=current_recruiter.id,
         content=content,
         type=note_type
     )
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
     await db.notes.insert_one(note.dict())
     return note
 
@@ -1321,6 +1956,7 @@ async def get_analytics_dashboard(current_recruiter: Recruiter = Depends(get_cur
         }
     }
 
+<<<<<<< HEAD
 # Secure Interview Telemetry Endpoints
 @api_router.post("/secure-interview/start")
 async def start_secure_interview(
@@ -1710,6 +2346,8 @@ async def get_interview_report(
     return HTMLResponse(content=html, media_type="text/html")
 
 
+=======
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 # Seed data for demo
 @api_router.post("/seed/data")
 async def seed_demo_data(current_recruiter: Recruiter = Depends(get_current_recruiter)):
@@ -1954,6 +2592,7 @@ async def get_interview_monitoring_data(
         "is_live": recording["status"] == "recording" if recording else False
     }
 
+<<<<<<< HEAD
 @api_router.get("/interviews/{interview_id}/summary")
 async def get_interview_summary(
     interview_id: str,
@@ -2080,6 +2719,8 @@ async def get_interview_submission(
     submission.pop("_id", None)
     return submission
 
+=======
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 # WebSocket endpoint for real-time interview monitoring
 @api_router.websocket("/interviews/{interview_id}/ws/{user_type}")
 async def interview_websocket(websocket: WebSocket, interview_id: str, user_type: str):
@@ -2111,6 +2752,7 @@ async def serve_recording(interview_id: str, filename: str):
     
     return {"file_path": str(file_path), "message": "File exists"}  # In production, return actual file
 
+<<<<<<< HEAD
 # AI Monitoring and Secure Interview Endpoints
 @api_router.post("/secure-interview/start")
 async def start_secure_interview(
@@ -2596,11 +3238,997 @@ async def end_interview(
         "interview_id": interview_id,
         "status": "completed",
         "ended_at": datetime.now(timezone.utc).isoformat()
+=======
+# ==============================================
+# RECRUITCRM FEATURE ENDPOINTS
+# ==============================================
+
+# AI Resume Parsing Endpoints
+@api_router.post("/candidates/parse-resume")
+async def parse_resume_endpoint(
+    file: UploadFile = File(...),
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """AI-powered resume parsing with multi-language support"""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+    
+    file_content = await file.read()
+    parsing_result = await resume_parser.parse_resume(file_content, file.filename)
+    
+    if not parsing_result["success"]:
+        raise HTTPException(status_code=400, detail=f"Resume parsing failed: {parsing_result['error']}")
+    
+    return {
+        "message": "Resume parsed successfully",
+        "data": parsing_result["data"],
+        "raw_text": parsing_result["raw_text"][:500] + "..." if len(parsing_result["raw_text"]) > 500 else parsing_result["raw_text"]
+    }
+
+@api_router.post("/candidates/bulk-parse")
+async def bulk_parse_resumes(
+    files: List[UploadFile] = File(...),
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Bulk resume parsing for multiple files"""
+    results = []
+    
+    for file in files:
+        if not file.filename:
+            continue
+        
+        file_content = await file.read()
+        parsing_result = await resume_parser.parse_resume(file_content, file.filename)
+        
+        results.append({
+            "filename": file.filename,
+            "success": parsing_result["success"],
+            "data": parsing_result.get("data"),
+            "error": parsing_result.get("error")
+        })
+    
+    return {
+        "message": f"Processed {len(results)} resumes",
+        "results": results,
+        "success_count": len([r for r in results if r["success"]]),
+        "error_count": len([r for r in results if not r["success"]])
+    }
+
+# Advanced Candidate Search
+@api_router.post("/candidates/advanced-search")
+async def advanced_candidate_search(
+    search_params: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Advanced Boolean and radius-based candidate search"""
+    
+    # Build MongoDB query from search parameters
+    query = {"company_id": current_recruiter.company_id}
+    
+    # Boolean search in skills, title, description
+    if search_params.get("boolean_query"):
+        boolean_query = search_params["boolean_query"]
+        query["$or"] = [
+            {"skills": {"$regex": boolean_query, "$options": "i"}},
+            {"current_title": {"$regex": boolean_query, "$options": "i"}},
+            {"bio": {"$regex": boolean_query, "$options": "i"}}
+        ]
+    
+    # Skills filter
+    if search_params.get("required_skills"):
+        query["skills"] = {"$in": search_params["required_skills"]}
+    
+    # Experience range
+    if search_params.get("min_experience"):
+        query["experience_years"] = {"$gte": search_params["min_experience"]}
+    if search_params.get("max_experience"):
+        if "experience_years" in query:
+            query["experience_years"]["$lte"] = search_params["max_experience"]
+        else:
+            query["experience_years"] = {"$lte": search_params["max_experience"]}
+    
+    # Location/radius search (simplified)
+    if search_params.get("location"):
+        query["location"] = {"$regex": search_params["location"], "$options": "i"}
+    
+    # Education level
+    if search_params.get("education_level"):
+        query["education"] = {"$regex": search_params["education_level"], "$options": "i"}
+    
+    # Salary range
+    if search_params.get("min_salary"):
+        query["expected_salary"] = {"$gte": search_params["min_salary"]}
+    if search_params.get("max_salary"):
+        if "expected_salary" in query:
+            query["expected_salary"]["$lte"] = search_params["max_salary"]
+        else:
+            query["expected_salary"] = {"$lte": search_params["max_salary"]}
+    
+    candidates = await db.candidates.find(query).limit(100).to_list(100)
+    
+    return {
+        "candidates": [CandidateUser(**candidate) for candidate in candidates],
+        "total_found": len(candidates),
+        "search_params": search_params
+    }
+
+# AI Candidate Sourcing
+@api_router.post("/candidates/ai-source")
+async def ai_candidate_sourcing(
+    sourcing_request: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """AI-powered candidate sourcing with natural language prompts"""
+    
+    job_requirements = sourcing_request.get("job_requirements", "")
+    search_params = sourcing_request.get("search_params", {})
+    
+    # Use AI to find candidates
+    sourced_candidates = await candidate_sourcing.find_candidates(job_requirements, search_params)
+    
+    # Save sourced candidates to database
+    for candidate_data in sourced_candidates:
+        candidate_data.update({
+            "id": str(uuid.uuid4()),
+            "company_id": current_recruiter.company_id,
+            "password_hash": hashlib.sha256("temp_password".encode()).hexdigest(),
+            "is_verified": False,
+            "created_at": datetime.now(timezone.utc)
+        })
+        
+        # Check if candidate already exists
+        existing = await db.candidates.find_one({"email": candidate_data["email"]})
+        if not existing:
+            await db.candidates.insert_one(candidate_data)
+            
+            # Log the sourcing activity  
+            source_log = CandidateSource(
+                candidate_id=candidate_data["id"],
+                source_type="ai_sourcing",
+                source_details={"prompt": job_requirements, "match_score": candidate_data.get("match_score", 0)},
+                recruiter_id=current_recruiter.id,
+                company_id=current_recruiter.company_id
+            )
+            await db.candidate_sources.insert_one(source_log.dict())
+    
+    return {
+        "message": f"Found {len(sourced_candidates)} candidates using AI",
+        "candidates": sourced_candidates,
+        "job_requirements": job_requirements
+    }
+
+# Email Automation Endpoints
+@api_router.post("/automation/email-sequences")
+async def create_email_sequence(
+    sequence_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Create automated email sequence"""
+    sequence_data.update({
+        "recruiter_id": current_recruiter.id,
+        "company_id": current_recruiter.company_id
+    })
+    
+    sequence_id = await email_service.create_email_sequence(sequence_data)
+    
+    return {
+        "message": "Email sequence created successfully",
+        "sequence_id": sequence_id
+    }
+
+@api_router.get("/automation/email-sequences")
+async def get_email_sequences(
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get all email sequences for the company"""
+    sequences = await db.email_sequences.find({
+        "company_id": current_recruiter.company_id
+    }).to_list(100)
+    
+    return [EmailSequence(**seq) for seq in sequences]
+
+@api_router.post("/automation/email-campaigns")
+async def start_email_campaign(
+    campaign_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Start an email campaign"""
+    campaign_data.update({
+        "recruiter_id": current_recruiter.id,
+        "company_id": current_recruiter.company_id
+    })
+    
+    campaign_id = await email_service.start_campaign(campaign_data)
+    
+    return {
+        "message": "Email campaign started successfully",
+        "campaign_id": campaign_id
+    }
+
+@api_router.get("/automation/email-campaigns")
+async def get_email_campaigns(
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get all email campaigns"""
+    campaigns = await db.email_campaigns.find({
+        "company_id": current_recruiter.company_id
+    }).to_list(100)
+    
+    return [EmailCampaign(**campaign) for campaign in campaigns]
+
+# Job Multiposting Endpoints
+@api_router.get("/job-boards")
+async def get_job_boards():
+    """Get list of available job boards"""
+    job_boards = await db.job_boards.find({"is_active": True}).to_list(1000)
+    
+    if not job_boards:
+        # Initialize with default job boards
+        default_boards = [
+            {"name": "Indeed", "website": "indeed.com", "category": "general", "posting_cost": 50.0},
+            {"name": "LinkedIn", "website": "linkedin.com", "category": "professional", "posting_cost": 100.0},
+            {"name": "Glassdoor", "website": "glassdoor.com", "category": "general", "posting_cost": 75.0},
+            {"name": "Monster", "website": "monster.com", "category": "general", "posting_cost": 60.0},
+            {"name": "CareerBuilder", "website": "careerbuilder.com", "category": "general", "posting_cost": 55.0},
+            {"name": "Dice", "website": "dice.com", "category": "tech", "posting_cost": 80.0},
+            {"name": "AngelList", "website": "angel.co", "category": "startup", "posting_cost": 40.0},
+            {"name": "Stack Overflow Jobs", "website": "stackoverflow.com", "category": "tech", "posting_cost": 90.0}
+        ]
+        
+        for board_data in default_boards:
+            board = JobBoard(**board_data)
+            await db.job_boards.insert_one(board.dict())
+        
+        job_boards = await db.job_boards.find({"is_active": True}).to_list(1000)
+    
+    return [JobBoard(**board) for board in job_boards]
+
+@api_router.post("/jobs/{job_id}/multipost")
+async def multipost_job(
+    job_id: str,
+    posting_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Post job to multiple job boards"""
+    
+    # Get job details
+    job = await db.jobs.find_one({"id": job_id, "company_id": current_recruiter.company_id})
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    
+    selected_boards = posting_data.get("job_boards", [])
+    
+    # Post to selected job boards
+    posting_results = await job_board_service.multipost_job(job, selected_boards)
+    
+    # Save posting records
+    for result in posting_results["results"]:
+        if result["status"] == "success":
+            posting = JobPosting(
+                job_id=job_id,
+                job_board_id=result.get("board_id", result["board"]),
+                external_id=result.get("external_id"),
+                cost=result.get("cost", 0.0)
+            )
+            await db.job_postings.insert_one(posting.dict())
+    
+    return {
+        "message": f"Job posted to {posting_results['total_posted']} job boards",
+        "results": posting_results["results"],
+        "total_posted": posting_results["total_posted"]
+    }
+
+# Candidate Hotlists Management
+@api_router.post("/candidates/hotlists")
+async def create_hotlist(
+    hotlist_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Create candidate hotlist/talent pool"""
+    hotlist_data.update({
+        "recruiter_id": current_recruiter.id,
+        "company_id": current_recruiter.company_id
+    })
+    
+    hotlist = CandidateHotlist(**hotlist_data)
+    await db.candidate_hotlists.insert_one(hotlist.dict())
+    
+    return {
+        "message": "Hotlist created successfully",
+        "hotlist": hotlist
+    }
+
+@api_router.get("/candidates/hotlists")
+async def get_hotlists(
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get all hotlists for the company"""
+    hotlists = await db.candidate_hotlists.find({
+        "company_id": current_recruiter.company_id
+    }).to_list(100)
+    
+    return [CandidateHotlist(**hotlist) for hotlist in hotlists]
+
+@api_router.post("/candidates/hotlists/{hotlist_id}/add-candidates")
+async def add_candidates_to_hotlist(
+    hotlist_id: str,
+    candidate_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Add candidates to hotlist"""
+    candidate_ids = candidate_data.get("candidate_ids", [])
+    
+    await db.candidate_hotlists.update_one(
+        {"id": hotlist_id, "company_id": current_recruiter.company_id},
+        {"$addToSet": {"candidate_ids": {"$each": candidate_ids}}}
+    )
+    
+    return {
+        "message": f"Added {len(candidate_ids)} candidates to hotlist"
+    }
+
+# Deal Management Endpoints
+@api_router.post("/deals")
+async def create_deal(
+    deal_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Create new deal"""
+    deal_data.update({
+        "recruiter_id": current_recruiter.id,
+        "company_id": current_recruiter.company_id
+    })
+    
+    deal = Deal(**deal_data)
+    await db.deals.insert_one(deal.dict())
+    
+    return {
+        "message": "Deal created successfully",
+        "deal": deal
+    }
+
+@api_router.get("/deals")
+async def get_deals(
+    stage: Optional[str] = None,
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get all deals with optional stage filter"""
+    query = {"company_id": current_recruiter.company_id}
+    if stage:
+        query["stage"] = stage
+    
+    deals = await db.deals.find(query).to_list(100)
+    
+    return [Deal(**deal) for deal in deals]
+
+@api_router.put("/deals/{deal_id}")
+async def update_deal(
+    deal_id: str,
+    deal_updates: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Update deal"""
+    deal_updates["updated_at"] = datetime.now(timezone.utc)
+    
+    await db.deals.update_one(
+        {"id": deal_id, "company_id": current_recruiter.company_id},
+        {"$set": deal_updates}
+    )
+    
+    return {"message": "Deal updated successfully"}
+
+# Client Portal Endpoints
+@api_router.post("/client-portal/submissions")
+async def create_client_submission(
+    submission_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Submit candidates to client portal"""
+    submission_data.update({
+        "recruiter_id": current_recruiter.id,
+        "company_id": current_recruiter.company_id
+    })
+    
+    submission = ClientPortalSubmission(**submission_data)
+    await db.client_submissions.insert_one(submission.dict())
+    
+    return {
+        "message": "Candidates submitted to client portal",
+        "submission": submission
+    }
+
+@api_router.get("/client-portal/submissions")
+async def get_client_submissions(
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get all client submissions"""
+    submissions = await db.client_submissions.find({
+        "company_id": current_recruiter.company_id
+    }).to_list(100)
+    
+    return [ClientPortalSubmission(**submission) for submission in submissions]
+
+# Invoice Management
+@api_router.post("/invoices")
+async def create_invoice(
+    invoice_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Create invoice"""
+    invoice_data.update({
+        "recruiter_id": current_recruiter.id,
+        "company_id": current_recruiter.company_id,
+        "invoice_number": f"INV-{int(datetime.now().timestamp())}"
+    })
+    
+    invoice = Invoice(**invoice_data)
+    await db.invoices.insert_one(invoice.dict())
+    
+    return {
+        "message": "Invoice created successfully",
+        "invoice": invoice
+    }
+
+@api_router.get("/invoices")
+async def get_invoices(
+    status: Optional[str] = None,
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get invoices with optional status filter"""
+    query = {"company_id": current_recruiter.company_id}
+    if status:
+        query["status"] = status
+    
+    invoices = await db.invoices.find(query).to_list(100)
+    
+    return [Invoice(**invoice) for invoice in invoices]
+
+# Calendar Integration
+@api_router.post("/calendar/events")
+async def create_calendar_event(
+    event_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Create calendar event"""
+    event_data.update({
+        "recruiter_id": current_recruiter.id,
+        "company_id": current_recruiter.company_id
+    })
+    
+    event = CalendarEvent(**event_data)
+    await db.calendar_events.insert_one(event.dict())
+    
+    return {
+        "message": "Calendar event created successfully",
+        "event": event
+    }
+
+@api_router.get("/calendar/events")
+async def get_calendar_events(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get calendar events with optional date range"""
+    query = {"company_id": current_recruiter.company_id}
+    
+    if start_date and end_date:
+        query["start_time"] = {
+            "$gte": datetime.fromisoformat(start_date),
+            "$lte": datetime.fromisoformat(end_date)
+        }
+    
+    events = await db.calendar_events.find(query).to_list(100)
+    
+    return [CalendarEvent(**event) for event in events]
+
+# Analytics and Reporting
+@api_router.get("/analytics/dashboard")
+async def get_analytics_dashboard(
+    period: str = "monthly",
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get comprehensive analytics dashboard"""
+    
+    # Calculate date range based on period
+    now = datetime.now(timezone.utc)
+    if period == "weekly":
+        start_date = now - timedelta(days=7)
+    elif period == "monthly":
+        start_date = now - timedelta(days=30)
+    elif period == "quarterly":
+        start_date = now - timedelta(days=90)
+    else:
+        start_date = now - timedelta(days=365)
+    
+    # Get various metrics
+    analytics = {
+        "period": period,
+        "date_range": {"start": start_date, "end": now},
+        "metrics": {}
+    }
+    
+    # Total candidates
+    total_candidates = await db.candidates.count_documents({
+        "company_id": current_recruiter.company_id,
+        "created_at": {"$gte": start_date}
+    })
+    analytics["metrics"]["total_candidates"] = total_candidates
+    
+    # Total jobs
+    total_jobs = await db.jobs.count_documents({
+        "company_id": current_recruiter.company_id,
+        "created_at": {"$gte": start_date}
+    })
+    analytics["metrics"]["total_jobs"] = total_jobs
+    
+    # Total applications
+    total_applications = await db.candidate_applications.count_documents({
+        "company_id": current_recruiter.company_id,
+        "created_at": {"$gte": start_date}
+    })
+    analytics["metrics"]["total_applications"] = total_applications
+    
+    # Active deals value
+    deals = await db.deals.find({
+        "company_id": current_recruiter.company_id,
+        "stage": {"$nin": ["closed_won", "closed_lost"]}
+    }).to_list(1000)
+    
+    total_deal_value = sum(deal.get("value", 0) for deal in deals)
+    analytics["metrics"]["pipeline_value"] = total_deal_value
+    analytics["metrics"]["active_deals"] = len(deals)
+    
+    # Interview stats
+    interviews = await db.interviews.find({
+        "company_id": current_recruiter.company_id,
+        "scheduled_date": {"$gte": start_date}
+    }).to_list(1000)
+    
+    analytics["metrics"]["total_interviews"] = len(interviews)
+    analytics["metrics"]["completed_interviews"] = len([i for i in interviews if i.get("status") == "completed"])
+    
+    # Placement rate calculation
+    placements = await db.candidate_applications.count_documents({
+        "company_id": current_recruiter.company_id,
+        "stage": "hired",
+        "created_at": {"$gte": start_date}
+    })
+    
+    placement_rate = (placements / total_applications * 100) if total_applications > 0 else 0
+    analytics["metrics"]["placement_rate"] = round(placement_rate, 2)
+    analytics["metrics"]["total_placements"] = placements
+    
+    return analytics
+
+# Team Management
+@api_router.post("/team/members")
+async def add_team_member(
+    member_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Add team member"""
+    member_data.update({
+        "company_id": current_recruiter.company_id
+    })
+    
+    team_member = TeamMember(**member_data)
+    await db.team_members.insert_one(team_member.dict())
+    
+    return {
+        "message": "Team member added successfully",
+        "member": team_member
+    }
+
+@api_router.get("/team/members")
+async def get_team_members(
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get all team members"""
+    members = await db.team_members.find({
+        "company_id": current_recruiter.company_id,
+        "is_active": True
+    }).to_list(100)
+    
+    return [TeamMember(**member) for member in members]
+
+# Workflow Automation
+@api_router.post("/automation/workflows")
+async def create_workflow(
+    workflow_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Create no-code workflow automation"""
+    workflow_data.update({
+        "recruiter_id": current_recruiter.id,
+        "company_id": current_recruiter.company_id
+    })
+    
+    workflow = WorkflowAutomation(**workflow_data)
+    await db.workflow_automations.insert_one(workflow.dict())
+    
+    return {
+        "message": "Workflow automation created successfully",
+        "workflow": workflow
+    }
+
+@api_router.get("/automation/workflows")
+async def get_workflows(
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get all workflow automations"""
+    workflows = await db.workflow_automations.find({
+        "company_id": current_recruiter.company_id
+    }).to_list(100)
+    
+    return [WorkflowAutomation(**workflow) for workflow in workflows]
+
+# Bulk Operations
+@api_router.post("/candidates/bulk-email")
+async def send_bulk_email(
+    email_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Send bulk personalized emails"""
+    candidate_ids = email_data.get("candidate_ids", [])
+    subject = email_data.get("subject", "")
+    body = email_data.get("body", "")
+    
+    sent_count = 0
+    errors = []
+    
+    for candidate_id in candidate_ids:
+        try:
+            candidate = await db.candidates.find_one({"id": candidate_id})
+            if candidate:
+                # Personalize email
+                personalized_body = body.replace("{candidate_name}", candidate.get("full_name", ""))
+                personalized_subject = subject.replace("{candidate_name}", candidate.get("full_name", ""))
+                
+                # Send email (mock implementation)
+                result = await email_service.send_sequence_email(
+                    candidate["email"],
+                    personalized_subject,
+                    personalized_body,
+                    current_recruiter.email
+                )
+                
+                if result["success"]:
+                    sent_count += 1
+                    
+                    # Log communication
+                    comm_log = CommunicationLog(
+                        sender_id=current_recruiter.id,
+                        recipient_id=candidate_id,
+                        recipient_type="candidate",
+                        communication_type="email",
+                        subject=personalized_subject,
+                        content=personalized_body,
+                        status="sent"
+                    )
+                    await db.communication_logs.insert_one(comm_log.dict())
+                else:
+                    errors.append(f"Failed to send to {candidate['email']}: {result['error']}")
+        except Exception as e:
+            errors.append(f"Error processing candidate {candidate_id}: {str(e)}")
+    
+    return {
+        "message": f"Bulk email completed. Sent: {sent_count}, Errors: {len(errors)}",
+        "sent_count": sent_count,
+        "error_count": len(errors),
+        "errors": errors[:10]  # Limit error messages
+    }
+
+# Data Enrichment
+@api_router.post("/candidates/{candidate_id}/enrich")
+async def enrich_candidate_data(
+    candidate_id: str,
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Enrich candidate data with verified emails, phone numbers, social profiles"""
+    
+    candidate = await db.candidates.find_one({
+        "id": candidate_id,
+        "company_id": current_recruiter.company_id
+    })
+    
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    
+    # Mock data enrichment - in production, integrate with services like Clearbit, Hunter, Apollo
+    enriched_data = {
+        "email_verified": True,
+        "phone_verified": False,
+        "social_profiles": {
+            "linkedin": f"https://linkedin.com/in/{candidate['full_name'].lower().replace(' ', '-')}",
+            "github": f"https://github.com/{candidate['full_name'].lower().replace(' ', '')}"
+        },
+        "employment_history": [
+            {
+                "company": candidate.get("current_company", "Unknown"),
+                "title": candidate.get("current_title", "Unknown"),
+                "duration": "2+ years",
+                "verified": False
+            }
+        ],
+        "skills_verified": candidate.get("skills", [])[:5],
+        "enrichment_source": "mock_service"
+    }
+    
+    enrichment = CandidateEnrichment(
+        candidate_id=candidate_id,
+        **enriched_data
+    )
+    
+    # Update or insert enrichment data
+    await db.candidate_enrichments.update_one(
+        {"candidate_id": candidate_id},
+        {"$set": enrichment.dict()},
+        upsert=True
+    )
+    
+    return {
+        "message": "Candidate data enriched successfully",
+        "enrichment": enrichment
+    }
+
+# Chrome Extension Support (Mock endpoint for sourcing)
+@api_router.post("/candidates/chrome-import")
+async def chrome_extension_import(
+    profile_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Import candidate from Chrome extension (LinkedIn, Xing, etc.)"""
+    
+    # Create candidate from Chrome extension data
+    candidate_data = {
+        "id": str(uuid.uuid4()),
+        "full_name": profile_data.get("name", "Unknown"),
+        "email": profile_data.get("email", ""),
+        "phone": profile_data.get("phone", ""),
+        "current_title": profile_data.get("title", ""),
+        "current_company": profile_data.get("company", ""),
+        "location": profile_data.get("location", ""),
+        "skills": profile_data.get("skills", []),
+        "bio": profile_data.get("summary", ""),
+        "linkedin_url": profile_data.get("linkedin_url", ""),
+        "experience_years": profile_data.get("experience_years", 0),
+        "company_id": current_recruiter.company_id,
+        "password_hash": hashlib.sha256("temp_password".encode()).hexdigest(),
+        "is_verified": False,
+        "created_at": datetime.now(timezone.utc)
+    }
+    
+    # Check if candidate already exists
+    existing = await db.candidates.find_one({"email": candidate_data["email"]})
+    if existing:
+        return {
+            "message": "Candidate already exists in database",
+            "candidate_id": existing["id"],
+            "duplicate": True
+        }
+    
+    # Insert new candidate
+    await db.candidates.insert_one(candidate_data)
+    
+    # Log the sourcing
+    source_log = CandidateSource(
+        candidate_id=candidate_data["id"],
+        source_type="chrome_extension",
+        source_details={
+            "platform": profile_data.get("platform", "unknown"),
+            "url": profile_data.get("source_url", "")
+        },
+        recruiter_id=current_recruiter.id,
+        company_id=current_recruiter.company_id
+    )
+    await db.candidate_sources.insert_one(source_log.dict())
+    
+    return {
+        "message": "Candidate imported successfully from Chrome extension",
+        "candidate": CandidateUser(**candidate_data),
+        "duplicate": False
+    }
+
+# Advanced Analytics Endpoints
+@api_router.get("/analytics/performance")
+async def get_performance_analytics(
+    period: str = "monthly",
+    recruiter_id: Optional[str] = None,
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get detailed performance analytics"""
+    
+    # Date range calculation
+    now = datetime.now(timezone.utc)
+    if period == "weekly":
+        start_date = now - timedelta(days=7)
+    elif period == "monthly":
+        start_date = now - timedelta(days=30)
+    elif period == "quarterly":
+        start_date = now - timedelta(days=90)
+    else:
+        start_date = now - timedelta(days=365)
+    
+    query_filter = {
+        "company_id": current_recruiter.company_id,
+        "created_at": {"$gte": start_date}
+    }
+    
+    if recruiter_id:
+        query_filter["recruiter_id"] = recruiter_id
+    
+    # Calculate various metrics
+    metrics = {}
+    
+    # Time to hire
+    hired_applications = await db.candidate_applications.find({
+        **query_filter,
+        "stage": "hired"
+    }).to_list(1000)
+    
+    if hired_applications:
+        time_to_hire_days = []
+        for app in hired_applications:
+            if app.get("hired_date") and app.get("created_at"):
+                days = (app["hired_date"] - app["created_at"]).days
+                time_to_hire_days.append(days)
+        
+        if time_to_hire_days:
+            metrics["average_time_to_hire"] = round(statistics.mean(time_to_hire_days), 1)
+            metrics["median_time_to_hire"] = round(statistics.median(time_to_hire_days), 1)
+        else:
+            metrics["average_time_to_hire"] = 0
+            metrics["median_time_to_hire"] = 0
+    
+    # Source effectiveness
+    sources = await db.candidate_sources.find(query_filter).to_list(1000)
+    source_stats = {}
+    for source in sources:
+        source_type = source.get("source_type", "unknown")
+        if source_type not in source_stats:
+            source_stats[source_type] = {"count": 0, "hired": 0}
+        source_stats[source_type]["count"] += 1
+        
+        # Check if this candidate was hired
+        hired = await db.candidate_applications.find_one({
+            "candidate_id": source["candidate_id"],
+            "stage": "hired"
+        })
+        if hired:
+            source_stats[source_type]["hired"] += 1
+    
+    # Calculate conversion rates
+    for source_type, stats in source_stats.items():
+        if stats["count"] > 0:
+            stats["conversion_rate"] = round(stats["hired"] / stats["count"] * 100, 2)
+        else:
+            stats["conversion_rate"] = 0
+    
+    metrics["source_effectiveness"] = source_stats
+    
+    # Interview statistics
+    interviews = await db.interviews.find(query_filter).to_list(1000)
+    interview_stats = {
+        "total": len(interviews),
+        "completed": len([i for i in interviews if i.get("status") == "completed"]),
+        "no_show": len([i for i in interviews if i.get("status") == "no_show"]),
+        "cancelled": len([i for i in interviews if i.get("status") == "cancelled"])
+    }
+    
+    if interview_stats["total"] > 0:
+        interview_stats["completion_rate"] = round(interview_stats["completed"] / interview_stats["total"] * 100, 2)
+        interview_stats["no_show_rate"] = round(interview_stats["no_show"] / interview_stats["total"] * 100, 2)
+    else:
+        interview_stats["completion_rate"] = 0
+        interview_stats["no_show_rate"] = 0
+    
+    metrics["interview_stats"] = interview_stats
+    
+    # Revenue metrics
+    deals = await db.deals.find({
+        "company_id": current_recruiter.company_id,
+        "created_at": {"$gte": start_date}
+    }).to_list(1000)
+    
+    revenue_stats = {
+        "total_deals": len(deals),
+        "won_deals": len([d for d in deals if d.get("stage") == "closed_won"]),
+        "lost_deals": len([d for d in deals if d.get("stage") == "closed_lost"]),
+        "pipeline_value": sum(d.get("value", 0) for d in deals if d.get("stage") not in ["closed_won", "closed_lost"]),
+        "won_value": sum(d.get("value", 0) for d in deals if d.get("stage") == "closed_won")
+    }
+    
+    if revenue_stats["total_deals"] > 0:
+        revenue_stats["win_rate"] = round(revenue_stats["won_deals"] / revenue_stats["total_deals"] * 100, 2)
+    else:
+        revenue_stats["win_rate"] = 0
+    
+    metrics["revenue_stats"] = revenue_stats
+    
+    return {
+        "period": period,
+        "date_range": {"start": start_date, "end": now},
+        "metrics": metrics
+    }
+
+# Communication Tracking
+@api_router.get("/communications/log")
+async def get_communication_log(
+    recipient_id: Optional[str] = None,
+    communication_type: Optional[str] = None,
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Get communication log with filters"""
+    
+    query = {"sender_id": current_recruiter.id}
+    
+    if recipient_id:
+        query["recipient_id"] = recipient_id
+    
+    if communication_type:
+        query["communication_type"] = communication_type
+    
+    communications = await db.communication_logs.find(query).limit(100).to_list(100)
+    
+    return [CommunicationLog(**comm) for comm in communications]
+
+# Integration Hub (Mock endpoints for popular integrations)
+@api_router.get("/integrations/available")
+async def get_available_integrations():
+    """Get list of available integrations"""
+    integrations = [
+        {"name": "LinkedIn Recruiter", "type": "sourcing", "status": "available"},
+        {"name": "Indeed API", "type": "job_boards", "status": "available"},
+        {"name": "Zoom", "type": "video_calls", "status": "available"},
+        {"name": "Google Calendar", "type": "calendar", "status": "available"},
+        {"name": "Outlook Calendar", "type": "calendar", "status": "available"},
+        {"name": "Slack", "type": "communication", "status": "available"},
+        {"name": "Microsoft Teams", "type": "communication", "status": "available"},
+        {"name": "Zapier", "type": "automation", "status": "available"},
+        {"name": "Clearbit", "type": "data_enrichment", "status": "available"},
+        {"name": "HubSpot", "type": "crm", "status": "available"}
+    ]
+    
+    return integrations
+
+@api_router.post("/integrations/{integration_name}/connect")
+async def connect_integration(
+    integration_name: str,
+    connection_data: Dict[str, Any],
+    current_recruiter: Recruiter = Depends(get_current_recruiter)
+):
+    """Connect to external integration"""
+    
+    # Mock integration connection - in production, handle OAuth flows
+    connection_result = {
+        "integration": integration_name,
+        "status": "connected",
+        "connected_at": datetime.now(timezone.utc),
+        "account_info": connection_data.get("account_info", {}),
+        "features_enabled": connection_data.get("features", [])
+    }
+    
+    return {
+        "message": f"Successfully connected to {integration_name}",
+        "connection": connection_result
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
     }
 
 # Include the router in the main app
 app.include_router(api_router)
 
+<<<<<<< HEAD
+=======
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,

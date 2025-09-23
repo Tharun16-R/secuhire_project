@@ -12,6 +12,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
 import { Progress } from "./components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "./components/ui/alert";
+<<<<<<< HEAD
+=======
+import { AIResumeParser, AdvancedCandidateSearch, AICandidateSourcing } from './components/RecruitCRMFeatures';
+import EmailAutomationSystem from './components/EmailAutomation';
+import JobMultipostingSystem from './components/JobMultiposting';
+import AdvancedAnalyticsDashboard from './components/AdvancedAnalytics';
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 import { 
   Shield, Users, Briefcase, TrendingUp, Plus, Search, Filter, 
   MapPin, DollarSign, Calendar, Phone, Mail, FileText, 
@@ -19,6 +26,7 @@ import {
   BarChart3, PieChart, Target, Award, Zap, Brain, Building2,
   Eye, Heart, Send, Video, AlertTriangle, Verified, Lock,
   Camera, Monitor, X, ExternalLink, Copy, Volume2, Timer,
+<<<<<<< HEAD
   GraduationCap, Award as AwardIcon, Briefcase as BriefcaseIcon,
   Globe, Users2, BookOpen, CheckCircle2, RefreshCw, Calendar as CalendarIcon
 } from "lucide-react";
@@ -29,11 +37,20 @@ import RecruiterInterviews from "./components/RecruiterInterviews";
 import "./App.css";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+=======
+  Globe, Share2, Linkedin, MessageSquare, Smartphone, Bot,
+  Upload, Download, RefreshCw, Settings, Trash2, PlayCircle
+} from "lucide-react";
+import "./App.css";
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 const API = `${BACKEND_URL}/api`;
 
 // Auth Context for Both Recruiters and Candidates
 const AuthContext = React.createContext();
 
+<<<<<<< HEAD
 // Shared helper: download candidate resume
 const downloadResume = async (candidateId, candidateName) => {
   try {
@@ -58,6 +75,8 @@ const downloadResume = async (candidateId, candidateName) => {
   }
 };
 
+=======
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 const useAuth = () => {
   const context = React.useContext(AuthContext);
   if (!context) {
@@ -442,11 +461,14 @@ const AuthPage = () => {
     }
   };
 
+<<<<<<< HEAD
   // Download/view candidate resume for this application
   const viewResume = async () => {
     return downloadResume(candidate.id, candidate.full_name);
   };
 
+=======
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
   const handleVerification = async (type) => {
     try {
       setLoading(true);
@@ -876,9 +898,12 @@ const CandidateDashboard = () => {
     job_type: '',
     experience_level: ''
   });
+<<<<<<< HEAD
   const [selectedInterview, setSelectedInterview] = useState(null);
   const [showSecureInterview, setShowSecureInterview] = useState(false);
   const [interviewData, setInterviewData] = useState(null);
+=======
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
   const { user, logout } = useAuth();
 
   useEffect(() => {
@@ -887,6 +912,7 @@ const CandidateDashboard = () => {
 
   const fetchCandidateData = async () => {
     try {
+<<<<<<< HEAD
       const headers = {
         'Authorization': `Bearer ${localStorage.getItem('secuhire_token')}`,
         'Content-Type': 'application/json'
@@ -896,6 +922,12 @@ const CandidateDashboard = () => {
         axios.get(`${API}/candidates/jobs`, { headers }),
         axios.get(`${API}/candidates/my-applications`, { headers }),
         axios.get(`${API}/candidates/interviews`, { headers })
+=======
+      const [jobsRes, applicationsRes, interviewsRes] = await Promise.all([
+        axios.get(`${API}/candidates/jobs`),
+        axios.get(`${API}/candidates/my-applications`),
+        axios.get(`${API}/candidates/interviews`)
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
       ]);
 
       setJobs(jobsRes.data);
@@ -906,6 +938,7 @@ const CandidateDashboard = () => {
     }
   };
 
+<<<<<<< HEAD
   const startInterviewImmediately = async (interview) => {
     try {
       // Start the interview on the backend
@@ -978,6 +1011,19 @@ const CandidateDashboard = () => {
                           error.response?.data?.message || 
                           error.message || 
                           'Application failed';
+=======
+  const applyForJob = async (jobId, coverLetter) => {
+    try {
+      await axios.post(`${API}/candidates/applications`, {
+        job_id: jobId,
+        cover_letter: coverLetter
+      });
+      alert('Application submitted successfully!');
+      fetchCandidateData(); // Refresh data
+    } catch (error) {
+      console.error('Application failed:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Application failed';
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
       alert(errorMessage);
     }
   };
@@ -989,18 +1035,23 @@ const CandidateDashboard = () => {
         if (value) params.append(key, value);
       });
       
+<<<<<<< HEAD
       const headers = {
         'Authorization': `Bearer ${localStorage.getItem('secuhire_token')}`,
         'Content-Type': 'application/json'
       };
       
       const response = await axios.get(`${API}/candidates/jobs?${params}`, { headers });
+=======
+      const response = await axios.get(`${API}/candidates/jobs?${params}`);
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
       setJobs(response.data);
     } catch (error) {
       console.error('Search failed:', error);
     }
   };
 
+<<<<<<< HEAD
   const startSecureInterview = async (interview) => {
     try {
       // Immediately open the interview session with placeholders (do not block on network)
@@ -1049,6 +1100,8 @@ const CandidateDashboard = () => {
     }
   };
 
+=======
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-teal-50/20">
       {/* Header */}
@@ -1241,7 +1294,11 @@ const CandidateDashboard = () => {
 
               <div className="grid gap-6">
                 {myInterviews.length > 0 ? myInterviews.map((item, index) => (
+<<<<<<< HEAD
                   <InterviewCard key={index} interviewData={item} onStartSecureInterview={startSecureInterview} />
+=======
+                  <InterviewCard key={index} interviewData={item} />
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
                 )) : (
                   <Card className="border-0 shadow-lg bg-white">
                     <CardContent className="p-12 text-center">
@@ -1263,6 +1320,7 @@ const CandidateDashboard = () => {
           </Tabs>
         </div>
       </div>
+<<<<<<< HEAD
 
       {/* Secure Interview Modal */}
       {showSecureInterview && interviewData && (
@@ -1281,6 +1339,8 @@ const CandidateDashboard = () => {
           }} 
         />
       )}
+=======
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
     </div>
   );
 };
@@ -1486,7 +1546,11 @@ const CandidateApplicationCard = ({ applicationData }) => {
 };
 
 // Interview Card Component
+<<<<<<< HEAD
 const InterviewCard = ({ interviewData, onStartSecureInterview }) => {
+=======
+const InterviewCard = ({ interviewData }) => {
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
   const [showSecureInterview, setShowSecureInterview] = useState(false);
   const { interview, application, job, company } = interviewData;
 
@@ -1538,7 +1602,11 @@ const InterviewCard = ({ interviewData, onStartSecureInterview }) => {
   };
 
   const handleJoinInterview = () => {
+<<<<<<< HEAD
     if (interview.status === 'scheduled') {
+=======
+    if (interview.status === 'scheduled' && isInterviewTime()) {
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
       setShowSecureInterview(true);
     }
   };
@@ -1604,6 +1672,7 @@ const InterviewCard = ({ interviewData, onStartSecureInterview }) => {
           </div>
         </div>
 
+<<<<<<< HEAD
         {/* SecuHire runs interviews in-app; hide any external meeting links */}
 
         <div className="flex space-x-3">
@@ -1614,6 +1683,35 @@ const InterviewCard = ({ interviewData, onStartSecureInterview }) => {
             >
               <Shield className="w-4 h-4" />
               <span>{interview.status === 'in_progress' ? 'Rejoin SecuHire Interview' : 'Start SecuHire Interview'}</span>
+=======
+        {interview.meeting_link && (
+          <div className="mb-4 p-3 bg-slate-50 rounded-lg">
+            <Label className="text-sm font-medium text-slate-700">Meeting Link:</Label>
+            <p className="text-sm text-slate-600 mt-1 truncate">{interview.meeting_link}</p>
+          </div>
+        )}
+
+        <div className="flex space-x-3">
+          {interview.status === 'scheduled' && isInterviewTime() && (
+            <Button 
+              onClick={handleJoinInterview}
+              className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white flex items-center space-x-2"
+            >
+              <Shield className="w-4 h-4" />
+              <span>Join Secure Interview</span>
+            </Button>
+          )}
+          
+          {interview.meeting_link && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="border-orange-300 text-orange-700 hover:bg-orange-50"
+              onClick={() => window.open(interview.meeting_link, '_blank')}
+            >
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Open Meeting Link
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
             </Button>
           )}
 
@@ -1623,7 +1721,11 @@ const InterviewCard = ({ interviewData, onStartSecureInterview }) => {
           </Button>
         </div>
 
+<<<<<<< HEAD
         {(interview.status === 'scheduled' || interview.status === 'in_progress') && (
+=======
+        {interview.status === 'scheduled' && !isInterviewTime() && (
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
           <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center space-x-2 text-blue-800">
               <Shield className="w-4 h-4" />
@@ -1638,6 +1740,1401 @@ const InterviewCard = ({ interviewData, onStartSecureInterview }) => {
     </Card>
   );
 };
+<<<<<<< HEAD
+=======
+
+// Secure Interview Component with Complete Recording and Monitoring
+const SecureInterviewSession = ({ interview, onEndInterview }) => {
+  const videoRef = useRef(null);
+  const screenRef = useRef(null);
+  const audioRef = useRef(null);
+  const websocketRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const screenRecorderRef = useRef(null);
+  const [isSecureMode, setIsSecureMode] = useState(false);
+  const [securityViolations, setSecurityViolations] = useState([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [tabSwitchCount, setTabSwitchCount] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [lastActivity, setLastActivity] = useState(Date.now());
+  const [isMonitoring, setIsMonitoring] = useState(false);
+  const [recordingStatus, setRecordingStatus] = useState('preparing');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [interviewStarted, setInterviewStarted] = useState(false);
+  const [recordedChunks, setRecordedChunks] = useState({
+    webcam: [],
+    screen: [],
+    audio: []
+  });
+
+  useEffect(() => {
+    initializeSecureInterview();
+    return () => {
+      exitSecureMode();
+      closeWebSocket();
+    };
+  }, []);
+
+  const initializeSecureInterview = async () => {
+    try {
+      // 1. Close all other tabs and windows
+      await forceCloseOtherTabs();
+      
+      // 2. Enter secure mode
+      await enterSecureMode();
+      
+      // 3. Initialize WebRTC and recording
+      await setupComprehensiveRecording();
+      
+      // 4. Start WebSocket connection for real-time monitoring
+      initializeWebSocket();
+      
+      // 5. Start security monitoring
+      startAdvancedSecurityMonitoring();
+      
+      // 6. Start interview recording on backend
+      await startInterviewRecording();
+      
+      setIsSecureMode(true);
+      setInterviewStarted(true);
+      setRecordingStatus('recording');
+    } catch (error) {
+      console.error('Failed to initialize secure interview:', error);
+      alert('Critical Error: Security features could not be enabled. Interview cannot proceed safely.');
+      onEndInterview();
+    }
+  };
+
+  const forceCloseOtherTabs = async () => {
+    try {
+      // Force user to close all other tabs/windows
+      const confirmClose = window.confirm(
+        'SECURITY REQUIREMENT: You must close ALL other browser tabs and applications before starting the interview. \n\n' +
+        'Click OK to continue only if you have closed all other tabs. \n' +
+        'Cancel will exit the interview.'
+      );
+      
+      if (!confirmClose) {
+        throw new Error('User refused to close other tabs');
+      }
+
+      // Attempt to detect and warn about multiple tabs/windows
+      let windowCount = 0;
+      try {
+        // This is a workaround - in a real implementation, you'd use browser extensions or native apps
+        const testWindow = window.open('', '_blank');
+        if (testWindow) {
+          testWindow.close();
+          windowCount++;
+        }
+      } catch (e) {
+        // Expected in secure contexts
+      }
+
+      // Show warning about tab monitoring
+      showSecurityWarning(
+        'TAB MONITORING ACTIVE: Any tab switching or window changes will be recorded as security violations.'
+      );
+
+      logSecurityEvent('User confirmed closing all other tabs - interview security protocol initiated');
+    } catch (error) {
+      throw new Error('Failed to establish secure environment: ' + error.message);
+    }
+  };
+
+  const setupComprehensiveRecording = async () => {
+    try {
+      // 1. Get high-quality webcam with audio
+      const webcamStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1920, min: 1280 },
+          height: { ideal: 1080, min: 720 },
+          facingMode: 'user',
+          frameRate: { ideal: 30 }
+        },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 48000
+        }
+      });
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = webcamStream;
+      }
+
+      // 2. Get screen sharing (MANDATORY)
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 15 }
+        },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true
+        }
+      });
+
+      if (screenRef.current) {
+        screenRef.current.srcObject = screenStream;
+      }
+
+      // 3. Setup MediaRecorders for all streams
+      const webcamRecorder = new MediaRecorder(webcamStream, {
+        mimeType: 'video/webm;codecs=vp9,opus',
+        videoBitsPerSecond: 2500000,
+        audioBitsPerSecond: 128000
+      });
+
+      const screenRecorder = new MediaRecorder(screenStream, {
+        mimeType: 'video/webm;codecs=vp9,opus',
+        videoBitsPerSecond: 1500000,
+        audioBitsPerSecond: 128000
+      });
+
+      // 4. Handle recording data
+      webcamRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          setRecordedChunks(prev => ({
+            ...prev,
+            webcam: [...prev.webcam, event.data]
+          }));
+        }
+      };
+
+      screenRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          setRecordedChunks(prev => ({
+            ...prev,
+            screen: [...prev.screen, event.data]
+          }));
+        }
+      };
+
+      // 5. Handle stream interruptions (CRITICAL SECURITY)
+      webcamStream.getVideoTracks().forEach(track => {
+        track.onended = () => {
+          logSecurityViolation('Webcam stream interrupted - CRITICAL security violation');
+          showCriticalSecurityAlert('WEBCAM DISABLED! Interview will be terminated immediately.');
+          setTimeout(() => {
+            handleEndInterview();
+          }, 3000);
+        };
+      });
+
+      screenStream.getVideoTracks().forEach(track => {
+        track.onended = () => {
+          logSecurityViolation('Screen sharing stopped - CRITICAL security violation');
+          showCriticalSecurityAlert('SCREEN SHARING STOPPED! Interview terminated for security violation.');
+          setTimeout(() => {
+            handleEndInterview();
+          }, 3000);
+        };
+      });
+
+      // 6. Start recording
+      webcamRecorder.start(1000); // Capture every second
+      screenRecorder.start(1000);
+
+      mediaRecorderRef.current = webcamRecorder;
+      screenRecorderRef.current = screenRecorder;
+
+      // 7. Upload recordings periodically
+      setInterval(() => {
+        uploadRecordingChunks();
+      }, 30000); // Upload every 30 seconds
+
+      setIsRecording(true);
+      logSecurityEvent('Comprehensive recording system initialized - webcam, screen, and audio monitoring active');
+    } catch (error) {
+      throw new Error('Failed to setup recording: ' + error.message);
+    }
+  };
+
+  const initializeWebSocket = () => {
+    const wsUrl = `${BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws://')}/api/interviews/${interview.id}/ws/candidate`;
+    websocketRef.current = new WebSocket(wsUrl);
+
+    websocketRef.current.onopen = () => {
+      logSecurityEvent('Real-time monitoring connection established');
+      // Send initial status to recruiters
+      sendToRecruiters({
+        type: 'interview_started',
+        candidate_id: interview.candidate_id,
+        timestamp: new Date().toISOString()
+      });
+    };
+
+    websocketRef.current.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      handleRecruiterCommand(message);
+    };
+
+    websocketRef.current.onerror = (error) => {
+      logSecurityViolation('Real-time monitoring connection failed');
+      console.error('WebSocket error:', error);
+    };
+  };
+
+  const sendToRecruiters = (data) => {
+    if (websocketRef.current && websocketRef.current.readyState === WebSocket.OPEN) {
+      websocketRef.current.send(JSON.stringify(data));
+    }
+  };
+
+  const handleRecruiterCommand = (message) => {
+    switch (message.type) {
+      case 'end_interview':
+        logSecurityEvent('Interview ended by recruiter');
+        handleEndInterview();
+        break;
+      case 'security_alert':
+        showSecurityWarning(message.message);
+        break;
+      default:
+        console.log('Unknown recruiter command:', message);
+    }
+  };
+
+  const uploadRecordingChunks = async () => {
+    if (recordedChunks.webcam.length === 0 && recordedChunks.screen.length === 0) return;
+
+    try {
+      // Upload webcam recording
+      if (recordedChunks.webcam.length > 0) {
+        const webcamBlob = new Blob(recordedChunks.webcam, { type: 'video/webm' });
+        await uploadRecording('webcam', webcamBlob);
+        setRecordedChunks(prev => ({ ...prev, webcam: [] }));
+      }
+
+      // Upload screen recording
+      if (recordedChunks.screen.length > 0) {
+        const screenBlob = new Blob(recordedChunks.screen, { type: 'video/webm' });
+        await uploadRecording('screen', screenBlob);
+        setRecordedChunks(prev => ({ ...prev, screen: [] }));
+      }
+
+      logSecurityEvent('Recording chunks uploaded to secure storage');
+    } catch (error) {
+      console.error('Failed to upload recording chunks:', error);
+      logSecurityViolation('Recording upload failed - data integrity compromised');
+    }
+  };
+
+  const uploadRecording = async (type, blob) => {
+    const formData = new FormData();
+    formData.append('file', blob, `${type}_${Date.now()}.webm`);
+
+    const response = await fetch(`${API}/interviews/${interview.id}/upload-recording?recording_type=${type}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to upload ${type} recording`);
+    }
+
+    return response.json();
+  };
+
+  const startInterviewRecording = async () => {
+    try {
+      const response = await fetch(`${API}/interviews/${interview.id}/start-recording`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to start interview recording on backend');
+      }
+
+      const result = await response.json();
+      logSecurityEvent(`Interview recording started on backend - Recording ID: ${result.recording_id}`);
+    } catch (error) {
+      console.error('Failed to start backend recording:', error);
+      throw error;
+    }
+  };
+
+  const logSecurityViolationToBackend = async (violation) => {
+    try {
+      await fetch(`${API}/interviews/${interview.id}/security-violation`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(violation)
+      });
+    } catch (error) {
+      console.error('Failed to log security violation to backend:', error);
+    }
+  };
+
+  const startAdvancedSecurityMonitoring = () => {
+    setIsMonitoring(true);
+    
+    // Enhanced activity monitoring
+    const activityMonitor = setInterval(() => {
+      const timeSinceActivity = Date.now() - lastActivity;
+      
+      if (timeSinceActivity > 15000) { // 15 seconds
+        logSecurityViolation('Candidate inactivity detected - possible absence from interview');
+        showSecurityWarning('Please remain active and visible during the interview');
+      }
+    }, 5000);
+
+    // Advanced application monitoring
+    const appMonitor = setInterval(() => {
+      checkUnauthorizedApps();
+      monitorSystemResources();
+    }, 3000);
+
+    // Screen focus monitoring
+    const focusMonitor = setInterval(() => {
+      if (!document.hasFocus()) {
+        logSecurityViolation('Interview window lost focus - potential security breach');
+        showCriticalSecurityAlert('FOCUS VIOLATION: Return focus to interview immediately!');
+      }
+    }, 1000);
+
+    // Store intervals for cleanup
+    window.securityIntervals = [activityMonitor, appMonitor, focusMonitor];
+  };
+
+  const monitorSystemResources = () => {
+    // Check for high CPU usage (potential background processes)
+    if (navigator.hardwareConcurrency) {
+      const cores = navigator.hardwareConcurrency;
+      // This is a basic check - in production, you'd use more sophisticated monitoring
+      if (performance.now() % 10000 < 100) { // Random sampling
+        logSecurityEvent(`System monitoring: ${cores} cores detected`);
+      }
+    }
+
+    // Monitor memory usage
+    if (performance.memory) {
+      const memoryInfo = performance.memory;
+      const memoryUsageMB = memoryInfo.usedJSHeapSize / 1024 / 1024;
+      
+      if (memoryUsageMB > 500) { // High memory usage threshold
+        logSecurityViolation('High memory usage detected - possible unauthorized applications');
+        showSecurityWarning('Close unnecessary applications to maintain interview security');
+      }
+    }
+  };
+
+  const closeWebSocket = () => {
+    if (websocketRef.current) {
+      websocketRef.current.close();
+    }
+  };
+
+  const handleEndInterview = async () => {
+    try {
+      // Upload final recording chunks
+      await uploadRecordingChunks();
+      
+      // End recording on backend
+      await fetch(`${API}/interviews/${interview.id}/end-recording`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // Notify recruiters
+      sendToRecruiters({
+        type: 'interview_ended',
+        timestamp: new Date().toISOString(),
+        total_violations: securityViolations.length
+      });
+
+      exitSecureMode();
+      onEndInterview();
+    } catch (error) {
+      console.error('Error ending interview:', error);
+      exitSecureMode();
+      onEndInterview();
+    }
+  };
+
+  const enterSecureMode = async () => {
+    // 1. FULLSCREEN ENFORCEMENT
+    try {
+      await document.documentElement.requestFullscreen();
+      setIsFullscreen(true);
+      logSecurityEvent('Entered fullscreen mode');
+    } catch (error) {
+      logSecurityViolation('Failed to enter fullscreen mode');
+    }
+
+    // 2. DISABLE BROWSER CONTEXT MENU
+    document.addEventListener('contextmenu', preventRightClick, { passive: false });
+    
+    // 3. DISABLE KEY COMBINATIONS
+    document.addEventListener('keydown', preventKeyboardShortcuts, { passive: false });
+    
+    // 4. DISABLE TEXT SELECTION AND COPY
+    document.addEventListener('selectstart', preventSelection, { passive: false });
+    document.addEventListener('copy', preventCopy, { passive: false });
+    document.addEventListener('paste', preventPaste, { passive: false });
+    document.addEventListener('cut', preventCut, { passive: false });
+    document.addEventListener('drag', preventDrag, { passive: false });
+    document.addEventListener('dragstart', preventDrag, { passive: false });
+    
+    // 5. MONITOR WINDOW FOCUS
+    window.addEventListener('blur', handleWindowBlur, { passive: false });
+    window.addEventListener('focus', handleWindowFocus, { passive: false });
+    
+    // 6. MONITOR TAB VISIBILITY
+    document.addEventListener('visibilitychange', handleVisibilityChange, { passive: false });
+    
+    // 7. PREVENT PAGE NAVIGATION
+    window.addEventListener('beforeunload', handleBeforeUnload, { passive: false });
+    window.addEventListener('unload', handleUnload, { passive: false });
+    
+    // 8. MONITOR FULLSCREEN CHANGES
+    document.addEventListener('fullscreenchange', handleFullscreenChange, { passive: false });
+
+    // 9. BLOCK DEVELOPER TOOLS
+    document.addEventListener('keypress', blockDevTools, { passive: false });
+    
+    // 10. MONITOR MOUSE MOVEMENTS FOR SUSPICIOUS ACTIVITY
+    document.addEventListener('mouseleave', handleMouseLeave, { passive: false });
+    document.addEventListener('mouseenter', handleMouseEnter, { passive: false });
+
+    // 11. PREVENT PRINT SCREEN
+    document.addEventListener('keydown', preventPrintScreen, { passive: false });
+    
+    // 12. DISABLE BROWSER ZOOM
+    document.addEventListener('wheel', preventZoom, { passive: false });
+    document.addEventListener('keydown', preventZoomKeys, { passive: false });
+
+    // 13. BLOCK CLIPBOARD ACCESS
+    navigator.clipboard = undefined;
+
+    // 14. DISABLE BROWSER EXTENSIONS COMMUNICATION
+    window.postMessage = () => {};
+
+    logSecurityEvent('Secure mode activated with enhanced protection');
+  };
+
+  const exitSecureMode = () => {
+    // Remove all event listeners
+    document.removeEventListener('contextmenu', preventRightClick);
+    document.removeEventListener('keydown', preventKeyboardShortcuts);
+    document.removeEventListener('selectstart', preventSelection);
+    document.removeEventListener('copy', preventCopy);
+    document.removeEventListener('paste', preventPaste);
+    document.removeEventListener('cut', preventCut);
+    document.removeEventListener('drag', preventDrag);
+    document.removeEventListener('dragstart', preventDrag);
+    window.removeEventListener('blur', handleWindowBlur);
+    window.removeEventListener('focus', handleWindowFocus);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+    window.removeEventListener('unload', handleUnload);
+    document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    document.removeEventListener('keypress', blockDevTools);
+    document.removeEventListener('mouseleave', handleMouseLeave);
+    document.removeEventListener('mouseenter', handleMouseEnter);
+    document.removeEventListener('keydown', preventPrintScreen);
+    document.removeEventListener('wheel', preventZoom);
+    document.removeEventListener('keydown', preventZoomKeys);
+
+    // Clean up security intervals
+    if (window.securityIntervals) {
+      window.securityIntervals.forEach(interval => clearInterval(interval));
+      window.securityIntervals = [];
+    }
+
+    // Exit fullscreen
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    }
+
+    // Stop recording
+    stopVideoRecording();
+
+    logSecurityEvent('Secure mode deactivated - all protections removed');
+  };
+
+  // SECURITY EVENT HANDLERS
+
+  const preventRightClick = (e) => {
+    e.preventDefault();
+    logSecurityViolation('Right-click attempt blocked');
+    showSecurityWarning('Right-click is disabled during the interview');
+    return false;
+  };
+
+  const preventKeyboardShortcuts = (e) => {
+    // Block dangerous key combinations
+    const blockedKeys = [
+      { key: 'Tab', alt: true }, // Alt+Tab
+      { key: 'F4', alt: true },  // Alt+F4
+      { key: 'Tab', ctrl: true }, // Ctrl+Tab
+      { key: 'w', ctrl: true },   // Ctrl+W
+      { key: 't', ctrl: true },   // Ctrl+T
+      { key: 'n', ctrl: true },   // Ctrl+N
+      { key: 'r', ctrl: true },   // Ctrl+R
+      { key: 'F5' },              // F5
+      { key: 'F11' },             // F11
+      { key: 'F12' },             // F12 (DevTools)
+      { key: 'I', ctrl: true, shift: true }, // Ctrl+Shift+I
+      { key: 'J', ctrl: true, shift: true }, // Ctrl+Shift+J
+      { key: 'C', ctrl: true, shift: true }, // Ctrl+Shift+C
+      { key: 'c', ctrl: true },   // Ctrl+C
+      { key: 'v', ctrl: true },   // Ctrl+V
+      { key: 'a', ctrl: true },   // Ctrl+A
+    ];
+
+    for (const blocked of blockedKeys) {
+      if (e.key === blocked.key) {
+        if (
+          (!blocked.ctrl || e.ctrlKey) &&
+          (!blocked.alt || e.altKey) &&
+          (!blocked.shift || e.shiftKey)
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          logSecurityViolation(`Blocked keyboard shortcut: ${e.key}`);
+          showSecurityWarning(`Keyboard shortcut ${e.key} is disabled during interview`);
+          return false;
+        }
+      }
+    }
+  };
+
+  const preventSelection = (e) => {
+    e.preventDefault();
+    logSecurityViolation('Text selection attempt blocked');
+    return false;
+  };
+
+  const preventCopy = (e) => {
+    e.preventDefault();
+    logSecurityViolation('Copy attempt blocked');
+    showSecurityWarning('Copy function is disabled during interview');
+    return false;
+  };
+
+  const preventPaste = (e) => {
+    e.preventDefault();
+    logSecurityViolation('Paste attempt blocked');
+    showSecurityWarning('Paste function is disabled during interview');
+    return false;
+  };
+
+  const preventCut = (e) => {
+    e.preventDefault();
+    logSecurityViolation('Cut attempt blocked');
+    showSecurityWarning('Cut function is disabled during interview');
+    return false;
+  };
+
+  const preventDrag = (e) => {
+    e.preventDefault();
+    logSecurityViolation('Drag attempt blocked');
+    return false;
+  };
+
+  const handleMouseLeave = () => {
+    logSecurityViolation('Mouse left window boundary');
+    showSecurityWarning('Please keep your mouse within the interview window');
+  };
+
+  const handleMouseEnter = () => {
+    logSecurityEvent('Mouse returned to window');
+  };
+
+  const handleUnload = () => {
+    logSecurityViolation('Page unload detected');
+  };
+
+  const blockDevTools = (e) => {
+    if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C'))) {
+      e.preventDefault();
+      logSecurityViolation('Developer tools access attempt blocked');
+      showSecurityWarning('Developer tools are not allowed during interview');
+      return false;
+    }
+  };
+
+  const preventPrintScreen = (e) => {
+    if (e.key === 'PrintScreen' || e.key === 'Print') {
+      e.preventDefault();
+      logSecurityViolation('Print screen attempt blocked');
+      showSecurityWarning('Screenshots are not allowed during interview');
+      return false;
+    }
+  };
+
+  const preventZoom = (e) => {
+    if (e.ctrlKey) {
+      e.preventDefault();
+      logSecurityViolation('Zoom attempt blocked');
+      showSecurityWarning('Zoom function is disabled during interview');
+      return false;
+    }
+  };
+
+  const preventZoomKeys = (e) => {
+    if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
+      e.preventDefault();
+      logSecurityViolation('Keyboard zoom attempt blocked');
+      showSecurityWarning('Zoom controls are disabled during interview');
+      return false;
+    }
+  };
+
+  const handleWindowBlur = () => {
+    logSecurityViolation('Window lost focus - possible tab switch or application switch');
+    setTabSwitchCount(prev => prev + 1);
+    
+    // Immediate response to tab switching
+    if (tabSwitchCount >= 2) {
+      showCriticalSecurityAlert('MULTIPLE TAB SWITCHES DETECTED! Interview security severely compromised. This incident has been recorded.');
+      // In production, this would auto-end the interview and notify the recruiter
+      setTimeout(() => {
+        if (window.confirm('Your interview session has been flagged for security violations. Continue at your own risk?')) {
+          logSecurityViolation('User acknowledged security violation and chose to continue');
+        }
+      }, 2000);
+    } else if (tabSwitchCount >= 1) {
+      showCriticalSecurityAlert('TAB SWITCHING DETECTED! Second violation will result in interview termination. Return focus immediately.');
+    } else {
+      showSecurityWarning('Please keep this window focused during the interview. Tab switching is monitored.');
+    }
+    
+    // Aggressive focus reclaim
+    setTimeout(() => {
+      window.focus();
+      if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+      }
+    }, 100);
+
+    // Force click to activate window
+    setTimeout(() => {
+      document.body.click();
+    }, 200);
+  };
+
+  const handleWindowFocus = () => {
+    logSecurityEvent('Window regained focus - security monitoring active');
+    setLastActivity(Date.now());
+  };
+
+  const handleVisibilityChange = () => {
+    if (document.hidden) {
+      logSecurityViolation('Tab became hidden - CRITICAL security violation detected');
+      setTabSwitchCount(prev => prev + 1);
+      
+      // More aggressive response to tab hiding
+      showCriticalSecurityAlert('⚠️ TAB SWITCHING/HIDING DETECTED! This is a CRITICAL security violation. Return to interview immediately!');
+      
+      // Attempt to force tab visibility
+      setTimeout(() => {
+        window.focus();
+        document.body.focus();
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen();
+        }
+      }, 50);
+
+      // Play warning sound (if allowed)
+      try {
+        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xyu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgCwFJHfH8N2QQAoUXrTp66hVFApGn+Xzu2QdBzSL0e/VgC==');
+        audio.play().catch(() => {});
+      } catch (e) {}
+
+    } else {
+      logSecurityEvent('Tab became visible again - monitoring resumed');
+      setLastActivity(Date.now());
+    }
+  };
+
+  const handleBeforeUnload = (e) => {
+    e.preventDefault();
+    const message = 'Are you sure you want to leave the interview? This will be recorded as a security violation.';
+    e.returnValue = message;
+    logSecurityViolation('Attempted to leave interview page');
+    return message;
+  };
+
+  const handleFullscreenChange = () => {
+    if (!document.fullscreenElement) {
+      logSecurityViolation('Exited fullscreen mode');
+      setIsFullscreen(false);
+      showCriticalSecurityAlert('Fullscreen mode is required! Please return to fullscreen.');
+      
+      // Force back to fullscreen
+      setTimeout(() => {
+        document.documentElement.requestFullscreen().catch((err) => {
+          console.error('Could not re-enter fullscreen:', err);
+        });
+      }, 1000);
+    } else {
+      setIsFullscreen(true);
+      logSecurityEvent('Fullscreen mode maintained');
+    }
+  };
+
+  const setupVideoMonitoring = async () => {
+    try {
+      // Get high-quality camera access with strict constraints
+      const cameraStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: { ideal: 1920, min: 1280 }, 
+          height: { ideal: 1080, min: 720 }, 
+          facingMode: 'user',
+          frameRate: { ideal: 30, min: 24 }
+        }, 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 44100
+        }
+      });
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = cameraStream;
+      }
+
+      // Get screen recording for comprehensive monitoring
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: { 
+          mediaSource: 'screen',
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 15 }
+        },
+        audio: true
+      });
+      
+      if (screenRef.current) {
+        screenRef.current.srcObject = screenStream;
+      }
+
+      // Set up recording for both streams
+      const combinedRecorder = new MediaRecorder(cameraStream);
+      const screenRecorder = new MediaRecorder(screenStream);
+      
+      // Monitor for stream interruptions
+      cameraStream.getVideoTracks().forEach(track => {
+        track.onended = () => {
+          logSecurityViolation('Camera stream interrupted - potential security bypass');
+          showCriticalSecurityAlert('Camera monitoring was disabled! Restart immediately.');
+        };
+      });
+
+      screenStream.getVideoTracks().forEach(track => {
+        track.onended = () => {
+          logSecurityViolation('Screen sharing stopped - critical security violation');
+          showCriticalSecurityAlert('Screen sharing must remain active during interview!');
+        };
+      });
+
+      // Advanced motion detection for candidate monitoring
+      setupMotionDetection(cameraStream);
+
+      // Screen change detection
+      setupScreenChangeDetection(screenStream);
+
+      setIsRecording(true);
+      logSecurityEvent('Enhanced video and screen monitoring activated with motion detection');
+    } catch (error) {
+      console.error('Camera/screen access failed:', error);
+      logSecurityViolation(`Failed to access camera or screen: ${error.message}`);
+      showCriticalSecurityAlert('Camera and screen access is MANDATORY for secure interviews. Interview cannot proceed without permissions.');
+      // In production, this would terminate the interview
+    }
+  };
+
+  const setupMotionDetection = (stream) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const tempVideo = document.createElement('video');
+    tempVideo.srcObject = stream;
+    tempVideo.play();
+
+    let previousFrame = null;
+    const motionThreshold = 30; // Configurable sensitivity
+    let noMotionCount = 0;
+
+    const detectMotion = () => {
+      if (tempVideo.readyState === tempVideo.HAVE_ENOUGH_DATA) {
+        canvas.width = tempVideo.videoWidth;
+        canvas.height = tempVideo.videoHeight;
+        ctx.drawImage(tempVideo, 0, 0);
+        
+        const currentFrame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        
+        if (previousFrame) {
+          let totalDiff = 0;
+          for (let i = 0; i < currentFrame.data.length; i += 4) {
+            const diff = Math.abs(currentFrame.data[i] - previousFrame.data[i]);
+            totalDiff += diff;
+          }
+          
+          const avgDiff = totalDiff / (currentFrame.data.length / 4);
+          
+          if (avgDiff < motionThreshold) {
+            noMotionCount++;
+            if (noMotionCount > 100) { // ~10 seconds at 10fps
+              logSecurityViolation('No candidate motion detected - possible absence');
+              showSecurityWarning('Please ensure you remain visible and active during the interview');
+              noMotionCount = 0;
+            }
+          } else {
+            noMotionCount = 0;
+            setLastActivity(Date.now());
+          }
+        }
+        
+        previousFrame = currentFrame;
+      }
+      
+      setTimeout(detectMotion, 100); // 10fps motion detection
+    };
+
+    tempVideo.onloadedmetadata = () => {
+      detectMotion();
+    };
+  };
+
+  const setupScreenChangeDetection = (stream) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const tempVideo = document.createElement('video');
+    tempVideo.srcObject = stream;
+    tempVideo.play();
+
+    let previousScreenshot = null;
+    let suspiciousActivityCount = 0;
+
+    const detectScreenChanges = () => {
+      if (tempVideo.readyState === tempVideo.HAVE_ENOUGH_DATA) {
+        canvas.width = tempVideo.videoWidth;
+        canvas.height = tempVideo.videoHeight;
+        ctx.drawImage(tempVideo, 0, 0);
+        
+        const currentScreenshot = canvas.toDataURL();
+        
+        if (previousScreenshot && currentScreenshot !== previousScreenshot) {
+          // Significant screen changes detected
+          suspiciousActivityCount++;
+          if (suspiciousActivityCount > 5) {
+            logSecurityViolation('Frequent screen changes detected - possible unauthorized application switching');
+            showSecurityWarning('Minimize screen changes during interview to avoid security flags');
+            suspiciousActivityCount = 0;
+          }
+        }
+        
+        previousScreenshot = currentScreenshot;
+      }
+      
+      setTimeout(detectScreenChanges, 2000); // Check every 2 seconds
+    };
+
+    tempVideo.onloadedmetadata = () => {
+      detectScreenChanges();
+    };
+  };
+
+  const startSecurityMonitoring = () => {
+    setIsMonitoring(true);
+    
+    // Monitor activity every 5 seconds
+    const activityMonitor = setInterval(() => {
+      const timeSinceActivity = Date.now() - lastActivity;
+      
+      if (timeSinceActivity > 30000) { // 30 seconds
+        logSecurityViolation('No user activity detected');
+        showSecurityWarning('Please interact with the interview to confirm your presence');
+      }
+    }, 5000);
+
+    // Check for unauthorized applications every 10 seconds
+    const appMonitor = setInterval(() => {
+      checkUnauthorizedApps();
+    }, 10000);
+
+    // Store intervals for cleanup
+    window.securityIntervals = [activityMonitor, appMonitor];
+  };
+
+  const checkUnauthorizedApps = () => {
+    // Monitor for suspicious browser behavior
+    if (navigator.webdriver) {
+      logSecurityViolation('Automated browser detected - potential cheating attempt');
+      showCriticalSecurityAlert('Automated browser tools are STRICTLY PROHIBITED during interviews');
+    }
+
+    // Enhanced DevTools detection
+    const widthThreshold = window.outerWidth - window.innerWidth > 160;
+    const heightThreshold = window.outerHeight - window.innerHeight > 160;
+    
+    if (widthThreshold || heightThreshold) {
+      logSecurityViolation('Developer tools possibly open - unauthorized resource access detected');
+      showCriticalSecurityAlert('Developer tools detected! Close all developer tools immediately.');
+    }
+
+    // Check for console access
+    let consoleBlocked = false;
+    const originalConsole = console.log;
+    console.log = function() {
+      consoleBlocked = true;
+      logSecurityViolation('Console access attempt detected');
+      showSecurityWarning('Console access is monitored and blocked during interviews');
+      return originalConsole.apply(console, arguments);
+    };
+
+    // Check for debugging tools
+    let debuggerDetected = false;
+    const debuggerCheck = setInterval(() => {
+      const start = performance.now();
+      debugger; // eslint-disable-line no-debugger
+      const end = performance.now();
+      if (end - start > 100) {
+        debuggerDetected = true;
+        logSecurityViolation('Debugger detected - unauthorized development tool access');
+        showCriticalSecurityAlert('Debugging tools detected! This is a serious security violation.');
+        clearInterval(debuggerCheck);
+      }
+    }, 1000);
+
+    // Check for browser extensions
+    if (window.chrome && window.chrome.runtime && window.chrome.runtime.onConnect) {
+      logSecurityViolation('Browser extensions may be interfering with security');
+      showSecurityWarning('Disable all browser extensions before interviews');
+    }
+
+    // Check for screen recording software indicators
+    if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
+      navigator.mediaDevices.getDisplayMedia({video: true})
+        .then(() => {
+          logSecurityViolation('Potential screen recording software detected');
+          showSecurityWarning('External screen recording is not allowed during interviews');
+        })
+        .catch(() => {
+          // Expected when no screen recording is active
+        });
+    }
+
+    // Monitor clipboard access
+    if (navigator.clipboard) {
+      const originalRead = navigator.clipboard.readText;
+      navigator.clipboard.readText = function() {
+        logSecurityViolation('Clipboard read attempt blocked');
+        showSecurityWarning('Clipboard access is restricted during interviews');
+        return Promise.reject('Clipboard access denied');
+      };
+    }
+
+    // Check for virtual machines
+    const isVM = navigator.userAgent.includes('VMware') || 
+                 navigator.userAgent.includes('VirtualBox') ||
+                 navigator.userAgent.includes('QEMU') ||
+                 screen.width === 1024 && screen.height === 768; // Common VM resolution
+    
+    if (isVM) {
+      logSecurityViolation('Virtual machine environment detected');
+      showSecurityWarning('Virtual machine usage should be disclosed to interview organizers');
+    }
+  };
+
+  const logSecurityEvent = (event) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[SECURITY EVENT] ${timestamp}: ${event}`);
+    
+    // Store in component state for display
+    setSecurityViolations(prev => [...prev, {
+      type: 'event',
+      message: event,
+      timestamp,
+      severity: 'info'
+    }]);
+  };
+
+  const logSecurityViolation = (violation) => {
+    const timestamp = new Date().toISOString();
+    console.warn(`[SECURITY VIOLATION] ${timestamp}: ${violation}`);
+    
+    // Store violation
+    setSecurityViolations(prev => [...prev, {
+      type: 'violation',
+      message: violation,
+      timestamp,
+      severity: 'warning'
+    }]);
+    
+    // In production, send to server
+    // sendSecurityAlert(violation, timestamp);
+  };
+
+  const showSecurityWarning = (message) => {
+    // Create floating warning
+    const warning = document.createElement('div');
+    warning.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, #f59e0b, #dc2626);
+      color: white;
+      padding: 16px 20px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      z-index: 10000;
+      font-weight: 600;
+      font-size: 14px;
+      max-width: 300px;
+      animation: slideInRight 0.3s ease-out;
+    `;
+    warning.innerHTML = `⚠️ ${message}`;
+    document.body.appendChild(warning);
+    
+    // Remove after 5 seconds
+    setTimeout(() => {
+      if (warning.parentNode) {
+        warning.parentNode.removeChild(warning);
+      }
+    }, 5000);
+  };
+
+  const showCriticalSecurityAlert = (message) => {
+    // Create critical alert overlay
+    const alert = document.createElement('div');
+    alert.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(220, 38, 38, 0.95);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 10001;
+      font-size: 24px;
+      font-weight: 700;
+      text-align: center;
+      backdrop-filter: blur(10px);
+    `;
+    alert.innerHTML = `
+      <div style="max-width: 500px; padding: 40px; background: rgba(0,0,0,0.2); border-radius: 20px;">
+        <div style="font-size: 48px; margin-bottom: 20px;">🚨</div>
+        <h2 style="margin-bottom: 16px;">SECURITY ALERT</h2>
+        <p style="font-size: 18px; margin-bottom: 24px;">${message}</p>
+        <button onclick="this.parentNode.parentNode.remove()" style="
+          background: white;
+          color: #dc2626;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 8px;
+          font-weight: 600;
+          cursor: pointer;
+        ">I Understand</button>
+      </div>
+    `;
+    document.body.appendChild(alert);
+  };
+
+  const stopVideoRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    if (screenRecorderRef.current && screenRecorderRef.current.state === 'recording') {
+      screenRecorderRef.current.stop();
+    }
+    
+    if (videoRef.current?.srcObject) {
+      videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+    }
+    if (screenRef.current?.srcObject) {
+      screenRef.current.srcObject.getTracks().forEach(track => track.stop());
+    }
+    setIsRecording(false);
+  };
+
+  const finalizeInterview = () => {
+    if (window.confirm('Are you sure you want to end the interview? This action cannot be undone.')) {
+      handleEndInterview();
+    }
+  };
+
+  const handleUserActivity = () => {
+    setLastActivity(Date.now());
+  };
+
+  // Add CSS for security styles
+  useEffect(() => {
+    if (isSecureMode) {
+      // Add security CSS
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        
+        * {
+          -webkit-user-select: none !important;
+          -moz-user-select: none !important;
+          -ms-user-select: none !important;
+          user-select: none !important;
+          -webkit-touch-callout: none !important;
+          -webkit-tap-highlight-color: transparent !important;
+        }
+        
+        *::-webkit-scrollbar {
+          display: none !important;
+        }
+        
+        body {
+          overflow: hidden !important;
+        }
+      `;
+      document.head.appendChild(style);
+      
+      return () => {
+        if (style.parentNode) {
+          style.parentNode.removeChild(style);
+        }
+      };
+    }
+  }, [isSecureMode]);
+
+  return (
+    <div 
+      className="min-h-screen bg-black text-white relative"
+      onClick={handleUserActivity}
+      onMouseMove={handleUserActivity}
+      onKeyPress={handleUserActivity}
+    >
+      {/* Security Status Header */}
+      <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-red-600 via-orange-600 to-red-600 p-4 z-50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <Lock className="w-5 h-5 animate-pulse" />
+              <span className="font-bold">SECURE INTERVIEW MODE</span>
+            </div>
+            <Badge className="bg-red-800 text-white border-red-700">
+              <Monitor className="w-3 h-3 mr-1" />
+              Screen Monitored
+            </Badge>
+            <Badge className="bg-orange-800 text-white border-orange-700">
+              <Camera className="w-3 h-3 mr-1" />
+              Video Recording
+            </Badge>
+            <Badge className="bg-yellow-800 text-white border-yellow-700">
+              Tab Switches: {tabSwitchCount}
+            </Badge>
+          </div>
+          
+          <Button 
+            onClick={finalizeInterview}
+            className="bg-red-700 hover:bg-red-800 text-white"
+            size="sm"
+          >
+            <X className="w-4 h-4 mr-2" />
+            End Interview
+          </Button>
+        </div>
+      </div>
+
+      {/* Main Interview Interface */}
+      <div className="pt-20 p-6 h-screen">
+        <div className="h-full grid grid-cols-3 gap-6">
+          {/* Candidate Video Feed */}
+          <div className="col-span-2">
+            <Card className="bg-slate-900 border-slate-700 h-full">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center space-x-2">
+                  <Camera className="w-5 h-5 text-green-400" />
+                  <span>Candidate Video Feed</span>
+                  {isRecording && (
+                    <div className="flex items-center space-x-1 text-red-400">
+                      <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
+                      <span className="text-sm">RECORDING</span>
+                    </div>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1 flex items-center justify-center">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="w-full h-full max-h-96 bg-slate-800 rounded-lg border-2 border-green-500"
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Security Monitoring Panel */}
+          <div className="space-y-4">
+            {/* Screen Monitor */}
+            <Card className="bg-slate-900 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center space-x-2 text-sm">
+                  <Monitor className="w-4 h-4 text-blue-400" />
+                  <span>Screen Monitor</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <video
+                  ref={screenRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="w-full h-24 bg-slate-800 rounded border border-blue-500"
+                />
+              </CardContent>
+            </Card>
+
+            {/* Security Status */}
+            <Card className="bg-slate-900 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center space-x-2 text-sm">
+                  <Shield className="w-4 h-4 text-green-400" />
+                  <span>Security Status</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-300">Fullscreen Mode</span>
+                  {isFullscreen ? (
+                    <CheckCircle className="w-4 h-4 text-green-400" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-red-400" />
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-300">Video Monitoring</span>
+                  {isRecording ? (
+                    <CheckCircle className="w-4 h-4 text-green-400" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-red-400" />
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-300">Tab Lock</span>
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                </div>
+
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-300">Screen Lock</span>
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Violations Log */}
+            <Card className="bg-slate-900 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center space-x-2 text-sm">
+                  <Eye className="w-4 h-4 text-orange-400" />
+                  <span>Security Log</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="max-h-40 overflow-y-auto space-y-2">
+                  {securityViolations.slice(-5).reverse().map((violation, index) => (
+                    <div key={index} className={`text-xs p-2 rounded ${
+                      violation.severity === 'warning' ? 'bg-orange-900/50 text-orange-300' : 'bg-slate-800 text-slate-400'
+                    }`}>
+                      <div className="font-medium">{violation.message}</div>
+                      <div className="text-xs opacity-70">
+                        {new Date(violation.timestamp).toLocaleTimeString()}
+                      </div>
+                    </div>
+                  ))}
+                  {securityViolations.length === 0 && (
+                    <div className="text-slate-400 text-xs text-center py-4">
+                      No security events yet
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Interview Controls */}
+            <Card className="bg-slate-900 border-slate-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center space-x-2 text-sm">
+                  <Video className="w-4 h-4 text-purple-400" />
+                  <span>Interview Controls</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button 
+                  className="w-full bg-green-700 hover:bg-green-800 text-white"
+                  disabled={!isRecording}
+                >
+                  <Volume2 className="w-4 h-4 mr-2" />
+                  Audio Test
+                </Button>
+                
+                <Button 
+                  className="w-full bg-blue-700 hover:bg-blue-800 text-white"
+                  onClick={() => {
+                    if (!document.fullscreenElement) {
+                      document.documentElement.requestFullscreen();
+                    }
+                  }}
+                >
+                  <Monitor className="w-4 h-4 mr-2" />
+                  Force Fullscreen
+                </Button>
+                
+                <div className="text-xs text-slate-400 text-center pt-2">
+                  All actions are monitored and recorded
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+
+      {/* Emergency Exit Warning */}
+      {!isFullscreen && (
+        <div className="fixed inset-0 bg-red-600/95 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-white text-black p-8 rounded-2xl shadow-2xl max-w-md text-center">
+            <AlertTriangle className="w-16 h-16 text-red-600 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold mb-4">Security Requirement</h2>
+            <p className="mb-6">Fullscreen mode is required for interview security. Please enter fullscreen to continue.</p>
+            <Button 
+              onClick={() => document.documentElement.requestFullscreen()}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Enter Fullscreen Mode
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 // Recruiter Live Interview Monitoring Dashboard
 const RecruiterInterviewMonitor = ({ interview, onClose }) => {
   const [monitoringData, setMonitoringData] = useState(null);
@@ -1769,6 +3266,7 @@ const RecruiterInterviewMonitor = ({ interview, onClose }) => {
             <Badge className="bg-slate-700 text-slate-300">
               Interview ID: {interview.id.slice(-8)}
             </Badge>
+<<<<<<< HEAD
             <Button
               onClick={() => window.open(`/recordings/${interview.id}`, '_blank')}
               variant="outline"
@@ -1777,6 +3275,8 @@ const RecruiterInterviewMonitor = ({ interview, onClose }) => {
             >
               View Recordings
             </Button>
+=======
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
             <Button 
               onClick={endInterviewFromRecruiter}
               className="bg-red-600 hover:bg-red-700"
@@ -1991,8 +3491,11 @@ const RecruiterInterviewMonitor = ({ interview, onClose }) => {
 const CandidateProfile = ({ user }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState(user || {});
+<<<<<<< HEAD
   const [resumeUploading, setResumeUploading] = useState(false);
   const [resumeFile, setResumeFile] = useState(null);
+=======
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 
   const handleSave = async () => {
     try {
@@ -2004,6 +3507,7 @@ const CandidateProfile = ({ user }) => {
     }
   };
 
+<<<<<<< HEAD
   const handleResumeUpload = async () => {
     if (!resumeFile) {
       alert('Please choose a resume file to upload');
@@ -2027,6 +3531,8 @@ const CandidateProfile = ({ user }) => {
     }
   };
 
+=======
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -2148,6 +3654,7 @@ const CandidateProfile = ({ user }) => {
               />
             </div>
 
+<<<<<<< HEAD
             <div className="col-span-2">
               <Label>Resume</Label>
               <div className="mt-1 flex items-center space-x-3">
@@ -2159,6 +3666,8 @@ const CandidateProfile = ({ user }) => {
               <p className="text-xs text-slate-500 mt-1">Accepted: PDF/DOC/DOCX. Recruiters for jobs you apply to can download this.</p>
             </div>
 
+=======
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
             <div>
               <Label htmlFor="experience_years">Years of Experience</Label>
               <Input
@@ -2252,6 +3761,7 @@ const ATSDashboard = () => {
   const [applications, setApplications] = useState([]);
   const [selectedInterview, setSelectedInterview] = useState(null);
   const [showInterviewMonitor, setShowInterviewMonitor] = useState(false);
+<<<<<<< HEAD
   const [aiMonitoringData, setAiMonitoringData] = useState({});
   const [activeSessions, setActiveSessions] = useState([]);
   const [showCreateJob, setShowCreateJob] = useState(false);
@@ -2268,6 +3778,8 @@ const ATSDashboard = () => {
   const [upcomingInterviews, setUpcomingInterviews] = useState([]);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState(null);
+=======
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
   const { user, company, logout } = useAuth();
 
   useEffect(() => {
@@ -2276,6 +3788,7 @@ const ATSDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
+<<<<<<< HEAD
       const headers = {
         'Authorization': `Bearer ${localStorage.getItem('secuhire_token')}`,
         'Content-Type': 'application/json'
@@ -2287,13 +3800,23 @@ const ATSDashboard = () => {
         axios.get(`${API}/candidates`, { headers }),
         axios.get(`${API}/applications`, { headers }),
         axios.get(`${API}/interviews/upcoming`, { headers })
+=======
+      const [analyticsRes, jobsRes, candidatesRes, applicationsRes] = await Promise.all([
+        axios.get(`${API}/analytics/dashboard`),
+        axios.get(`${API}/jobs`),
+        axios.get(`${API}/candidates`),
+        axios.get(`${API}/applications`)
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
       ]);
 
       setAnalytics(analyticsRes.data);
       setJobs(jobsRes.data);
       setCandidates(candidatesRes.data);
       setApplications(applicationsRes.data);
+<<<<<<< HEAD
       setUpcomingInterviews(interviewsRes.data);
+=======
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
     }
@@ -2319,6 +3842,7 @@ const ATSDashboard = () => {
     setSelectedInterview(null);
   };
 
+<<<<<<< HEAD
   const fetchAIMonitoringData = async () => {
     try {
       const response = await axios.get(`${API}/analytics/ai-monitoring`);
@@ -2469,6 +3993,8 @@ const ATSDashboard = () => {
     }
   };
 
+=======
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
   // Show interview monitor if selected
   if (showInterviewMonitor && selectedInterview) {
     return <RecruiterInterviewMonitor interview={selectedInterview} onClose={closeInterviewMonitor} />;
@@ -2503,6 +4029,7 @@ const ATSDashboard = () => {
         <div className="max-w-7xl mx-auto">
           {/* Main Navigation Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+<<<<<<< HEAD
             <TabsList className="grid grid-cols-6 w-full max-w-3xl bg-white border border-purple-200 shadow-sm">
               <TabsTrigger value="dashboard" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white">Dashboard</TabsTrigger>
               <TabsTrigger value="jobs" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white">Jobs</TabsTrigger>
@@ -2510,12 +4037,25 @@ const ATSDashboard = () => {
               <TabsTrigger value="pipeline" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white">Pipeline</TabsTrigger>
               <TabsTrigger value="ai-monitoring" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white">AI Monitoring</TabsTrigger>
               <TabsTrigger value="analytics" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white">Analytics</TabsTrigger>
+=======
+            <TabsList className="grid grid-cols-9 w-full bg-white border border-purple-200 shadow-sm">
+              <TabsTrigger value="dashboard" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs">Dashboard</TabsTrigger>
+              <TabsTrigger value="jobs" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs">Jobs</TabsTrigger>
+              <TabsTrigger value="candidates" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs">Candidates</TabsTrigger>
+              <TabsTrigger value="ai-tools" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs">AI Tools</TabsTrigger>
+              <TabsTrigger value="automation" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs">Automation</TabsTrigger>
+              <TabsTrigger value="multipost" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs">Multipost</TabsTrigger>
+              <TabsTrigger value="pipeline" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs">Pipeline</TabsTrigger>
+              <TabsTrigger value="analytics" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs">Analytics</TabsTrigger>
+              <TabsTrigger value="advanced" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-teal-600 data-[state=active]:text-white text-xs">Advanced</TabsTrigger>
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
             </TabsList>
 
             {/* Dashboard Overview */}
             <TabsContent value="dashboard" className="space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-3xl font-bold text-slate-800">Dashboard Overview</h2>
+<<<<<<< HEAD
                 <div className="flex space-x-2">
                   <Button 
                     onClick={() => {
@@ -2534,6 +4074,12 @@ const ATSDashboard = () => {
                     Add Demo Data
                   </Button>
                 </div>
+=======
+                <Button onClick={seedData} className="bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white shadow-lg">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Demo Data
+                </Button>
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
               </div>
 
               {/* Stats Cards */}
@@ -2637,11 +4183,16 @@ const ATSDashboard = () => {
                       </div>
                       <h3 className="text-xl font-semibold text-slate-600 mb-2">No jobs yet</h3>
                       <p className="text-slate-500 mb-4">Create your first job posting to get started</p>
+<<<<<<< HEAD
                       <Button onClick={() => setShowCreateJob(true)} className="bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white">Create Your First Job</Button>
+=======
+                      <Button className="bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white">Create Your First Job</Button>
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
                     </CardContent>
                   </Card>
                 )}
               </div>
+<<<<<<< HEAD
 
               {/* Create Job Modal */}
               <Dialog open={showCreateJob} onOpenChange={setShowCreateJob}>
@@ -2710,6 +4261,8 @@ const ATSDashboard = () => {
                   </div>
                 </DialogContent>
               </Dialog>
+=======
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
             </TabsContent>
 
             {/* Candidates Database */}
@@ -2773,6 +4326,7 @@ const ATSDashboard = () => {
               </div>
             </TabsContent>
 
+<<<<<<< HEAD
             {/* AI Monitoring */}
             <TabsContent value="ai-monitoring" className="space-y-6">
               <div className="flex items-center justify-between">
@@ -2957,6 +4511,67 @@ const ATSDashboard = () => {
             </TabsContent>
 
             {/* Analytics */}
+=======
+            {/* AI Tools Tab */}
+            <TabsContent value="ai-tools" className="space-y-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-3xl font-bold text-slate-800">AI-Powered Tools</h2>
+                  <p className="text-slate-600">Leverage artificial intelligence to supercharge your recruitment</p>
+                </div>
+              </div>
+
+              <Tabs defaultValue="resume-parser" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="resume-parser" className="flex items-center space-x-2">
+                    <Upload className="w-4 h-4" />
+                    <span>Resume Parser</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="candidate-search" className="flex items-center space-x-2">
+                    <Search className="w-4 h-4" />
+                    <span>Advanced Search</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="ai-sourcing" className="flex items-center space-x-2">
+                    <Bot className="w-4 h-4" />
+                    <span>AI Sourcing</span>
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="resume-parser" className="mt-6">
+                  <AIResumeParser onCandidatesParsed={(candidates) => {
+                    console.log('Parsed candidates:', candidates);
+                  }} />
+                </TabsContent>
+
+                <TabsContent value="candidate-search" className="mt-6">
+                  <AdvancedCandidateSearch onSearchResults={(results) => {
+                    console.log('Search results:', results);
+                  }} />
+                </TabsContent>
+
+                <TabsContent value="ai-sourcing" className="mt-6">
+                  <AICandidateSourcing />
+                </TabsContent>
+              </Tabs>
+            </TabsContent>
+
+            {/* Email Automation Tab */}
+            <TabsContent value="automation" className="space-y-6">
+              <EmailAutomationSystem />
+            </TabsContent>
+
+            {/* Job Multiposting Tab */}
+            <TabsContent value="multipost" className="space-y-6">
+              <JobMultipostingSystem />
+            </TabsContent>
+
+            {/* Advanced Analytics Tab */}
+            <TabsContent value="advanced" className="space-y-6">
+              <AdvancedAnalyticsDashboard />
+            </TabsContent>
+
+            {/* Analytics Overview */}
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
             <TabsContent value="analytics" className="space-y-6">
               <h2 className="text-3xl font-bold text-slate-800">Analytics & Reports</h2>
               
@@ -2983,6 +4598,7 @@ const ATSDashboard = () => {
                   </CardContent>
                 </Card>
 
+<<<<<<< HEAD
                 {/* Upcoming Interviews */}
                 <Card className="border-0 shadow-lg bg-white">
                   <CardHeader>
@@ -3088,6 +4704,8 @@ const ATSDashboard = () => {
                   </CardContent>
                 </Card>
 
+=======
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
                 <Card className="border-0 shadow-lg bg-white">
                   <CardHeader>
                     <CardTitle className="text-slate-800">Recent Activity</CardTitle>
@@ -3183,6 +4801,7 @@ const JobCard = ({ job }) => {
 
 // Candidate Card Component
 const CandidateCard = ({ candidate }) => {
+<<<<<<< HEAD
   const viewResume = async () => {
     try {
       const resp = await axios.get(`${API}/candidates/${candidate.id}/resume`, {
@@ -3206,6 +4825,8 @@ const CandidateCard = ({ candidate }) => {
     }
   };
 
+=======
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
   return (
     <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-white group">
       <CardContent className="p-6">
@@ -3248,10 +4869,13 @@ const CandidateCard = ({ candidate }) => {
             <FileText className="w-4 h-4 mr-2" />
             View Resume
           </Button>
+<<<<<<< HEAD
           <Button variant="outline" size="sm" onClick={viewResume} className="border-blue-300 text-blue-700 hover:bg-blue-50">
             <Eye className="w-4 h-4 mr-2" />
             View Resume
           </Button>
+=======
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
           <Button size="sm" className="bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white">
             Add to Job
           </Button>
@@ -3309,10 +4933,13 @@ const ApplicationCard = ({ application, candidate, job }) => {
             <FileText className="w-4 h-4 mr-2" />
             View Profile
           </Button>
+<<<<<<< HEAD
           <Button variant="outline" size="sm" onClick={viewResume} className="border-blue-300 text-blue-700 hover:bg-blue-50">
             <Eye className="w-4 h-4 mr-2" />
             View Resume
           </Button>
+=======
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
           <Button size="sm" className="bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white">
             Move Stage
           </Button>
@@ -3353,6 +4980,7 @@ function App() {
                 <Navigate to="/auth" replace />
             } 
           />
+<<<<<<< HEAD
           <Route
             path="/recordings/:interviewId"
             element={
@@ -3387,6 +5015,9 @@ function App() {
         )}
 
         {/* Floating button removed per request; navbar link retained above */}
+=======
+        </Routes>
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
       </BrowserRouter>
     </div>
   );

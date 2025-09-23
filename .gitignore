@@ -85,3 +85,13 @@ android-sdk/ -e
 # Environment files
 *.env
 *.env.*
+<<<<<<< HEAD
+=======
+frontend/node_modules/.cache/default-development/15.pack
+frontend/node_modules/.cache/default-development/16.pack
+frontend/node_modules/.cache/default-development/0.pack
+-e 
+# Environment files
+*.env
+*.env.*
+>>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
