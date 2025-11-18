@@ -8,6 +8,8 @@ import {
   Shield, Camera, Monitor, Mic, Eye, AlertTriangle, 
   CheckCircle, X, Lock, Unlock, Video, Volume2
 } from 'lucide-react';
+import QRForPhoneJoin from './QRForPhoneJoin';
+import { createSession } from '../lib/proctorApi';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
 const API = `${BACKEND_URL}/api`;
@@ -40,6 +42,9 @@ const SecureInterview = ({ interview, onClose }) => {
   const mediaStreamRef = useRef(null);
   const screenStreamRef = useRef(null);
   const analysisIntervalRef = useRef(null);
+  // Proctoring QR (phone join)
+  const [phoneJoinToken, setPhoneJoinToken] = useState("");
+  const [qrError, setQrError] = useState("");
   // Recording refs
   const webcamRecorderRef = useRef(null);
   const screenRecorderRef = useRef(null);
@@ -188,6 +193,37 @@ const SecureInterview = ({ interview, onClose }) => {
       }
     } catch (e) {
       alert(e.message);
+    }
+  };
+
+  // Auto-create proctoring session and show phone QR when requirements are met
+  useEffect(() => {
+    const ready = permissions.screen; // Only requires screen share for QR
+    if (!ready) return;
+    if (phoneJoinToken) return; // already created
+    (async () => {
+      try {
+        const { sessionId: sid, phoneJoinToken: pjt } = await createSession();
+        setSessionId((prev) => prev || sid);
+        setPhoneJoinToken(pjt);
+        setQrError("");
+      } catch (e) {
+        console.warn('Failed to create proctor session for QR', e);
+        setQrError(e?.message || 'Failed to create session for phone QR');
+      }
+    })();
+  }, [permissions.screen, phoneJoinToken]);
+
+  const generatePhoneQR = async () => {
+    try {
+      const { sessionId: sid, phoneJoinToken: pjt } = await createSession();
+      setSessionId((prev) => prev || sid);
+      setPhoneJoinToken(pjt);
+      setQrError("");
+    } catch (e) {
+      console.warn('Manual QR generation failed', e);
+      setQrError(e?.message || 'Failed to create session for phone QR');
+      alert(qrError || 'Could not generate phone QR. Check backend /api/session.');
     }
   };
 
@@ -550,6 +586,27 @@ const SecureInterview = ({ interview, onClose }) => {
                       <div>Screen Share: {permissions.screen ? <span className="text-green-600">Ready</span> : <span className="text-red-600">Missing</span>}</div>
                     </div>
 
+                    {/* Phone QR appears after consent + screen share + OTP verified */}
+                    {permissions.screen && (
+                      <div className="mt-2 p-4 border rounded-lg bg-slate-50">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="text-sm font-medium">Connect your phone as a secondary camera</div>
+                          {!phoneJoinToken && (
+                            <Button size="sm" variant="outline" onClick={generatePhoneQR}>Generate QR</Button>
+                          )}
+                        </div>
+                        {phoneJoinToken ? (
+                          <>
+                            <QRForPhoneJoin phoneJoinToken={phoneJoinToken} />
+                            <div className="text-xs text-slate-500 mt-2">Scan the QR with your phone and allow camera/mic.</div>
+                          </>
+                        ) : (
+                          <div className="text-xs text-slate-500">QR will appear after session is created.</div>
+                        )}
+                        {qrError && <div className="text-xs text-red-600 mt-2">{qrError}</div>}
+                      </div>
+                    )}
+
                     <div className="flex items-center space-x-2">
                       <input id="consent" type="checkbox" checked={consentAccepted} onChange={(e) => setConsentAccepted(e.target.checked)} />
                       <label htmlFor="consent" className="text-sm text-gray-700">I agree to AI monitoring and screen sharing terms.</label>
@@ -655,6 +712,29 @@ const SecureInterview = ({ interview, onClose }) => {
 
           {/* AI Monitoring Panel */}
           <div className="w-80 border-l p-6 space-y-6">
+            {/* Phone Join QR (always visible when ready), so candidate can connect phone even after start */}
+            {consentAccepted && permissions.screen && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Phone Camera</CardTitle>
+                  <CardDescription>Scan to connect your phone</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {phoneJoinToken ? (
+                    <QRForPhoneJoin phoneJoinToken={phoneJoinToken} />
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="text-sm text-slate-600">QR not generated yet.</div>
+                      <Button size="sm" variant="outline" onClick={generatePhoneQR}>Generate QR</Button>
+                      {qrError && <div className="text-xs text-red-600">{qrError}</div>}
+                    </div>
+                  )}
+                  <div className="text-xs text-slate-500 mt-2">
+                    Ensure your phone and laptop are on the same Wi‑Fi.
+                  </div>
+                </CardContent>
+              </Card>
+            )}
             {/* AI Scores */}
             <Card>
               <CardHeader>

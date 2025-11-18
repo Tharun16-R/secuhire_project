@@ -67,13 +67,27 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
       await loadFaceMesh();
       if (!window.FaceMesh) return;
       const fm = new window.FaceMesh({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}` });
-      fm.setOptions({ maxNumFaces: 1, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+      fm.setOptions({ maxNumFaces: 2, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
       fm.onResults((results) => {
         if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
           lastLandmarksRef.current = null;
           faceReadyRef.current = false;
           return;
         }
+
+        // Multiple faces detection: only raise a violation when more than one distinct face is present
+        if (results.multiFaceLandmarks.length > 1) {
+          const violation = {
+            id: Date.now(),
+            type: 'multiple_faces',
+            severity: 'critical',
+            message: 'Multiple faces detected in camera view',
+            timestamp: new Date(),
+          };
+          setViolations((prev) => [...prev, violation]);
+          onViolation?.([violation]);
+        }
+
         faceReadyRef.current = true;
         lastLandmarksRef.current = results.multiFaceLandmarks[0];
         // Draw overlay
@@ -214,31 +228,30 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
       stressLevel = faceMetrics.facialExpressions.stressLevel;
       attention = faceMetrics.facialExpressions.attention;
     } else {
-      // Fallback simulation if face not ready
-      gazeScore = Math.random() * 0.3 + 0.7;
-      gazeDeviations = Math.floor(Math.random() * 2);
-      avgFocus = Math.random() * 0.2 + 0.8;
-      headScore = Math.random() * 0.2 + 0.8;
-      headTilts = Math.floor(Math.random() * 2);
-      headRotations = Math.floor(Math.random() * 1);
-      facialScore = Math.random() * 0.3 + 0.7;
-      stressLevel = Math.random() * 0.2;
-      attention = Math.random() * 0.2 + 0.8;
+      // If face is not ready, keep previous smoothed metrics and do not generate violations
+      gazeScore = smoothRef.current.focus || 0.8;
+      gazeDeviations = 0;
+      avgFocus = smoothRef.current.focus || 0.8;
+      headScore = smoothRef.current.stability || 0.8;
+      headTilts = 0;
+      headRotations = 0;
+      facialScore = smoothRef.current.attention || 0.8;
+      stressLevel = 0;
+      attention = smoothRef.current.attention || 0.8;
     }
 
-    // Simulate audio analysis
-    const audioScore = Math.random() * 0.2 + 0.8; // 0.8-1.0
-    const noiseLevel = Math.random() * 0.2; // 0-0.2
-    const voiceClarity = Math.random() * 0.2 + 0.8; // 0.8-1.0
+    // Basic audio metrics (no random violations)
+    const audioScore = 1.0;
+    const noiseLevel = 0.0;
+    const voiceClarity = 1.0;
 
-    // Simulate tab switching detection
-    const tabSwitching = Math.random() > 0.95; // 5% chance
-    const tabCount = tabSwitching ? Math.floor(Math.random() * 3) + 1 : 0;
+    // Disable simulated tab/environment violations; rely on real tab/key events instead
+    const tabSwitching = false;
+    const tabCount = 0;
 
-    // Simulate environment analysis
-    const environmentStable = Math.random() > 0.1; // mostly stable
-    const environmentChanges = Math.floor(Math.random() * 2);
-    const suspiciousActivity = Math.random() > 0.95; // 5% chance
+    const environmentStable = true;
+    const environmentChanges = 0;
+    const suspiciousActivity = false;
 
     const newAnalysisData = {
       gazeTracking: { 
@@ -275,53 +288,8 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
 
     setAnalysisData(newAnalysisData);
 
-    // Check for violations
-    const newViolations = [];
-    
-    if (gazeDeviations > 3) {
-      newViolations.push({
-        id: Date.now(),
-        type: 'gaze_deviation',
-        severity: 'warning',
-        message: `Excessive gaze deviations detected (${gazeDeviations} times)`,
-        timestamp: new Date()
-      });
-    }
-
-    if (tabSwitching) {
-      newViolations.push({
-        id: Date.now(),
-        type: 'tab_switching',
-        severity: 'critical',
-        message: `Tab switching detected (${tabCount} times)`,
-        timestamp: new Date()
-      });
-    }
-
-    if (stressLevel > 0.2) {
-      newViolations.push({
-        id: Date.now(),
-        type: 'high_stress',
-        severity: 'warning',
-        message: 'High stress levels detected',
-        timestamp: new Date()
-      });
-    }
-
-    if (suspiciousActivity) {
-      newViolations.push({
-        id: Date.now(),
-        type: 'suspicious_activity',
-        severity: 'critical',
-        message: 'Suspicious activity detected in environment',
-        timestamp: new Date()
-      });
-    }
-
-    if (newViolations.length > 0) {
-      setViolations(prev => [...prev, ...newViolations]);
-      onViolation?.(newViolations);
-    }
+    // Do not generate automatic gaze/stress/environment violations here.
+    // Only explicit events (tab visibility, suspicious keyboard, multiple faces) trigger violations.
 
     onAnalysisUpdate?.(newAnalysisData);
   }, [isMonitoring, onViolation, onAnalysisUpdate]);
@@ -581,16 +549,24 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
       )}
 
       {/* Analysis Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div
+        className="w-full"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+          gap: '20px',
+          alignItems: 'stretch',
+        }}
+      >
         {/* Gaze Tracking */}
-        <Card className="border-0 shadow-lg bg-white">
+        <Card className="border-0 shadow-lg bg-white h-full flex flex-col">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Eye className="w-5 h-5 text-blue-600" />
               <span>Gaze Tracking</span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3 flex-1 flex flex-col">
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Focus Score</span>
               <Badge className={getScoreBadge(analysisData.gazeTracking.avgFocus)}>
@@ -605,7 +581,7 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
         </Card>
 
         {/* Head Movement */}
-        <Card className="border-0 shadow-lg bg-white">
+        <Card className="border-0 shadow-lg bg-white h-full flex flex-col">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Activity className="w-5 h-5 text-green-600" />
@@ -630,7 +606,7 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
         </Card>
 
         {/* Facial Expressions */}
-        <Card className="border-0 shadow-lg bg-white">
+        <Card className="border-0 shadow-lg bg-white h-full flex flex-col">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Zap className="w-5 h-5 text-purple-600" />
@@ -652,7 +628,7 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
         </Card>
 
         {/* Audio Analysis */}
-        <Card className="border-0 shadow-lg bg-white">
+        <Card className="border-0 shadow-lg bg-white h-full flex flex-col">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Volume2 className="w-5 h-5 text-orange-600" />
@@ -681,7 +657,7 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
         </Card>
 
         {/* Tab Switching */}
-        <Card className="border-0 shadow-lg bg-white">
+        <Card className="border-0 shadow-lg bg-white h-full flex flex-col">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Monitor className="w-5 h-5 text-red-600" />
@@ -707,7 +683,7 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
         </Card>
 
         {/* Environment */}
-        <Card className="border-0 shadow-lg bg-white">
+        <Card className="border-0 shadow-lg bg-white h-full flex flex-col">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Shield className="w-5 h-5 text-indigo-600" />

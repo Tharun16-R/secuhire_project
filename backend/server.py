@@ -1,9 +1,5 @@
-<<<<<<< HEAD
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, HTMLResponse
-=======
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, WebSocket, WebSocketDisconnect, BackgroundTasks
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, WebSocket, WebSocketDisconnect, Request
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -12,11 +8,7 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
-<<<<<<< HEAD
 from typing import List, Optional, Dict, Any
-=======
-from typing import List, Optional, Dict, Any, Union
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 import uuid
 from datetime import datetime, timezone, timedelta
 import jwt
@@ -29,26 +21,18 @@ import random
 import string
 import json
 import base64
-<<<<<<< HEAD
+import secrets
+import requests
+import boto3
 
 ROOT_DIR = Path(__file__).resolve().parent
-=======
-import requests
-import asyncio
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-import smtplib
-import calendar
-import statistics
-
-ROOT_DIR = Path(__file__).parent
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
-mongo_url = os.environ['MONGO_URL']
+mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+db_name = os.getenv('DB_NAME', 'secuhire_db')
+db = client[db_name]
 
 # Create the main app without a prefix
 app = FastAPI()
@@ -58,14 +42,90 @@ api_router = APIRouter(prefix="/api")
 
 # Security
 security = HTTPBearer()
-<<<<<<< HEAD
 # Load JWT secret from environment for security; fallback used only for development
 JWT_SECRET = os.getenv("JWT_SECRET", "secuhire_secret_key_2025")
+LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY", "devkey")
+LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET", "secret")
+LIVEKIT_WS_URL = os.getenv("LIVEKIT_WS_URL", "wss://your-domain.com:7880")
+PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://localhost:3000")
+RECORDINGS_DIR = os.getenv("RECORDINGS_DIR", str((ROOT_DIR / "recordings").resolve()))
+EGRESS_SERVICE_URL = os.getenv("EGRESS_SERVICE_URL", "http://localhost:3001")
+
+# Storage configuration
+VIDEO_STORAGE = os.getenv("VIDEO_STORAGE", "local").lower()
+AWS_REGION = os.getenv("AWS_REGION")
+AWS_S3_BUCKET = os.getenv("AWS_S3_BUCKET")
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+
+S3_CLIENT = None
+if VIDEO_STORAGE == "s3":
+    try:
+        if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
+            S3_CLIENT = boto3.client(
+                "s3",
+                region_name=AWS_REGION,
+                aws_access_key_id=AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+            )
+        else:
+            # fall back to default credential chain
+            S3_CLIENT = boto3.client("s3", region_name=AWS_REGION)
+        logging.info(f"S3 client initialized for bucket: {AWS_S3_BUCKET} in region: {AWS_REGION}")
+    except Exception as e:
+        logging.error(f"Failed to initialize S3 client: {e}")
+
+# Safe Exam Browser (SEB) enforcement
+SEB_REQUIRED = os.getenv("SEB_REQUIRED", "false").lower() == "true"
+SEB_CONFIG_KEY_HASH = os.getenv("SEB_CONFIG_KEY_HASH", "")
+
+async def require_seb(request: Request):
+    """Require Safe Exam Browser headers if SEB_REQUIRED is true.
+    Validates minimal header X-SafeExamBrowser-ConfigKeyHash against SEB_CONFIG_KEY_HASH.
+    In production you may also validate X-SafeExamBrowser-RequestHash per SEB spec.
+    """
+    if not SEB_REQUIRED:
+        return True
+    provided = request.headers.get("X-SafeExamBrowser-ConfigKeyHash") or request.headers.get("x-safeexambrowser-configkeyhash")
+    if not provided:
+        raise HTTPException(status_code=403, detail="SEB required: missing config key hash")
+    expected = SEB_CONFIG_KEY_HASH.strip()
+    if not expected:
+        # Misconfiguration: if required but no expected set, deny for safety
+        raise HTTPException(status_code=500, detail="SEB required but server not configured")
+    if provided.strip() != expected:
+        raise HTTPException(status_code=403, detail="SEB validation failed")
+    return True
 
 # CORS configuration
 # Prefer CORS_ORIGINS, fallback to ALLOWED_ORIGINS (legacy), default to localhost:3000
 _cors_env = os.getenv("CORS_ORIGINS") or os.getenv("ALLOWED_ORIGINS") or "http://localhost:3000"
 _origins_list = [o.strip() for o in _cors_env.split(",") if o.strip()]
+
+# Always include common local dev origins
+for _extra in ["http://localhost:3000", "http://127.0.0.1:3000"]:
+    if _extra not in _origins_list:
+        _origins_list.append(_extra)
+
+# Include FRONTEND_BASE_URL origin automatically if provided
+_frontend_base = os.getenv("FRONTEND_BASE_URL")
+if _frontend_base:
+    _fb = _frontend_base.strip()
+    if _fb and _fb not in _origins_list:
+        _origins_list.append(_fb)
+
+# If wildcard is used, disable credentials per CORS spec
+_allow_credentials = True
+if _cors_env.strip() == "*" or _origins_list == ["*"]:
+    _origins_list = ["*"]
+    _allow_credentials = False
+
+# Include FRONTEND_BASE_URL origin automatically if provided
+_frontend_base = os.getenv("FRONTEND_BASE_URL")
+if _frontend_base:
+    _fb = _frontend_base.strip()
+    if _fb and _fb not in _origins_list:
+        _origins_list.append(_fb)
 
 # If wildcard is used, disable credentials per CORS spec
 _allow_credentials = True
@@ -82,9 +142,659 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-=======
-JWT_SECRET = "secuhire_secret_key_2025"
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
+
+# --- Interview Rounds Configuration ---
+ROUND_COUNTS = {1: 25, 2: 15, 3: 10}
+ROUND_DURATIONS_SEC = {1: 5 * 60, 2: 20 * 60, 3: 15 * 60}
+
+def _generate_mcq(index: int, prefix: str) -> Dict[str, Any]:
+    options = ["Option A", "Option B", "Option C", "Option D"]
+    correct_idx = index % 4
+    return {
+        "id": f"q{index}",
+        "text": f"{prefix} Q{index+1}: Sample question {index+1}",
+        "options": options,
+        "correctIndex": correct_idx,
+        "max_duration_sec": 60,
+    }
+
+# Fixed MCQ set for Round 1 (Speed Test, 25 questions)
+REAL_ROUND1_QUESTIONS: List[Dict[str, Any]] = [
+    {
+        "text": "12, 19, 26, 33, 40, ___",
+        "options": ["44", "47", "48", "49"],
+        "correctIndex": 1,
+    },
+    {
+        "text": "3, 9, 27, 81, ___",
+        "options": ["108", "162", "243", "324"],
+        "correctIndex": 2,
+    },
+    {
+        "text": "5, 8, 13, 20, 29, ___",
+        "options": ["38", "40", "41", "42"],
+        "correctIndex": 2,
+    },
+    {
+        "text": "2, 5, 11, 23, 47, ___",
+        "options": ["95", "94", "93", "92"],
+        "correctIndex": 1,
+    },
+    {
+        "text": "100, 92, 84, 76, ___",
+        "options": ["70", "69", "68", "72"],
+        "correctIndex": 2,
+    },
+    {
+        "text": "All engineers are graduates. Some graduates are artists. Which statement is definitely true?",
+        "options": [
+            "All artists are engineers.",
+            "Some engineers are artists.",
+            "No engineer is an artist.",
+            "Some graduates are not engineers.",
+        ],
+        "correctIndex": 3,
+    },
+    {
+        "text": "Ravi is older than Karan. Karan is older than Meera. Which statement is true?",
+        "options": [
+            "Meera is the oldest.",
+            "Karan is the youngest.",
+            "Ravi is the oldest.",
+            "Ravi is the youngest.",
+        ],
+        "correctIndex": 2,
+    },
+    {
+        "text": "In a certain code, WORK = 23 and PLAY = 16 (sum of letter positions). What is TEAM?",
+        "options": ["42", "43", "44", "45"],
+        "correctIndex": 2,
+    },
+    {
+        "text": "Four friends P, Q, R, S sit in a row facing north. Q is to the immediate right of P. R is to the right of Q. S is to the left of P. Who is at the extreme right?",
+        "options": ["P", "Q", "R", "S"],
+        "correctIndex": 2,
+    },
+    {
+        "text": "If SOME = 4591 and MORE = 5912 in a code, how is ROSE written?",
+        "options": ["2541", "2451", "2514", "5241"],
+        "correctIndex": 0,
+    },
+    {
+        "text": "Find the odd one out:",
+        "options": ["16", "25", "36", "45"],
+        "correctIndex": 3,
+    },
+    {
+        "text": "Find the odd pair:",
+        "options": ["3 - 27", "4 - 64", "5 - 125", "6 - 48"],
+        "correctIndex": 3,
+    },
+    {
+        "text": "Find the odd one out:",
+        "options": ["MONDAY", "FRIDAY", "SUNDAY", "TUESDAY"],
+        "correctIndex": 2,
+    },
+    {
+        "text": "Find the odd one out:",
+        "options": ["24", "36", "40", "48"],
+        "correctIndex": 2,
+    },
+    {
+        "text": "A shop gives 20% discount on a shirt marked at Rs 1500. What is the selling price?",
+        "options": ["Rs 1100", "Rs 1200", "Rs 1250", "Rs 1300"],
+        "correctIndex": 1,
+    },
+    {
+        "text": "A number is increased from 80 to 100. What is the percentage increase?",
+        "options": ["20%", "25%", "30%", "35%"],
+        "correctIndex": 1,
+    },
+    {
+        "text": "If 7 pens cost Rs 84, what is the cost of 15 pens?",
+        "options": ["Rs 170", "Rs 175", "Rs 180", "Rs 185"],
+        "correctIndex": 2,
+    },
+    {
+        "text": "A car travels 180 km in 3 hours. At the same speed, how far in 5 hours?",
+        "options": ["250 km", "280 km", "300 km", "320 km"],
+        "correctIndex": 2,
+    },
+    {
+        "text": "A student scores 72 marks out of 120. What is the percentage score?",
+        "options": ["50%", "55%", "60%", "65%"],
+        "correctIndex": 2,
+    },
+    {
+        "text": "What is the output of: x=3, y=2, x=x+y; y=x-y; print(x,y)?",
+        "options": ["5 2", "3 5", "5 3", "2 5"],
+        "correctIndex": 0,
+    },
+    {
+        "text": "What does this loop print: sum=0; for i=1 to 4: sum=sum+i; print(sum)?",
+        "options": ["4", "6", "10", "15"],
+        "correctIndex": 2,
+    },
+    {
+        "text": "In a Fibonacci-style loop starting with a=1, b=1 for 3 steps, what is the final c?",
+        "options": ["2", "3", "5", "6"],
+        "correctIndex": 2,
+    },
+    {
+        "text": "A and B together can complete a task in 8 days. B alone in 12 days. In how many days can A alone complete it?",
+        "options": ["20 days", "24 days", "30 days", "32 days"],
+        "correctIndex": 1,
+    },
+    {
+        "text": "A clock shows 4:00. What is the angle between the hour and minute hands?",
+        "options": ["90 degrees", "120 degrees", "150 degrees", "180 degrees"],
+        "correctIndex": 1,
+    },
+    {
+        "text": "In a box, there are 4 red, 5 blue, and 3 green balls. Minimum draws to be sure of at least one blue ball?",
+        "options": ["4", "5", "9", "10"],
+        "correctIndex": 3,
+    },
+]
+
+# Fixed MCQ set for Round 2 (Logical Reasoning, 15 questions)
+REAL_ROUND2_QUESTIONS: List[Dict[str, Any]] = [
+    # Direction sense
+    {
+        "text": "Aman walks 4 km north, then turns right and walks 3 km. Again he turns right and walks 4 km. How far and in which direction is he from the starting point?",
+        "options": [
+            "3 km east",
+            "3 km west",
+            "4 km east",
+            "4 km west",
+        ],
+        "correctIndex": 1,
+    },
+    {
+        "text": "Rita is facing east. She turns left, then left again, and then right. In which direction is she facing now?",
+        "options": [
+            "North",
+            "West",
+            "East",
+            "South",
+        ],
+        "correctIndex": 3,
+    },
+
+    # Blood relation
+    {
+        "text": "Pointing to a photograph, Raj said, 'He is the son of my father's only son.' How is the boy related to Raj?",
+        "options": [
+            "Brother",
+            "Son",
+            "Cousin",
+            "Nephew",
+        ],
+        "correctIndex": 1,
+    },
+    {
+        "text": "Priya introduces a man as the son of the only son of her grandfather. How is the man related to Priya?",
+        "options": [
+            "Brother",
+            "Uncle",
+            "Cousin",
+            "Father",
+        ],
+        "correctIndex": 0,
+    },
+
+    # Ranking
+    {
+        "text": "In a class of 40 students, Ravi ranks 10th from the top. What is his rank from the bottom?",
+        "options": [
+            "30th",
+            "31st",
+            "32nd",
+            "33rd",
+        ],
+        "correctIndex": 1,
+    },
+    {
+        "text": "Among five friends A, B, C, D and E, A is taller than B but shorter than C. D is taller than C. E is shorter than B. Who is the tallest?",
+        "options": [
+            "A",
+            "B",
+            "C",
+            "D",
+        ],
+        "correctIndex": 3,
+    },
+
+    # Statements & conclusions
+    {
+        "text": "Statement: All teachers are educated. Some educated people are researchers. Conclusion I: Some teachers are researchers. Conclusion II: Some researchers are educated. Which is true?",
+        "options": [
+            "Only I follows",
+            "Only II follows",
+            "Both I and II follow",
+            "Neither I nor II follows",
+        ],
+        "correctIndex": 1,
+    },
+    {
+        "text": "Statement: Some pens are books. All books are boxes. Conclusion: Some pens are boxes. What is the correct option?",
+        "options": [
+            "Conclusion definitely follows",
+            "Conclusion definitely does not follow",
+            "Conclusion is doubtful",
+            "Conclusion is wrong statement",
+        ],
+        "correctIndex": 0,
+    },
+
+    # Syllogism
+    {
+        "text": "Statements: All dogs are animals. Some animals are wild. Conclusions: I. Some dogs are wild. II. Some wild are animals. Which is correct?",
+        "options": [
+            "Only I follows",
+            "Only II follows",
+            "Both I and II follow",
+            "Neither I nor II follows",
+        ],
+        "correctIndex": 1,
+    },
+    {
+        "text": "Statements: All engineers are graduates. No graduate is illiterate. Conclusions: I. No engineer is illiterate. II. Some engineers are illiterate. Which is correct?",
+        "options": [
+            "Only I follows",
+            "Only II follows",
+            "Both I and II follow",
+            "Neither I nor II follows",
+        ],
+        "correctIndex": 0,
+    },
+
+    # Seating arrangement (simple)
+    {
+        "text": "Four friends P, Q, R and S sit in a row facing north. Q is to the immediate right of P. R is to the right of Q. S is to the left of P. Who sits at the extreme right?",
+        "options": [
+            "P",
+            "Q",
+            "R",
+            "S",
+        ],
+        "correctIndex": 2,
+    },
+    {
+        "text": "Six persons A, B, C, D, E and F are sitting in a row. C is between B and D. E is to the immediate right of D. A is at one end. Who is sitting at the other end?",
+        "options": [
+            "B",
+            "C",
+            "E",
+            "F",
+        ],
+        "correctIndex": 3,
+    },
+
+    # Odd one out (logical)
+    {
+        "text": "Find the odd one out:",
+        "options": [
+            "North",
+            "East",
+            "South",
+            "Square",
+        ],
+        "correctIndex": 3,
+    },
+    {
+        "text": "Find the odd one out:",
+        "options": [
+            "Mother",
+            "Father",
+            "Brother",
+            "Chair",
+        ],
+        "correctIndex": 3,
+    },
+
+    # Misc logic
+    {
+        "text": "If in a certain code, ROAD is written as SPBE, how is PATH written in that code? (Each letter shifted +1)",
+        "options": [
+            "QBUS",
+            "QBIU",
+            "QBUI",
+            "QBTI",
+        ],
+        "correctIndex": 2,
+    },
+]
+
+# Fixed MCQ set for Round 3 (Analytical/Quant + Logical mix, 10 questions)
+REAL_ROUND3_QUESTIONS: List[Dict[str, Any]] = [
+    {
+        "text": "A shopkeeper buys an article for Rs 400 and sells it for Rs 500. What is his profit percentage?",
+        "options": [
+            "20%",
+            "22.5%",
+            "25%",
+            "30%",
+        ],
+        "correctIndex": 2,
+    },
+    {
+        "text": "The average of five numbers is 28. The sum of four of them is 110. What is the fifth number?",
+        "options": [
+            "24",
+            "26",
+            "30",
+            "34",
+        ],
+        "correctIndex": 3,
+    },
+    {
+        "text": "A train 150 m long passes a pole in 15 seconds. What is its speed in km/h?",
+        "options": [
+            "36 km/h",
+            "45 km/h",
+            "54 km/h",
+            "60 km/h",
+        ],
+        "correctIndex": 2,
+    },
+    {
+        "text": "If 3x - 5 = 16, what is the value of x?",
+        "options": [
+            "5",
+            "6",
+            "7",
+            "8",
+        ],
+        "correctIndex": 2,
+    },
+    {
+        "text": "In a certain code, 1 is written as 3, 2 as 5, 3 as 7, and so on (adding 2). What is the code for 6?",
+        "options": [
+            "10",
+            "11",
+            "12",
+            "13",
+        ],
+        "correctIndex": 3,
+    },
+    {
+        "text": "Two pipes can fill a tank in 20 minutes and 30 minutes respectively. If both are opened together, in how many minutes will the tank be full?",
+        "options": [
+            "10",
+            "12",
+            "15",
+            "18",
+        ],
+        "correctIndex": 1,
+    },
+    {
+        "text": "The ratio of the ages of A and B is 3:5. After 6 years, their ages will be 21 and 35 respectively. What is A's present age?",
+        "options": [
+            "9",
+            "12",
+            "15",
+            "18",
+        ],
+        "correctIndex": 1,
+    },
+    {
+        "text": "Four consecutive odd numbers sum to 88. What is the smallest of them?",
+        "options": [
+            "19",
+            "21",
+            "23",
+            "25",
+        ],
+        "correctIndex": 1,
+    },
+    {
+        "text": "If 40% of a number is 120, what is 25% of the same number?",
+        "options": [
+            "60",
+            "70",
+            "75",
+            "90",
+        ],
+        "correctIndex": 2,
+    },
+    {
+        "text": "In a mixture of 50 liters, the ratio of milk to water is 3:2. How much water must be added to make the ratio 3:3?",
+        "options": [
+            "5 liters",
+            "10 liters",
+            "15 liters",
+            "20 liters",
+        ],
+        "correctIndex": 1,
+    },
+]
+
+# --- Multi-round Interview Endpoints (MCQ-only) ---
+@api_router.get("/interview/getRoundQuestions")
+async def get_round_questions(round: int):
+    try:
+        r = int(round)
+    except Exception:
+        raise HTTPException(status_code=400, detail="invalid round")
+    questions = build_round_questions(r)
+    # Return all questions; no artificial limits
+    return {"round": r, "count": len(questions), "questions": questions, "duration_sec": ROUND_DURATIONS_SEC.get(r)}
+
+
+class SubmitRoundPayload(BaseModel):
+    interview_id: str
+    round: int
+    answers: List[Dict[str, Any]] = []
+    duration_sec: Optional[int] = None
+    warnings: Optional[int] = 0
+    webcam_url: Optional[str] = None
+    screen_url: Optional[str] = None
+
+
+@api_router.post("/interview/submitRound")
+async def submit_round(data: SubmitRoundPayload):
+    # Basic validation: interview exists; derive candidate_id from interview to avoid import-order issues
+    interview = await db.interviews.find_one({"id": data.interview_id})
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    candidate_id = interview.get("candidate_id")
+    if not candidate_id:
+        raise HTTPException(status_code=400, detail="Interview missing candidate_id")
+
+    round_num = int(data.round)
+    now = datetime.now(timezone.utc)
+
+    # Store or upsert per-round raw submission (for audit/history)
+    submission_doc = {
+        "interview_id": data.interview_id,
+        "candidate_id": candidate_id,
+        "round": round_num,
+        "answers": data.answers,
+        "duration_sec": int(data.duration_sec or 0),
+        "warnings": int(data.warnings or 0),
+        "submitted_at": now,
+    }
+    await db.interview_round_submissions.update_one(
+        {"interview_id": data.interview_id, "candidate_id": candidate_id, "round": round_num},
+        {"$set": submission_doc},
+        upsert=True,
+    )
+
+    # --- Per-answer storage in candidate_answers ---
+    # Build correct answer map from the round question set
+    questions_for_round = build_round_questions(round_num)
+    correct_map: Dict[str, int | None] = {}
+    for q in questions_for_round:
+        qid = q.get("id")
+        if qid is not None:
+            correct_map[str(qid)] = q.get("correctIndex")
+
+    answer_docs = []
+    correct_count = 0
+    # wrong_count will be derived from total questions so that unanswered count as wrong
+
+    for item in data.answers or []:
+        qid = str(item.get("questionId")) if item.get("questionId") is not None else None
+        # Frontend may send the selected option index as a string (e.g. "1") or an int; normalize to int when possible
+        raw_selected = item.get("answer")
+        selected_option: Optional[int]
+        if isinstance(raw_selected, int):
+            selected_option = raw_selected
+        else:
+            try:
+                selected_option = int(raw_selected) if raw_selected is not None and str(raw_selected).strip() != "" else None
+            except (TypeError, ValueError):
+                selected_option = None
+        correct_idx = correct_map.get(qid) if qid is not None else None
+        is_correct = (
+            isinstance(selected_option, int)
+            and isinstance(correct_idx, int)
+            and selected_option == correct_idx
+        )
+
+        if is_correct:
+            correct_count += 1
+
+        if qid is not None:
+            answer_docs.append(
+                {
+                    "interview_id": data.interview_id,
+                    "candidate_id": candidate_id,
+                    "round": round_num,
+                    "question_id": qid,
+                    "selected_option": selected_option,
+                    "is_correct": bool(is_correct),
+                    "time_spent_sec": item.get("timeSpent"),
+                    "timestamp": now,
+                }
+            )
+
+    if answer_docs:
+        # Append; we keep history of each submission attempt
+        await db.candidate_answers.insert_many(answer_docs)
+
+    total_questions = len(questions_for_round)
+    wrong_count = max(0, total_questions - correct_count)
+    percentage = float((correct_count / total_questions) * 100.0) if total_questions > 0 else 0.0
+    round_status = "Passed" if percentage >= 60.0 else "Failed"
+
+    # --- Round-wise score storage in round_results ---
+    round_result_doc = {
+        "interview_id": data.interview_id,
+        "candidate_id": candidate_id,
+        "round": round_num,
+        "correctAnswers": correct_count,
+        "wrongAnswers": wrong_count,
+        "percentage": percentage,
+        "roundStatus": round_status,
+        "warnings": int(data.warnings or 0),
+        "duration_sec": int(data.duration_sec or 0),
+        "webcamUrl": data.webcam_url,
+        "screenUrl": data.screen_url,
+        "updated_at": now,
+    }
+    await db.round_results.update_one(
+        {"interview_id": data.interview_id, "candidate_id": candidate_id, "round": round_num},
+        {"$set": round_result_doc},
+        upsert=True,
+    )
+
+    # After last round, mark interview completed and set candidate finalStatus
+    completed = False
+    if round_num >= 3:
+        completed = True
+        await db.interviews.update_one(
+            {"id": data.interview_id},
+            {"$set": {"status": "completed", "ended_at": now}},
+        )
+
+        # Determine finalStatus based on all round_results for this interview
+        all_results = await db.round_results.find(
+            {"interview_id": data.interview_id, "candidate_id": candidate_id}
+        ).to_list(10)
+        # Consider only rounds 1-3, require all marked as Passed
+        has_all_rounds = any(r.get("round") == 1 for r in all_results) and any(
+            r.get("round") == 2 for r in all_results
+        ) and any(r.get("round") == 3 for r in all_results)
+        all_passed = has_all_rounds and all(
+            r.get("roundStatus") == "Passed" for r in all_results if r.get("round") in [1, 2, 3]
+        )
+        final_status = "Selected" if all_passed else "Rejected"
+        await db.candidates.update_one(
+            {"id": candidate_id},
+            {"$set": {"finalStatus": final_status}},
+        )
+
+    return {
+        "ok": True,
+        "completed": completed,
+        "nextRound": None if completed else (round_num + 1),
+        "roundScore": correct_count,
+        "totalQuestions": total_questions,
+        "percentage": percentage,
+        "roundStatus": round_status,
+    }
+
+def build_round_questions(round_num: int) -> List[Dict[str, Any]]:
+    """Build MCQ list for a given round.
+    Attempts to use assigned question set in DB if present later; for now, generate MCQs with no artificial limits.
+    """
+    total = ROUND_COUNTS.get(round_num)
+    if not total:
+        raise HTTPException(status_code=400, detail="invalid round")
+
+    # Round 1: use fixed real aptitude (mixed) questions
+    if int(round_num) == 1:
+        questions: List[Dict[str, Any]] = []
+        for idx, q in enumerate(REAL_ROUND1_QUESTIONS[:total]):
+            questions.append(
+                {
+                    "id": f"r1q{idx+1}",
+                    "text": q["text"],
+                    "options": q["options"],
+                    "correctIndex": q["correctIndex"],
+                    "max_duration_sec": 60,
+                }
+            )
+        return questions
+
+    # Round 2: use fixed logical reasoning questions
+    if int(round_num) == 2:
+        questions: List[Dict[str, Any]] = []
+        for idx, q in enumerate(REAL_ROUND2_QUESTIONS[:total]):
+            questions.append(
+                {
+                    "id": f"r2q{idx+1}",
+                    "text": q["text"],
+                    "options": q["options"],
+                    "correctIndex": q["correctIndex"],
+                    "max_duration_sec": 60,
+                }
+            )
+        return questions
+
+    # Round 3: use fixed analytical/quant/logical mix questions
+    if int(round_num) == 3:
+        questions: List[Dict[str, Any]] = []
+        for idx, q in enumerate(REAL_ROUND3_QUESTIONS[:total]):
+            questions.append(
+                {
+                    "id": f"r3q{idx+1}",
+                    "text": q["text"],
+                    "options": q["options"],
+                    "correctIndex": q["correctIndex"],
+                    "max_duration_sec": 60,
+                }
+            )
+        return questions
+
+    # Other rounds (if any) keep using generated MCQs
+    prefix = {1: "Speed Test", 2: "Logical Reasoning", 3: "Analytical Reasoning"}.get(round_num, "Round")
+    questions: List[Dict[str, Any]] = []
+    for i in range(total):
+        questions.append(_generate_mcq(i, prefix))
+    return questions
 
 # Enums for ATS
 class PipelineStage(str, Enum):
@@ -148,6 +858,7 @@ class CandidateUser(BaseModel):
     availability: str = "immediate"  # immediate, 2_weeks, 1_month, 3_months
     is_email_verified: bool = False
     is_phone_verified: bool = False
+    finalStatus: Optional[str] = None  # Selected, Rejected, Pending
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class RecruiterLogin(BaseModel):
@@ -214,7 +925,6 @@ class Job(BaseModel):
     status: JobStatus = JobStatus.DRAFT
     posted_date: Optional[datetime] = None
     application_deadline: Optional[datetime] = None
-<<<<<<< HEAD
     # Enhanced requirements for detailed job posting
     technical_requirements: List[str] = []
     soft_skills: List[str] = []
@@ -223,8 +933,6 @@ class Job(BaseModel):
     work_environment: str = ""  # Remote, Hybrid, On-site
     benefits: List[str] = []
     interview_process: List[str] = []  # Steps in interview process
-=======
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class CandidateApplication(BaseModel):
@@ -276,13 +984,24 @@ class InterviewRecording(BaseModel):
     status: str = "recording"  # recording, completed, failed
     file_size_mb: Optional[float] = None
 
+class VideoSubmission(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    candidate_id: str
+    candidate_email: Optional[EmailStr] = None
+    full_name: Optional[str] = None
+    job_id: Optional[str] = None
+    company_id: Optional[str] = None
+    video_url: str
+    size_bytes: Optional[int] = None
+    duration_sec: Optional[float] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 class SecurityViolation(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     interview_id: str
     candidate_id: str
     violation_type: str
     description: str
-<<<<<<< HEAD
     severity: str = "warning"
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -293,6 +1012,8 @@ class CandidateSubmission(BaseModel):
     answers: List[Dict[str, Any]] = []  # free-form list of Q&A blocks
     notes: Optional[str] = None
     ai_scores: Optional[Dict[str, Any]] = None
+    frontCamUrl: Optional[str] = None
+    screenUrl: Optional[str] = None
     submitted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     screenshot_url: Optional[str] = None
 
@@ -354,196 +1075,72 @@ class SecureInterviewSession(BaseModel):
     ai_monitoring_enabled: bool = True
     overall_authenticity_score: Optional[float] = None
     ai_decision: Optional[str] = None  # "PASS", "FAIL", "REVIEW_REQUIRED"
-=======
-    severity: str  # info, warning, critical
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    screenshot_url: Optional[str] = None
-
-# Advanced RecruitCRM Models
-
-class Deal(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    title: str
-    client_id: str
-    recruiter_id: str
-    company_id: str
-    job_id: Optional[str] = None
-    candidate_id: Optional[str] = None
-    value: float
-    currency: str = "USD"
-    probability: int = 50  # 0-100%
-    stage: str = "prospecting"  # prospecting, proposal, negotiation, closed_won, closed_lost
-    expected_close_date: Optional[datetime] = None
-    actual_close_date: Optional[datetime] = None
-    commission_rate: float = 0.0
-    notes: Optional[str] = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-class EmailSequence(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    name: str
-    recruiter_id: str
-    company_id: str
-    sequence_type: str  # candidate_outreach, client_follow_up, interview_reminder
-    steps: List[Dict[str, Any]] = []  # [{delay_days: 1, subject: "", body: "", channel: "email"}]
-    is_active: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class EmailCampaign(BaseModel):
+# Question Sets and Evaluation Models (Jobma-like one-way interview features)
+class InterviewQuestion(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    name: str
-    sequence_id: str
-    recruiter_id: str
-    company_id: str
-    recipients: List[str] = []  # candidate_ids or contact_ids
-    status: str = "draft"  # draft, active, paused, completed
-    start_date: Optional[datetime] = None
-    stats: Dict[str, int] = {"sent": 0, "opened": 0, "replied": 0, "clicked": 0}
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    text: str
+    type: str = "video"  # video, text, audio
+    max_duration_sec: int = 120
+    guidelines: Optional[str] = None
 
-class WorkflowAutomation(BaseModel):
+class QuestionSet(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    name: str
-    recruiter_id: str
     company_id: str
-    trigger: Dict[str, Any]  # {type: "candidate_added", conditions: {...}}
-    actions: List[Dict[str, Any]] = []  # [{type: "send_email", params: {...}}]
-    is_active: bool = True
-    execution_count: int = 0
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-class CandidateHotlist(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
     description: Optional[str] = None
-    recruiter_id: str
-    company_id: str
-    candidate_ids: List[str] = []
-    tags: List[str] = []
+    questions: List[InterviewQuestion] = []
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class ClientPortalSubmission(BaseModel):
+class RecruiterEvaluation(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    job_id: str
-    client_id: str
+    interview_id: str
     recruiter_id: str
-    company_id: str
-    candidate_ids: List[str] = []
-    message: Optional[str] = None
-    feedback: List[Dict[str, Any]] = []  # [{candidate_id: "", status: "approved/rejected", notes: ""}]
-    submitted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    expires_at: Optional[datetime] = None
-
-class Invoice(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    invoice_number: str
-    client_id: str
-    deal_id: Optional[str] = None
-    recruiter_id: str
-    company_id: str
-    amount: float
-    currency: str = "USD"
-    tax_rate: float = 0.0
-    status: str = "draft"  # draft, sent, paid, overdue, cancelled
-    due_date: datetime
-    paid_date: Optional[datetime] = None
-    items: List[Dict[str, Any]] = []  # [{description: "", quantity: 1, rate: 100.0, amount: 100.0}]
+    rubric_scores: Dict[str, int] = {}  # e.g., {"communication": 4, "technical": 5}
+    overall_score: Optional[int] = None  # 1-10
     notes: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class CalendarEvent(BaseModel):
+# Integration Webhooks (RecruitCRM-like integration)
+class WebhookEvent(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    title: str
-    description: Optional[str] = None
-    recruiter_id: str
-    company_id: str
-    attendees: List[str] = []  # email addresses
-    start_time: datetime
-    end_time: datetime
-    location: Optional[str] = None
-    meeting_link: Optional[str] = None
-    event_type: str = "interview"  # interview, call, meeting
-    candidate_id: Optional[str] = None
-    job_id: Optional[str] = None
-    status: str = "scheduled"  # scheduled, completed, cancelled, no_show
+    event_type: str  # e.g., "candidate_applied", "interview_scheduled"
+    event_data: Dict[str, Any] = {}
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class CandidateSource(BaseModel):
+class WebhookSubscription(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    candidate_id: str
-    source_type: str  # linkedin, jobboard, referral, website, chrome_extension
-    source_details: Dict[str, Any] = {}  # URL, referrer info, etc.
-    recruiter_id: str
     company_id: str
+    event_types: List[str] = []
+    webhook_url: str
+    secret_key: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class JobBoard(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    name: str
-    website: str
-    api_endpoint: Optional[str] = None
-    requires_auth: bool = False
-    posting_cost: float = 0.0
-    currency: str = "USD"
-    category: str = "general"  # general, tech, healthcare, finance, etc.
-    is_active: bool = True
-
-class JobPosting(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+# AI Scheduler Models
+class ScheduleProposeRequest(BaseModel):
     job_id: str
-    job_board_id: str
-    external_id: Optional[str] = None  # ID on the job board
-    status: str = "posted"  # posted, expired, removed
-    posted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    expires_at: Optional[datetime] = None
-    cost: float = 0.0
-    applications_received: int = 0
-
-class CandidateEnrichment(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     candidate_id: str
-    email_verified: bool = False
-    phone_verified: bool = False
-    social_profiles: Dict[str, str] = {}  # {linkedin: "url", github: "url"}
-    employment_history: List[Dict[str, Any]] = []
-    skills_verified: List[str] = []
-    enrichment_source: str  # clearbit, hunter, apollo
-    last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    slot_minutes: int = 60
+    days_ahead: int = 7
+    # Working hours in local time (24h)
+    work_start_hour: int = 9
+    work_end_hour: int = 18
 
-class TeamMember(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    user_id: str  # recruiter_id
-    company_id: str
-    role: str = "recruiter"  # admin, manager, recruiter, coordinator
-    permissions: List[str] = []  # view_all_jobs, edit_candidates, manage_invoices, etc.
-    team_lead_id: Optional[str] = None
-    hire_date: Optional[datetime] = None
-    is_active: bool = True
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+class ScheduleBookRequest(BaseModel):
+    job_id: str
+    candidate_id: str
+    scheduled_date: datetime  # ISO timestamp
 
-class AnalyticsMetric(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    company_id: str
-    recruiter_id: Optional[str] = None
-    metric_type: str  # time_to_hire, placement_rate, revenue, candidate_source_effectiveness
-    metric_value: float
-    date_period: str  # daily, weekly, monthly, quarterly
-    date: datetime
-    metadata: Dict[str, Any] = {}
+class ProposedSlot(BaseModel):
+    start: datetime
+    end: datetime
 
-class CommunicationLog(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    sender_id: str
-    recipient_id: str
-    recipient_type: str  # candidate, client, team_member
-    communication_type: str  # email, linkedin, sms, call
-    subject: Optional[str] = None
-    content: str
-    status: str = "sent"  # sent, delivered, opened, replied
-    thread_id: Optional[str] = None
-    metadata: Dict[str, Any] = {}  # tracking_id, campaign_id, etc.
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
+# AI Evaluation Models
+class AIDecision(BaseModel):
+    decision: str  # PASS | FAIL | REVIEW_REQUIRED
+    scores: Dict[str, Any] = {}
+    reasons: List[str] = []
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # WebSocket Connection Manager for Real-time Interview Monitoring
@@ -565,14 +1162,6 @@ class ConnectionManager:
                 'recruiters': [],
                 'started_at': datetime.now(timezone.utc)
             }
-<<<<<<< HEAD
-=======
-        
-        if user_type == 'candidate':
-            self.interview_sessions[interview_id]['candidate'] = websocket
-        else:
-            self.interview_sessions[interview_id]['recruiters'].append(websocket)
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 
     def disconnect(self, websocket: WebSocket, interview_id: str):
         if interview_id in self.active_connections:
@@ -608,321 +1197,50 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-<<<<<<< HEAD
-=======
-# AI Resume Parsing Service
-class AIResumeParser:
-    def __init__(self):
-        self.gemini_api_key = os.getenv('GEMINI_API_KEY')
-    
-    async def parse_resume(self, file_content: bytes, filename: str) -> Dict[str, Any]:
-        """Parse resume using AI to extract structured data"""
-        try:
-            # Extract text from PDF or Word document
-            text_content = self._extract_text(file_content, filename)
-            
-            # Use AI to parse the resume content
-            parsed_data = await self._ai_parse_content(text_content)
-            
-            return {
-                "success": True,
-                "data": parsed_data,
-                "raw_text": text_content
-            }
-        except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "raw_text": ""
-            }
-    
-    def _extract_text(self, file_content: bytes, filename: str) -> str:
-        """Extract text from PDF or Word files"""
-        try:
-            if filename.lower().endswith('.pdf'):
-                pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_content))
-                text = ""
-                for page in pdf_reader.pages:
-                    text += page.extract_text() + "\n"
-                return text
-            elif filename.lower().endswith(('.doc', '.docx')):
-                # For Word documents, we'd use python-docx library
-                # For now, return placeholder
-                return "Word document parsing not implemented yet"
-            else:
-                # Try to decode as text
-                return file_content.decode('utf-8', errors='ignore')
-        except Exception as e:
-            return f"Error extracting text: {str(e)}"
-    
-    async def _ai_parse_content(self, text: str) -> Dict[str, Any]:
-        """Use AI to parse resume content into structured data"""
-        # This would integrate with Gemini API or Emergent LLM
-        # For now, return a structured parsing of common resume elements
-        
-        parsed_data = {
-            "personal_info": self._extract_personal_info(text),
-            "experience": self._extract_experience(text),
-            "education": self._extract_education(text),
-            "skills": self._extract_skills(text),
-            "languages": self._extract_languages(text),
-            "certifications": self._extract_certifications(text)
+# ----------------------
+# Proctoring / LiveKit Helpers
+# ----------------------
+
+def create_one_time_phone_token(session_id: str) -> str:
+    payload = {
+        "sid": session_id,
+        "type": "phone",
+        "jti": secrets.token_urlsafe(16),
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=5)
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
+
+
+def verify_one_time_phone_token(token: str) -> Dict[str, Any]:
+    decoded = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])  # raises on invalid/expired
+    if decoded.get("type") != "phone":
+        raise HTTPException(status_code=400, detail="Invalid token type")
+    return decoded
+
+
+def build_livekit_access_token(room: str, identity: str, name: str, can_publish: bool, can_subscribe: bool) -> str:
+    # LiveKit AccessToken is a JWT signed with API secret, with grants in 'video'
+    now = datetime.now(timezone.utc)
+    payload = {
+        "iss": LIVEKIT_API_KEY,
+        "sub": identity,
+        "name": name,
+        "nbf": int(now.timestamp()) - 1,
+        "exp": int((now + timedelta(hours=1)).timestamp()),
+        "video": {
+            "room": room,
+            "roomJoin": True,
+            "canPublish": can_publish,
+            "canSubscribe": can_subscribe
         }
-        
-        return parsed_data
-    
-    def _extract_personal_info(self, text: str) -> Dict[str, str]:
-        """Extract personal information using regex patterns"""
-        email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-        phone_pattern = r'(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}'
-        
-        emails = re.findall(email_pattern, text)
-        phones = re.findall(phone_pattern, text)
-        
-        # Extract name (first few lines typically contain name)
-        lines = text.split('\n')[:5]
-        name = ""
-        for line in lines:
-            line = line.strip()
-            if len(line) > 2 and len(line) < 50 and not any(char.isdigit() for char in line):
-                name = line
-                break
-        
-        return {
-            "name": name,
-            "email": emails[0] if emails else "",
-            "phone": phones[0] if phones else ""
-        }
-    
-    def _extract_experience(self, text: str) -> List[Dict[str, Any]]:
-        """Extract work experience"""
-        # This is a simplified version - in production, use AI for better parsing
-        experience = []
-        
-        # Look for common experience keywords
-        exp_keywords = ['experience', 'employment', 'work history', 'professional experience']
-        lines = text.lower().split('\n')
-        
-        in_experience_section = False
-        for i, line in enumerate(lines):
-            if any(keyword in line for keyword in exp_keywords):
-                in_experience_section = True
-                continue
-            
-            if in_experience_section and ('education' in line or 'skills' in line):
-                break
-            
-            if in_experience_section and len(line.strip()) > 10:
-                # Extract potential job titles and companies
-                if any(word in line for word in ['developer', 'engineer', 'manager', 'analyst', 'coordinator']):
-                    experience.append({
-                        "title": line.strip(),
-                        "company": "",
-                        "duration": "",
-                        "description": ""
-                    })
-        
-        return experience[:5]  # Limit to 5 entries
-    
-    def _extract_education(self, text: str) -> List[Dict[str, Any]]:
-        """Extract education information"""
-        education = []
-        
-        # Look for degree keywords
-        degree_keywords = ['bachelor', 'master', 'phd', 'degree', 'university', 'college', 'diploma']
-        lines = text.lower().split('\n')
-        
-        for line in lines:
-            if any(keyword in line for keyword in degree_keywords):
-                education.append({
-                    "degree": line.strip(),
-                    "institution": "",
-                    "year": "",
-                    "gpa": ""
-                })
-        
-        return education[:3]  # Limit to 3 entries
-    
-    def _extract_skills(self, text: str) -> List[str]:
-        """Extract skills from resume"""
-        # Common technical skills
-        tech_skills = [
-            'python', 'javascript', 'java', 'react', 'node.js', 'sql', 'mongodb',
-            'aws', 'azure', 'docker', 'kubernetes', 'git', 'html', 'css',
-            'machine learning', 'ai', 'data science', 'analytics'
-        ]
-        
-        found_skills = []
-        text_lower = text.lower()
-        
-        for skill in tech_skills:
-            if skill in text_lower:
-                found_skills.append(skill.title())
-        
-        return found_skills
-    
-    def _extract_languages(self, text: str) -> List[Dict[str, str]]:
-        """Extract languages"""
-        languages = ['english', 'spanish', 'french', 'german', 'chinese', 'japanese', 'portuguese']
-        found_languages = []
-        
-        text_lower = text.lower()
-        for lang in languages:
-            if lang in text_lower:
-                found_languages.append({
-                    "language": lang.title(),
-                    "proficiency": "Unknown"
-                })
-        
-        return found_languages
-    
-    def _extract_certifications(self, text: str) -> List[str]:
-        """Extract certifications"""
-        cert_keywords = ['certified', 'certification', 'certificate', 'aws', 'google cloud', 'microsoft']
-        certifications = []
-        
-        lines = text.split('\n')
-        for line in lines:
-            if any(keyword in line.lower() for keyword in cert_keywords):
-                certifications.append(line.strip())
-        
-        return certifications[:5]
+    }
+    return jwt.encode(payload, LIVEKIT_API_SECRET, algorithm="HS256")
 
-# AI Candidate Sourcing Service
-class AICandidateSourcing:
-    def __init__(self):
-        self.gemini_api_key = os.getenv('GEMINI_API_KEY')
-    
-    async def find_candidates(self, job_requirements: str, search_params: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Use AI to find candidates based on job requirements"""
-        # This would integrate with LinkedIn API, job board APIs, etc.
-        # For now, return mock data
-        
-        mock_candidates = [
-            {
-                "name": "AI Sourced Candidate 1",
-                "email": "candidate1@example.com",
-                "title": "Software Engineer",
-                "company": "Tech Corp",
-                "match_score": 95,
-                "skills": ["Python", "React", "AWS"],
-                "experience_years": 5,
-                "location": "San Francisco, CA",
-                "source": "AI Sourcing"
-            },
-            {
-                "name": "AI Sourced Candidate 2", 
-                "email": "candidate2@example.com",
-                "title": "Senior Developer",
-                "company": "Innovation Inc",
-                "match_score": 88,
-                "skills": ["JavaScript", "Node.js", "MongoDB"],
-                "experience_years": 7,
-                "location": "New York, NY",
-                "source": "AI Sourcing"
-            }
-        ]
-        
-        return mock_candidates
 
-# Email Automation Service
-class EmailAutomationService:
-    def __init__(self):
-        self.smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
-        self.smtp_port = int(os.getenv('SMTP_PORT', '587'))
-        self.smtp_username = os.getenv('SMTP_USERNAME', '')
-        self.smtp_password = os.getenv('SMTP_PASSWORD', '')
-    
-    async def send_sequence_email(self, recipient_email: str, subject: str, body: str, sender_email: str):
-        """Send automated sequence email"""
-        try:
-            msg = MIMEMultipart()
-            msg['From'] = sender_email
-            msg['To'] = recipient_email
-            msg['Subject'] = subject
-            
-            msg.attach(MIMEText(body, 'html'))
-            
-            # In production, use proper SMTP configuration
-            # For now, just log the email
-            print(f"Sending email to {recipient_email}: {subject}")
-            
-            return {"success": True, "message": "Email sent successfully"}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-    
-    async def create_email_sequence(self, sequence_data: Dict[str, Any]) -> str:
-        """Create a new email sequence"""
-        sequence = EmailSequence(**sequence_data)
-        await db.email_sequences.insert_one(sequence.dict())
-        return sequence.id
-    
-    async def start_campaign(self, campaign_data: Dict[str, Any]) -> str:
-        """Start an email campaign"""
-        campaign = EmailCampaign(**campaign_data)
-        await db.email_campaigns.insert_one(campaign.dict())
-        
-        # Schedule emails to be sent
-        await self._schedule_campaign_emails(campaign)
-        
-        return campaign.id
-    
-    async def _schedule_campaign_emails(self, campaign: EmailCampaign):
-        """Schedule campaign emails to be sent"""
-        # This would integrate with a task queue like Celery
-        # For now, just update the campaign status
-        await db.email_campaigns.update_one(
-            {"id": campaign.id},
-            {"$set": {"status": "active", "start_date": datetime.now(timezone.utc)}}
-        )
+# in-memory session store for demo
+_session_store: Dict[str, Dict[str, Any]] = {}
+_record_state: Dict[str, bool] = {}
 
-# Job Board Integration Service
-class JobBoardService:
-    def __init__(self):
-        self.supported_boards = [
-            {"name": "Indeed", "api_endpoint": "https://api.indeed.com", "requires_auth": True},
-            {"name": "LinkedIn", "api_endpoint": "https://api.linkedin.com", "requires_auth": True},
-            {"name": "Glassdoor", "api_endpoint": "https://api.glassdoor.com", "requires_auth": True},
-            {"name": "Monster", "api_endpoint": "https://api.monster.com", "requires_auth": True},
-            {"name": "CareerBuilder", "api_endpoint": "https://api.careerbuilder.com", "requires_auth": True}
-        ]
-    
-    async def multipost_job(self, job_data: Dict[str, Any], selected_boards: List[str]) -> Dict[str, Any]:
-        """Post job to multiple job boards"""
-        results = []
-        
-        for board_name in selected_boards:
-            try:
-                # In production, integrate with actual job board APIs
-                result = await self._post_to_board(job_data, board_name)
-                results.append({
-                    "board": board_name,
-                    "status": "success",
-                    "external_id": f"{board_name.lower()}_{uuid.uuid4()}",
-                    "cost": 50.0  # Mock cost
-                })
-            except Exception as e:
-                results.append({
-                    "board": board_name,
-                    "status": "error",
-                    "error": str(e)
-                })
-        
-        return {"results": results, "total_posted": len([r for r in results if r["status"] == "success"])}
-    
-    async def _post_to_board(self, job_data: Dict[str, Any], board_name: str):
-        """Post to individual job board"""
-        # Mock implementation - in production, use actual APIs
-        await asyncio.sleep(0.1)  # Simulate API call
-        return {"success": True, "external_id": f"{board_name}_{uuid.uuid4()}"}
-
-# Initialize services
-resume_parser = AIResumeParser()
-candidate_sourcing = AICandidateSourcing()
-email_service = EmailAutomationService()
-job_board_service = JobBoardService()
-
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 # Helper functions
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
@@ -932,6 +1250,389 @@ def verify_password(password: str, hashed: str) -> bool:
 
 def generate_verification_code() -> str:
     return ''.join(random.choices(string.digits, k=6))
+
+# --- Simple login audit helper ---
+async def log_login_event(role: str, user_id: str, method: str, email: str = None, success: bool = True):
+    try:
+        await db.login_events.insert_one({
+            "user_id": user_id,
+            "role": role,
+            "email": email,
+            "method": method,  # e.g., 'clerk-sync', 'otp-verify', 'native-password'
+            "success": bool(success),
+            "timestamp": datetime.now(timezone.utc),
+        })
+    except Exception:
+        # Best-effort; do not block auth flows on logging errors
+        pass
+
+# ----------------------
+# S3 Helper Functions
+# ----------------------
+def _s3_key(session_id: str, filename: str) -> str:
+    return f"{session_id}/{filename}"
+
+def s3_upload_bytes(session_id: str, filename: str, content: bytes, content_type: str | None = None) -> None:
+    if not S3_CLIENT or not AWS_S3_BUCKET:
+        raise HTTPException(status_code=500, detail="S3 not configured")
+    extra = {"ContentType": content_type} if content_type else {}
+    S3_CLIENT.put_object(Bucket=AWS_S3_BUCKET, Key=_s3_key(session_id, filename), Body=content, **extra)
+
+def s3_list_session(session_id: str) -> list[dict]:
+    if not S3_CLIENT or not AWS_S3_BUCKET:
+        raise HTTPException(status_code=500, detail="S3 not configured")
+    prefix = f"{session_id}/"
+    paginator = S3_CLIENT.get_paginator('list_objects_v2')
+    items = []
+    for page in paginator.paginate(Bucket=AWS_S3_BUCKET, Prefix=prefix):
+        for obj in page.get('Contents', []) or []:
+            key = obj['Key']
+            if key.endswith('/'):
+                continue
+            filename = key.split('/', 1)[1]
+            items.append({
+                "filename": filename,
+                "size": obj.get('Size'),
+                "last_modified": obj.get('LastModified').isoformat() if obj.get('LastModified') else None,
+            })
+    return items
+
+def s3_presign_get(session_id: str, filename: str, expires_in: int = 3600) -> str:
+    if not S3_CLIENT or not AWS_S3_BUCKET:
+        raise HTTPException(status_code=500, detail="S3 not configured")
+    return S3_CLIENT.generate_presigned_url(
+        'get_object',
+        Params={'Bucket': AWS_S3_BUCKET, 'Key': _s3_key(session_id, filename)},
+        ExpiresIn=expires_in
+    )
+
+# ----------------------
+# Proctoring API
+# ----------------------
+
+class CreateSessionResponse(BaseModel):
+    sessionId: str
+    phoneJoinToken: str
+
+
+@api_router.post("/session", response_model=CreateSessionResponse)
+async def create_session():
+    session_id = str(uuid.uuid4())[:12]
+    _session_store[session_id] = {
+        "createdAt": datetime.now(timezone.utc).isoformat(),
+        "usedPhoneTokens": set(),
+    }
+    token = create_one_time_phone_token(session_id)
+    return {"sessionId": session_id, "phoneJoinToken": token}
+
+
+class TokenExchangeRequest(BaseModel):
+    token: str
+    identity: Optional[str] = None
+
+
+@api_router.post("/phone-join-exchange")
+async def phone_join_exchange(payload: TokenExchangeRequest):
+    if not payload.token:
+        raise HTTPException(status_code=400, detail="token required")
+    decoded = verify_one_time_phone_token(payload.token)
+    sid = decoded.get("sid")
+    store = _session_store.get(sid)
+    if not store:
+        raise HTTPException(status_code=404, detail="session not found")
+    used = store.get("usedPhoneTokens")
+    # Convert set stored as set or list
+    if isinstance(used, list):
+        used = set(used)
+        store["usedPhoneTokens"] = used
+    if payload.token in used:
+        raise HTTPException(status_code=409, detail="token already used")
+    used.add(payload.token)
+
+    identity = payload.identity or f"phone-{str(uuid.uuid4())[:8]}"
+    lk = build_livekit_access_token(room=sid, identity=identity, name="Phone Camera", can_publish=True, can_subscribe=False)
+    # Audit: clerk-sync login
+    await log_login_event("candidate", identity, method="clerk-sync", success=True)
+    return {"sessionId": sid, "livekitToken": lk, "wsUrl": LIVEKIT_WS_URL}
+
+
+class JoinTokenRequest(BaseModel):
+    sessionId: str
+    identity: Optional[str] = None
+
+
+@api_router.post("/laptop-join-token")
+async def laptop_join_token(payload: JoinTokenRequest):
+    sid = payload.sessionId
+    if not sid:
+        raise HTTPException(status_code=400, detail="sessionId required")
+    if sid not in _session_store:
+        raise HTTPException(status_code=404, detail="session not found")
+    identity = payload.identity or f"laptop-{str(uuid.uuid4())[:8]}"
+    lk = build_livekit_access_token(room=sid, identity=identity, name="Laptop Camera", can_publish=True, can_subscribe=True)
+    return {"sessionId": sid, "livekitToken": lk, "wsUrl": LIVEKIT_WS_URL}
+
+
+@api_router.post("/interviewer-join-token")
+async def interviewer_join_token(payload: JoinTokenRequest):
+    sid = payload.sessionId
+    if not sid:
+        raise HTTPException(status_code=400, detail="sessionId required")
+    if sid not in _session_store:
+        raise HTTPException(status_code=404, detail="session not found")
+    identity = payload.identity or f"hr-{str(uuid.uuid4())[:8]}"
+    lk = build_livekit_access_token(room=sid, identity=identity, name="Interviewer", can_publish=False, can_subscribe=True)
+    return {"sessionId": sid, "livekitToken": lk, "wsUrl": LIVEKIT_WS_URL}
+
+
+# ----------------------
+# AI Scheduler Endpoints
+# ----------------------
+
+def _overlaps(a_start: datetime, a_end: datetime, b_start: datetime, b_end: datetime) -> bool:
+    return max(a_start, b_start) < min(a_end, b_end)
+
+
+@api_router.post("/ai/scheduler/propose", response_model=List[ProposedSlot])
+async def ai_scheduler_propose(req: ScheduleProposeRequest, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    # Decode recruiter from token (avoid early reference to get_current_recruiter)
+    try:
+        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=["HS256"])
+        if payload.get("role") != "recruiter":
+            raise HTTPException(status_code=403, detail="Access denied")
+        recruiter_doc = await db.recruiters.find_one({"id": payload["user_id"]})
+        if not recruiter_doc:
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    now = datetime.now(timezone.utc)
+    company_interviews = await db.interviews.find({
+        "company_id": recruiter_doc["company_id"],
+        "status": {"$in": ["scheduled", "in_progress"]}
+    }).to_list(1000)
+    candidate_interviews = await db.interviews.find({
+        "candidate_id": req.candidate_id,
+        "status": {"$in": ["scheduled", "in_progress"]}
+    }).to_list(1000)
+
+    conflicts = []
+    for it in company_interviews + candidate_interviews:
+        st = it.get("scheduled_date")
+        dur = int(it.get("duration_minutes") or 60)
+        if isinstance(st, str):
+            try:
+                st = datetime.fromisoformat(st)
+            except Exception:
+                st = None
+        if st and st.tzinfo is None:
+            st = st.replace(tzinfo=timezone.utc)
+        if st:
+            conflicts.append((st, st + timedelta(minutes=dur)))
+
+    slot_len = max(15, int(req.slot_minutes))
+    days = max(1, min(30, int(req.days_ahead)))
+    work_start = max(0, min(23, int(req.work_start_hour)))
+    work_end = max(work_start + 1, min(24, int(req.work_end_hour)))
+
+    proposals: List[ProposedSlot] = []
+    for d in range(days):
+        day = (now + timedelta(days=d)).date()
+        start_dt = datetime.combine(day, datetime.min.time(), tzinfo=timezone.utc) + timedelta(hours=work_start)
+        end_dt = datetime.combine(day, datetime.min.time(), tzinfo=timezone.utc) + timedelta(hours=work_end)
+        t = max(start_dt, now)
+        while t + timedelta(minutes=slot_len) <= end_dt and len(proposals) < 12:
+            slot_start = t
+            slot_end = t + timedelta(minutes=slot_len)
+            has_conflict = any(_overlaps(slot_start, slot_end, c0, c1) for (c0, c1) in conflicts)
+            if not has_conflict:
+                proposals.append(ProposedSlot(start=slot_start, end=slot_end))
+            t += timedelta(minutes=slot_len)
+        if len(proposals) >= 12:
+            break
+
+    return proposals
+
+
+@api_router.post("/ai/scheduler/book", response_model=Interview)
+async def ai_scheduler_book(req: ScheduleBookRequest, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    # Decode recruiter from token (avoid early reference to get_current_recruiter)
+    try:
+        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=["HS256"])
+        if payload.get("role") != "recruiter":
+            raise HTTPException(status_code=403, detail="Access denied")
+        recruiter_doc = await db.recruiters.find_one({"id": payload["user_id"]})
+        if not recruiter_doc:
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    st = req.scheduled_date
+    if st.tzinfo is None:
+        st = st.replace(tzinfo=timezone.utc)
+    en = st + timedelta(minutes=60)
+
+    existing = await db.interviews.find({
+        "company_id": recruiter_doc["company_id"],
+        "status": {"$in": ["scheduled", "in_progress"]}
+    }).to_list(1000)
+    for it in existing:
+        it_st = it.get("scheduled_date")
+        dur = int(it.get("duration_minutes") or 60)
+        if isinstance(it_st, str):
+            try:
+                it_st = datetime.fromisoformat(it_st)
+            except Exception:
+                it_st = None
+        if it_st and it_st.tzinfo is None:
+            it_st = it_st.replace(tzinfo=timezone.utc)
+        if it_st and _overlaps(st, en, it_st, it_st + timedelta(minutes=dur)):
+            raise HTTPException(status_code=409, detail="Time slot conflicts with an existing interview")
+
+    new_interview = Interview(
+        application_id="",
+        candidate_id=req.candidate_id,
+        interviewer_id=recruiter_doc["id"],
+        job_id=req.job_id,
+        company_id=recruiter_doc["company_id"],
+        interview_type="video",
+        scheduled_date=st,
+        duration_minutes=60,
+        status="scheduled",
+    )
+    await db.interviews.insert_one(new_interview.dict())
+    return new_interview
+
+@api_router.get("/recordings/{session_id}")
+async def list_recordings(session_id: str):
+    # Lists files from S3 or local recordings dir
+    if VIDEO_STORAGE == "s3":
+        try:
+            items = s3_list_session(session_id)
+            files = []
+            for it in items:
+                presigned = s3_presign_get(session_id, it["filename"], expires_in=3600)
+                files.append({
+                    "filename": it["filename"],
+                    "path": f"/api/recordings/{session_id}/{it['filename']}",
+                    "presignedUrl": presigned,
+                    "size": it.get("size"),
+                    "last_modified": it.get("last_modified"),
+                })
+            return {"files": files}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"S3 list error: {e}")
+    else:
+        session_dir = Path(RECORDINGS_DIR) / session_id
+        files = []
+        if session_dir.exists():
+            for f in session_dir.iterdir():
+                if f.is_file() and f.suffix.lower() in {".webm", ".mp4", ".mkv"}:
+                    files.append({"filename": f.name, "path": f"/api/recordings/{session_id}/{f.name}"})
+        return {"files": files}
+
+
+@api_router.get("/recordings/{session_id}/{filename}")
+async def download_recording(session_id: str, filename: str):
+    if VIDEO_STORAGE == "s3":
+        try:
+            presigned = s3_presign_get(session_id, filename, expires_in=3600)
+            return RedirectResponse(url=presigned, status_code=307)
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=f"S3 file not found or error: {e}")
+    else:
+        target = Path(RECORDINGS_DIR) / session_id / filename
+        if not target.exists():
+            raise HTTPException(status_code=404, detail="File not found")
+        return FileResponse(str(target))
+
+
+@api_router.post("/recordings/upload")
+async def upload_recording(sessionId: str, source: str, file: UploadFile = File(...)):
+    """
+    Save uploaded recording file to RECORDINGS_DIR/<sessionId>/
+    source: 'laptop' | 'phone'
+    """
+    if not sessionId:
+        raise HTTPException(status_code=400, detail="sessionId required")
+    if source not in {"laptop", "phone"}:
+        raise HTTPException(status_code=400, detail="invalid source")
+
+    ts = int(datetime.now(timezone.utc).timestamp())
+    suffix = Path(file.filename or '').suffix or '.webm'
+    safe_suffix = suffix if len(suffix) <= 6 else '.webm'
+    filename = f"{source}_{ts}{safe_suffix}"
+    content = await file.read()
+
+    if VIDEO_STORAGE == "s3":
+        try:
+            s3_upload_bytes(sessionId, filename, content, getattr(file, 'content_type', None))
+            presigned = s3_presign_get(sessionId, filename, expires_in=3600)
+            return {
+                "ok": True,
+                "filename": filename,
+                "url": f"/api/recordings/{sessionId}/{filename}",
+                "presignedUrl": presigned,
+                "storage": "s3"
+            }
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"S3 upload error: {e}")
+    else:
+        session_dir = Path(RECORDINGS_DIR) / sessionId
+        session_dir.mkdir(parents=True, exist_ok=True)
+        dest = session_dir / filename
+        with open(dest, 'wb') as f:
+            f.write(content)
+        return {
+            "ok": True,
+            "filename": filename,
+            "url": f"/api/recordings/{sessionId}/{filename}",
+            "storage": "local"
+        }
+
+
+# --- Recording state control (for client MediaRecorder) ---
+class RecordingStateRequest(BaseModel):
+    sessionId: str
+    recording: bool
+
+
+@api_router.post("/recordings/state")
+async def set_recording_state(req: RecordingStateRequest):
+    if not req.sessionId:
+        raise HTTPException(status_code=400, detail="sessionId required")
+    _record_state[req.sessionId] = bool(req.recording)
+    return {"ok": True, "sessionId": req.sessionId, "recording": _record_state[req.sessionId]}
+
+
+@api_router.get("/recordings/state")
+async def get_recording_state(sessionId: str):
+    return {"sessionId": sessionId, "recording": bool(_record_state.get(sessionId, False))}
+
+
+# --- Optional: LiveKit Egress composite recording stubs ---
+@api_router.post("/egress/start")
+async def egress_start(sessionId: str):
+    if not sessionId:
+        raise HTTPException(status_code=400, detail="sessionId required")
+    try:
+        resp = requests.post(f"{EGRESS_SERVICE_URL}/start", json={"sessionId": sessionId}, timeout=15)
+        if resp.status_code >= 400:
+            raise HTTPException(status_code=resp.status_code, detail=resp.text)
+        return resp.json()
+    except requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"egress service error: {e}")
+
+
+@api_router.post("/egress/stop")
+async def egress_stop(egressId: str):
+    if not egressId:
+        raise HTTPException(status_code=400, detail="egressId required")
+    try:
+        resp = requests.post(f"{EGRESS_SERVICE_URL}/stop", json={"egressId": egressId}, timeout=15)
+        if resp.status_code >= 400:
+            raise HTTPException(status_code=resp.status_code, detail=resp.text)
+        return resp.json()
+    except requests.RequestException as e:
+        raise HTTPException(status_code=502, detail=f"egress service error: {e}")
 
 def generate_otp() -> str:
     return ''.join(random.choices(string.digits, k=6))
@@ -1127,6 +1828,8 @@ async def login_candidate(login_data: CandidateLogin):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     token = create_jwt_token(candidate["id"], candidate["email"], "candidate")
+    # Audit: native password login
+    await log_login_event("candidate", candidate["id"], method="native-password", email=candidate["email"], success=True)
     return {
         "user": CandidateUser(**candidate), 
         "token": token, 
@@ -1239,7 +1942,6 @@ async def resend_phone_otp(user_id: str):
     
     return {"message": "OTP sent", "otp_code": phone_otp}  # Remove OTP in production
 
-<<<<<<< HEAD
 # Candidate Registration and Authentication
 @api_router.post("/candidates/register")
 async def register_candidate(candidate_data: CandidateRegister):
@@ -1316,8 +2018,6 @@ async def login_candidate(login_data: CandidateLogin):
         "candidate": CandidateUser(**candidate)
     }
 
-=======
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 # Candidate Job Routes
 @api_router.get("/candidates/jobs")
 async def get_available_jobs(
@@ -1346,7 +2046,6 @@ async def get_available_jobs(
         query["experience_level"] = experience_level
     
     jobs = await db.jobs.find(query).to_list(1000)
-<<<<<<< HEAD
     enriched_jobs = []
     for job_doc in jobs:
         # Sanitize job
@@ -1367,30 +2066,12 @@ async def get_available_jobs(
         enriched_jobs.append({
             "job": job_payload,
             "company": company_payload,
-=======
-    
-    # Enrich with company data
-    enriched_jobs = []
-    for job in jobs:
-        company = await db.companies.find_one({"id": job["company_id"]})
-        
-        # Check if candidate already applied
-        existing_application = await db.candidate_applications.find_one({
-            "job_id": job["id"],
-            "candidate_id": current_candidate.id
-        })
-        
-        enriched_jobs.append({
-            "job": Job(**job),
-            "company": Company(**company) if company else None,
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
             "has_applied": bool(existing_application),
             "application_id": existing_application["id"] if existing_application else None
         })
     
     return enriched_jobs
 
-<<<<<<< HEAD
 
 @api_router.post("/candidates/resume")
 async def upload_resume(
@@ -1462,18 +2143,6 @@ async def apply_for_job(
 ):
     job_id = request.job_id
     cover_letter = request.cover_letter
-=======
-@api_router.post("/candidates/applications")
-async def apply_for_job(
-    application_data: Dict[str, Any],
-    current_candidate: CandidateUser = Depends(get_current_candidate)
-):
-    job_id = application_data.get("job_id")
-    cover_letter = application_data.get("cover_letter")
-    
-    if not job_id or not cover_letter:
-        raise HTTPException(status_code=422, detail="job_id and cover_letter are required")
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
     
     # Check if job exists and is active
     job = await db.jobs.find_one({"id": job_id, "status": "active"})
@@ -1497,7 +2166,6 @@ async def apply_for_job(
     )
     
     await db.candidate_applications.insert_one(application.dict())
-<<<<<<< HEAD
     
     # Automatically schedule interview after successful application
     try:
@@ -1561,14 +2229,10 @@ async def get_job(job_id: str):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
-=======
-    return {"message": "Application submitted successfully", "application": application}
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 
 @api_router.get("/candidates/my-applications")
 async def get_my_applications(current_candidate: CandidateUser = Depends(get_current_candidate)):
     applications = await db.candidate_applications.find({"candidate_id": current_candidate.id}).to_list(1000)
-<<<<<<< HEAD
 
     enriched_applications: list[dict] = []
     for app in applications:
@@ -1588,31 +2252,11 @@ async def get_my_applications(current_candidate: CandidateUser = Depends(get_cur
             "interviews": interviews_payload
         })
 
-=======
-    
-    # Enrich with job and company data
-    enriched_applications = []
-    for app in applications:
-        job = await db.jobs.find_one({"id": app["job_id"]})
-        company = await db.companies.find_one({"id": app["company_id"]}) if job else None
-        
-        # Get interviews for this application
-        interviews = await db.interviews.find({"application_id": app["id"]}).to_list(100)
-        
-        enriched_applications.append({
-            "application": CandidateApplication(**app),
-            "job": Job(**job) if job else None,
-            "company": Company(**company) if company else None,
-            "interviews": [Interview(**interview) for interview in interviews]
-        })
-    
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
     return enriched_applications
 
 @api_router.get("/candidates/interviews")
 async def get_my_interviews(current_candidate: CandidateUser = Depends(get_current_candidate)):
     interviews = await db.interviews.find({"candidate_id": current_candidate.id}).to_list(1000)
-<<<<<<< HEAD
 
     enriched_interviews: list[dict] = []
     for iv in interviews:
@@ -1644,12 +2288,30 @@ async def get_completed_interviews(
         "status": "completed"
     }).sort("ended_at", -1).to_list(1000)
 
-    # Enrich with candidate and job data
+    # Enrich with candidate, job, application and aptitude results
     enriched_interviews = []
     for interview in interviews:
         candidate = await db.candidates.find_one({"id": interview["candidate_id"]})
         job = await db.jobs.find_one({"id": interview["job_id"]})
         application = await db.candidate_applications.find_one({"id": interview.get("application_id")})
+
+        # Fetch round-wise aptitude results for this interview
+        round_results = await db.round_results.find({
+            "interview_id": interview["id"],
+            "candidate_id": interview["candidate_id"],
+        }).sort("round", 1).to_list(10)
+
+        rounds_summary = [
+            {
+                "round": r.get("round"),
+                "correctAnswers": r.get("correctAnswers", 0),
+                "wrongAnswers": r.get("wrongAnswers", 0),
+                "percentage": r.get("percentage", 0.0),
+                "roundStatus": r.get("roundStatus"),
+                "warnings": r.get("warnings", 0),
+            }
+            for r in (round_results or [])
+        ]
 
         # Remove MongoDB internal _id so FastAPI can serialize
         interview = dict(interview)
@@ -1668,25 +2330,11 @@ async def get_completed_interviews(
             "interview": interview,
             "candidate": candidate,
             "job": job,
-            "application": application
+            "application": application,
+            "rounds": rounds_summary,
+            "finalStatus": (candidate or {}).get("finalStatus"),
         })
 
-=======
-    
-    enriched_interviews = []
-    for interview in interviews:
-        application = await db.candidate_applications.find_one({"id": interview["application_id"]})
-        job = await db.jobs.find_one({"id": interview["job_id"]}) if application else None
-        company = await db.companies.find_one({"id": interview["company_id"]}) if job else None
-        
-        enriched_interviews.append({
-            "interview": Interview(**interview),
-            "application": CandidateApplication(**application) if application else None,
-            "job": Job(**job) if job else None,
-            "company": Company(**company) if company else None
-        })
-    
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
     return enriched_interviews
 
 @api_router.put("/candidates/profile")
@@ -1710,16 +2358,134 @@ async def update_candidate_profile(
     updated_candidate = await db.candidates.find_one({"id": current_candidate.id})
     return {"message": "Profile updated successfully", "user": CandidateUser(**updated_candidate)}
 
-# Job Management Routes (Recruiter)
-@api_router.post("/jobs", response_model=Job)
-async def create_job(job_data: Dict[str, Any], current_recruiter: Recruiter = Depends(get_current_recruiter)):
-    job = Job(
-        company_id=current_recruiter.company_id,
-        recruiter_id=current_recruiter.id,
-        **job_data
+# Clerk sync endpoint to provision candidate and mint app JWT
+@api_router.post("/candidates/clerk-sync")
+async def candidates_clerk_sync(payload: Dict[str, Any]):
+    email = (payload.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="email required")
+    full_name = (payload.get("full_name") or "Candidate").strip()
+    phone = (payload.get("phone") or "").strip()
+    clerk_user_id = payload.get("clerk_user_id")
+
+    # Find by email
+    existing = await db.candidates.find_one({"email": email})
+    if not existing:
+        candidate = CandidateUser(
+            email=email,
+            full_name=full_name or "Candidate",
+            phone=phone or "",
+            location="",
+            current_title="",
+            current_company="",
+            experience_years=0,
+            education="",
+            skills=[],
+            is_email_verified=False,
+        )
+        doc = candidate.dict()
+        if clerk_user_id:
+            doc["clerk_user_id"] = clerk_user_id
+        await db.candidates.insert_one(doc)
+        candidate_doc = doc
+    else:
+        update = {
+            "full_name": full_name or existing.get("full_name") or "Candidate",
+            "phone": phone or existing.get("phone") or "",
+            # Do not auto-verify on sync; require OTP verification step
+        }
+        if clerk_user_id:
+            update["clerk_user_id"] = clerk_user_id
+        await db.candidates.update_one({"id": existing["id"]}, {"$set": update})
+        candidate_doc = await db.candidates.find_one({"id": existing["id"]})
+
+    # Clean and modelize
+    candidate_doc = dict(candidate_doc)
+    candidate_doc.pop("_id", None)
+    candidate_model = CandidateUser(**candidate_doc)
+
+    token = create_jwt_token(candidate_model.id, candidate_model.email, "candidate")
+    # Audit: clerk-sync successful provisioning/login
+    await log_login_event("candidate", candidate_model.id, method="clerk-sync", email=candidate_model.email, success=True)
+    return {"user": candidate_model.dict(), "token": token, "role": "candidate"}
+
+# Candidate Account OTP (email) verification
+@api_router.post("/candidates/request-account-otp")
+async def request_account_otp(email: str):
+    email = (email or "").strip().lower()
+    candidate = await db.candidates.find_one({"email": email})
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    if candidate.get("is_email_verified"):
+        return {"message": "Already verified"}
+    code = generate_otp()
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+    await db.email_verifications.delete_many({"user_id": candidate["id"], "is_verified": False})
+    await db.email_verifications.insert_one({
+        "user_id": candidate["id"],
+        "email": email,
+        "verification_code": code,
+        "expires_at": expires_at,
+        "is_verified": False,
+        "created_at": datetime.now(timezone.utc),
+    })
+    # In production, send via email. For dev, return code.
+    return {"message": "OTP sent", "code": code}
+
+class VerifyAccountOtpRequest(BaseModel):
+    email: EmailStr
+    code: str
+
+@api_router.post("/candidates/verify-account-otp")
+async def verify_account_otp(req: VerifyAccountOtpRequest):
+    email = req.email.strip().lower()
+    candidate = await db.candidates.find_one({"email": email})
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    doc = await db.email_verifications.find_one({
+        "user_id": candidate["id"],
+        "email": email,
+        "verification_code": req.code,
+        "is_verified": False,
+    })
+    if not doc:
+        raise HTTPException(status_code=400, detail="Invalid code")
+    exp = doc.get("expires_at")
+    if isinstance(exp, datetime) and exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if datetime.now(timezone.utc) > exp:
+        raise HTTPException(status_code=400, detail="Code expired")
+    await db.email_verifications.update_one({"_id": doc["_id"]}, {"$set": {"is_verified": True}})
+    await db.candidates.update_one({"id": candidate["id"]}, {"$set": {"is_email_verified": True}})
+    # Mint fresh JWT after verification
+    refreshed = await db.candidates.find_one({"id": candidate["id"]})
+    refreshed.pop("_id", None)
+    model = CandidateUser(**refreshed)
+    token = create_jwt_token(model.id, model.email, "candidate")
+    # Audit: otp verification completed
+    await log_login_event("candidate", model.id, method="otp-verify", email=model.email, success=True)
+    return {"message": "Verified", "user": model.dict(), "token": token}
+
+class SetPasswordRequest(BaseModel):
+    new_password: str
+
+@api_router.post("/candidates/set-password")
+async def set_candidate_password(req: SetPasswordRequest, current_candidate: CandidateUser = Depends(get_current_candidate)):
+    pwd = (req.new_password or "").strip()
+    if len(pwd) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    hashed = hash_password(pwd)
+    await db.user_passwords.update_one(
+        {"user_id": current_candidate.id, "role": "candidate"},
+        {"$set": {"password": hashed}},
+        upsert=True,
     )
-    await db.jobs.insert_one(job.dict())
-    return job
+    return {"message": "Password set"}
+
+@api_router.get("/candidates/has-password")
+async def candidate_has_password(current_candidate: CandidateUser = Depends(get_current_candidate)):
+    doc = await db.user_passwords.find_one({"user_id": current_candidate.id, "role": "candidate"})
+    return {"hasPassword": bool(doc and doc.get("password"))}
 
 @api_router.get("/jobs", response_model=List[Job])
 async def get_company_jobs(current_recruiter: Recruiter = Depends(get_current_recruiter)):
@@ -1798,7 +2564,6 @@ async def move_application_stage(
     
     return {"message": "Application stage updated successfully"}
 
-<<<<<<< HEAD
 
 @api_router.get("/candidates")
 async def list_candidates(current_recruiter: Recruiter = Depends(get_current_recruiter)):
@@ -1815,8 +2580,6 @@ async def list_candidates(current_recruiter: Recruiter = Depends(get_current_rec
             result.append(c)
     return result
 
-=======
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 # Interview Management Routes
 @api_router.post("/interviews")
 async def schedule_interview(
@@ -1850,10 +2613,6 @@ async def schedule_interview(
     await db.interviews.insert_one(interview.dict())
     return {"message": "Interview scheduled successfully", "interview": interview}
 
-<<<<<<< HEAD
-=======
-# Notes Management
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 @api_router.post("/applications/{application_id}/notes", response_model=Note)
 async def add_note(
     application_id: str,
@@ -1863,31 +2622,19 @@ async def add_note(
 ):
     # Verify application exists and belongs to company
     application = await db.candidate_applications.find_one({
-<<<<<<< HEAD
         "id": application_id,
-=======
-        "id": application_id, 
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
         "company_id": current_recruiter.company_id
     })
     if not application:
         raise HTTPException(status_code=404, detail="Application not found")
-<<<<<<< HEAD
 
-=======
-    
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
     note = Note(
         application_id=application_id,
         recruiter_id=current_recruiter.id,
         content=content,
         type=note_type
     )
-<<<<<<< HEAD
 
-=======
-    
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
     await db.notes.insert_one(note.dict())
     return note
 
@@ -1941,22 +2688,82 @@ async def get_analytics_dashboard(current_recruiter: Recruiter = Depends(get_cur
         "stage": "hired",
         "last_updated": {"$gte": thirty_days_ago}
     })
-    
+
+    # Per-interview aptitude performance for this company
+    interviews = await db.interviews.find({"company_id": company_id}).to_list(1000)
+    interview_summaries = []
+    for it in interviews:
+        interview_id = it.get("id")
+        candidate_id = it.get("candidate_id")
+        if not interview_id or not candidate_id:
+            continue
+
+        candidate = await db.candidates.find_one({"id": candidate_id})
+
+        # Round-wise results (scores, percentage, status, warnings)
+        round_results = await db.round_results.find({
+            "interview_id": interview_id,
+            "candidate_id": candidate_id,
+        }).sort("round", 1).to_list(10)
+
+        # All MCQ answers for this interview
+        answers = await db.candidate_answers.find({
+            "interview_id": interview_id,
+            "candidate_id": candidate_id,
+        }).sort("timestamp", 1).to_list(2000)
+
+        def strip_id(doc):
+            if not isinstance(doc, dict):
+                return doc
+            d = dict(doc)
+            d.pop("_id", None)
+            return d
+
+        rounds_payload = [
+            {
+                "round": r.get("round"),
+                "correctAnswers": r.get("correctAnswers", 0),
+                "wrongAnswers": r.get("wrongAnswers", 0),
+                "percentage": r.get("percentage", 0.0),
+                "roundStatus": r.get("roundStatus"),
+                "warnings": r.get("warnings", 0),
+                "duration_sec": r.get("duration_sec", 0),
+                "updated_at": r.get("updated_at"),
+            }
+            for r in (round_results or [])
+        ]
+
+        warnings_total = sum(int(r.get("warnings", 0) or 0) for r in (round_results or []))
+
+        interview_summaries.append(
+            {
+                "interview_id": interview_id,
+                "candidate_id": candidate_id,
+                "candidate_name": candidate.get("full_name") if candidate else None,
+                "job_id": it.get("job_id"),
+                "status": it.get("status"),
+                "finalStatus": (candidate or {}).get("finalStatus"),
+                "rounds": rounds_payload,
+                "answers": [strip_id(a) for a in (answers or [])],
+                "total_warnings": warnings_total,
+            }
+        )
+
     return {
         "overview": {
             "total_jobs": total_jobs,
             "active_jobs": active_jobs,
             "total_candidates": total_candidates,
-            "total_applications": total_applications
+            "total_applications": total_applications,
         },
         "pipeline": pipeline_stages,
         "recent_activity": {
             "applications_30_days": recent_applications,
-            "hires_30_days": recent_hires
-        }
+            "hires_30_days": recent_hires,
+        },
+        "interviews": interview_summaries,
     }
 
-<<<<<<< HEAD
 # Secure Interview Telemetry Endpoints
 @api_router.post("/secure-interview/start")
 async def start_secure_interview(
@@ -2346,8 +3153,6 @@ async def get_interview_report(
     return HTMLResponse(content=html, media_type="text/html")
 
 
-=======
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 # Seed data for demo
 @api_router.post("/seed/data")
 async def seed_demo_data(current_recruiter: Recruiter = Depends(get_current_recruiter)):
@@ -2437,7 +3242,8 @@ async def seed_demo_data(current_recruiter: Recruiter = Depends(get_current_recr
 @api_router.post("/interviews/{interview_id}/start-recording")
 async def start_interview_recording(
     interview_id: str,
-    current_candidate: CandidateUser = Depends(get_current_candidate)
+    current_candidate: CandidateUser = Depends(get_current_candidate),
+    seb_ok: bool = Depends(require_seb)
 ):
     # Verify interview exists and belongs to candidate
     interview = await db.interviews.find_one({
@@ -2469,7 +3275,8 @@ async def upload_interview_recording(
     interview_id: str,
     recording_type: str,  # webcam, screen, audio
     file: UploadFile = File(...),
-    current_candidate: CandidateUser = Depends(get_current_candidate)
+    current_candidate: CandidateUser = Depends(get_current_candidate),
+    seb_ok: bool = Depends(require_seb)
 ):
     # Verify interview recording exists
     recording = await db.interview_recordings.find_one({
@@ -2505,13 +3312,27 @@ async def upload_interview_recording(
         {"interview_id": interview_id, "candidate_id": current_candidate.id},
         {"$set": update_data}
     )
-    
+    # Also insert a per-file document to match the listing/streaming schema (kind/path/size_bytes)
+    try:
+        await db.interview_recordings.insert_one({
+            "interview_id": interview_id,
+            "candidate_id": current_candidate.id,
+            "recruiter_id": recording.get("recruiter_id") if isinstance(recording, dict) else getattr(recording, "recruiter_id", None),
+            "kind": recording_type,
+            "path": str(file_path),
+            "size_bytes": len(content),
+            "created_at": datetime.now(timezone.utc),
+        })
+    except Exception as e:
+        logging.warning(f"Failed to insert per-file recording doc: {e}")
+
     return {"message": f"{recording_type} recording uploaded successfully", "file_url": file_url}
 
 @api_router.post("/interviews/{interview_id}/end-recording")
 async def end_interview_recording(
     interview_id: str,
-    current_candidate: CandidateUser = Depends(get_current_candidate)
+    current_candidate: CandidateUser = Depends(get_current_candidate),
+    seb_ok: bool = Depends(require_seb)
 ):
     # Update recording status
     await db.interview_recordings.update_one(
@@ -2529,6 +3350,26 @@ async def end_interview_recording(
     )
     
     return {"message": "Recording ended and interview completed"}
+
+# Candidate heartbeat: keep-alive during interview to detect quits
+@api_router.post("/interviews/{interview_id}/heartbeat")
+async def interview_heartbeat(
+    interview_id: str,
+    current_candidate: CandidateUser = Depends(get_current_candidate),
+    seb_ok: bool = Depends(require_seb)
+):
+    interview = await db.interviews.find_one({
+        "id": interview_id,
+        "candidate_id": current_candidate.id
+    })
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+
+    await db.interviews.update_one(
+        {"id": interview_id},
+        {"$set": {"last_heartbeat": datetime.now(timezone.utc)}}
+    )
+    return {"ok": True, "ts": datetime.now(timezone.utc).isoformat()}
 
 @api_router.post("/interviews/{interview_id}/security-violation")
 async def log_security_violation(
@@ -2592,7 +3433,113 @@ async def get_interview_monitoring_data(
         "is_live": recording["status"] == "recording" if recording else False
     }
 
-<<<<<<< HEAD
+# ----------------------
+# AI Evaluation Endpoints
+# ----------------------
+
+def _safe_avg(values: list[float]) -> float:
+    vals = [v for v in values if isinstance(v, (int, float))]
+    return float(sum(vals) / len(vals)) if vals else 0.0
+
+
+@api_router.post("/ai/evaluate/{interview_id}", response_model=AIDecision)
+async def ai_evaluate_interview(interview_id: str, current_recruiter: Recruiter = Depends(get_current_recruiter)):
+    # Ensure interview belongs to recruiter company
+    interview = await db.interviews.find_one({"id": interview_id, "company_id": current_recruiter.company_id})
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+
+    # Fetch submission and telemetry summaries
+    submission = await db.submissions.find_one({"interview_id": interview_id})
+    violations_count = await db.security_violations.count_documents({"interview_id": interview_id})
+
+    # Basic heuristic scoring
+    answers = (submission or {}).get("answers", [])
+    ai_scores = (submission or {}).get("ai_scores", {})
+    # Answers quality proxy: count and length
+    answer_count = len(answers)
+    avg_len = _safe_avg([len(str(a.get("answer", ""))) for a in answers])
+    answers_score = min(1.0, (answer_count / 5.0) * 0.6 + (avg_len / 400.0) * 0.4)  # 0..1
+
+    facial = float(ai_scores.get("facial") or ai_scores.get("facial_accuracy") or 0)
+    voice = float(ai_scores.get("voice") or ai_scores.get("voice_authenticity") or 0)
+    screen = float(ai_scores.get("screen") or ai_scores.get("screen_focus") or 0)
+    # Normalize if values are 0..1 already else assume 0..1
+    facial_n = facial if 0 <= facial <= 1 else max(0.0, min(1.0, facial / 1.0))
+    voice_n = voice if 0 <= voice <= 1 else max(0.0, min(1.0, voice / 1.0))
+    screen_n = screen if 0 <= screen <= 1 else max(0.0, min(1.0, screen / 1.0))
+
+    penalty = min(0.5, violations_count * 0.05)
+    overall = max(0.0, min(1.0, answers_score * 0.5 + facial_n * 0.2 + voice_n * 0.2 + screen_n * 0.1 - penalty))
+
+    if overall >= 0.75 and violations_count <= 2:
+        decision_str = "PASS"
+    elif overall < 0.45 or violations_count >= 8:
+        decision_str = "FAIL"
+    else:
+        decision_str = "REVIEW_REQUIRED"
+
+    decision = AIDecision(
+        decision=decision_str,
+        scores={
+            "overall": round(overall, 3),
+            "answers": round(answers_score, 3),
+            "facial": round(facial_n, 3),
+            "voice": round(voice_n, 3),
+            "screen": round(screen_n, 3),
+            "violations": int(violations_count),
+        },
+        reasons=[
+            "Weighted combination of answers, facial, voice, screen focus with violation penalty",
+        ],
+    )
+
+    # Persist decision (upsert)
+    await db.ai_decisions.update_one(
+        {"interview_id": interview_id},
+        {"$set": {"interview_id": interview_id, "decision": decision.dict()}},
+        upsert=True,
+    )
+    return decision
+
+
+@api_router.get("/ai/evaluate/{interview_id}", response_model=AIDecision)
+async def ai_get_decision(interview_id: str, current_recruiter: Recruiter = Depends(get_current_recruiter)):
+    interview = await db.interviews.find_one({"id": interview_id, "company_id": current_recruiter.company_id})
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    doc = await db.ai_decisions.find_one({"interview_id": interview_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Decision not found")
+    payload = doc.get("decision") or {}
+    # Ensure shape matches AIDecision
+    return AIDecision(**payload)
+
+
+@api_router.post("/ai/evaluate/{interview_id}/override", response_model=AIDecision)
+async def ai_override_decision(interview_id: str, data: Dict[str, Any], current_recruiter: Recruiter = Depends(get_current_recruiter)):
+    interview = await db.interviews.find_one({"id": interview_id, "company_id": current_recruiter.company_id})
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+
+    new_decision = str(data.get("decision") or "REVIEW_REQUIRED").upper()
+    if new_decision not in {"PASS", "FAIL", "REVIEW_REQUIRED"}:
+        raise HTTPException(status_code=400, detail="Invalid decision")
+
+    note = data.get("note")
+    now_decision = {
+        "decision": new_decision,
+        "scores": (data.get("scores") or {}),
+        "reasons": [r for r in (data.get("reasons") or [])] + ([f"Overridden by recruiter {current_recruiter.id}"] if note is None else [f"Overridden: {note}"]),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.ai_decisions.update_one(
+        {"interview_id": interview_id},
+        {"$set": {"interview_id": interview_id, "decision": now_decision}},
+        upsert=True,
+    )
+    return AIDecision(**now_decision)
+
 @api_router.get("/interviews/{interview_id}/summary")
 async def get_interview_summary(
     interview_id: str,
@@ -2668,7 +3615,8 @@ async def get_interview_summary(
 async def submit_interview_answers(
     interview_id: str,
     submission: Dict[str, Any],
-    current_candidate: CandidateUser = Depends(get_current_candidate)
+    current_candidate: CandidateUser = Depends(get_current_candidate),
+    seb_ok: bool = Depends(require_seb)
 ):
     # Verify interview belongs to candidate
     interview = await db.interviews.find_one({
@@ -2719,8 +3667,16 @@ async def get_interview_submission(
     submission.pop("_id", None)
     return submission
 
-=======
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
+# SEB presence check for frontend gating
+@api_router.get("/interviews/{interview_id}/seb-check")
+async def seb_check(
+    interview_id: str,
+    current_candidate: CandidateUser = Depends(get_current_candidate),
+    seb_ok: bool = Depends(require_seb)
+):
+    # If require_seb passes (or is disabled), return ok
+    return {"ok": True, "seb_required": SEB_REQUIRED}
+
 # WebSocket endpoint for real-time interview monitoring
 @api_router.websocket("/interviews/{interview_id}/ws/{user_type}")
 async def interview_websocket(websocket: WebSocket, interview_id: str, user_type: str):
@@ -2752,7 +3708,6 @@ async def serve_recording(interview_id: str, filename: str):
     
     return {"file_path": str(file_path), "message": "File exists"}  # In production, return actual file
 
-<<<<<<< HEAD
 # AI Monitoring and Secure Interview Endpoints
 @api_router.post("/secure-interview/start")
 async def start_secure_interview(
@@ -3216,7 +4171,8 @@ async def start_interview(
 @api_router.post("/interviews/{interview_id}/end")
 async def end_interview(
     interview_id: str,
-    current_candidate: CandidateUser = Depends(get_current_candidate)
+    current_candidate: CandidateUser = Depends(get_current_candidate),
+    seb_ok: bool = Depends(require_seb)
 ):
     """End an interview"""
     # Verify interview exists and belongs to candidate
@@ -3238,997 +4194,200 @@ async def end_interview(
         "interview_id": interview_id,
         "status": "completed",
         "ended_at": datetime.now(timezone.utc).isoformat()
-=======
-# ==============================================
-# RECRUITCRM FEATURE ENDPOINTS
-# ==============================================
-
-# AI Resume Parsing Endpoints
-@api_router.post("/candidates/parse-resume")
-async def parse_resume_endpoint(
-    file: UploadFile = File(...),
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """AI-powered resume parsing with multi-language support"""
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="No file provided")
-    
-    file_content = await file.read()
-    parsing_result = await resume_parser.parse_resume(file_content, file.filename)
-    
-    if not parsing_result["success"]:
-        raise HTTPException(status_code=400, detail=f"Resume parsing failed: {parsing_result['error']}")
-    
-    return {
-        "message": "Resume parsed successfully",
-        "data": parsing_result["data"],
-        "raw_text": parsing_result["raw_text"][:500] + "..." if len(parsing_result["raw_text"]) > 500 else parsing_result["raw_text"]
     }
 
-@api_router.post("/candidates/bulk-parse")
-async def bulk_parse_resumes(
-    files: List[UploadFile] = File(...),
+# Question Sets (CRUD)
+@api_router.post("/question-sets", response_model=QuestionSet)
+async def create_question_set(
+    data: Dict[str, Any],
     current_recruiter: Recruiter = Depends(get_current_recruiter)
 ):
-    """Bulk resume parsing for multiple files"""
-    results = []
-    
-    for file in files:
-        if not file.filename:
-            continue
-        
-        file_content = await file.read()
-        parsing_result = await resume_parser.parse_resume(file_content, file.filename)
-        
-        results.append({
-            "filename": file.filename,
-            "success": parsing_result["success"],
-            "data": parsing_result.get("data"),
-            "error": parsing_result.get("error")
-        })
-    
-    return {
-        "message": f"Processed {len(results)} resumes",
-        "results": results,
-        "success_count": len([r for r in results if r["success"]]),
-        "error_count": len([r for r in results if not r["success"]])
-    }
-
-# Advanced Candidate Search
-@api_router.post("/candidates/advanced-search")
-async def advanced_candidate_search(
-    search_params: Dict[str, Any],
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Advanced Boolean and radius-based candidate search"""
-    
-    # Build MongoDB query from search parameters
-    query = {"company_id": current_recruiter.company_id}
-    
-    # Boolean search in skills, title, description
-    if search_params.get("boolean_query"):
-        boolean_query = search_params["boolean_query"]
-        query["$or"] = [
-            {"skills": {"$regex": boolean_query, "$options": "i"}},
-            {"current_title": {"$regex": boolean_query, "$options": "i"}},
-            {"bio": {"$regex": boolean_query, "$options": "i"}}
-        ]
-    
-    # Skills filter
-    if search_params.get("required_skills"):
-        query["skills"] = {"$in": search_params["required_skills"]}
-    
-    # Experience range
-    if search_params.get("min_experience"):
-        query["experience_years"] = {"$gte": search_params["min_experience"]}
-    if search_params.get("max_experience"):
-        if "experience_years" in query:
-            query["experience_years"]["$lte"] = search_params["max_experience"]
-        else:
-            query["experience_years"] = {"$lte": search_params["max_experience"]}
-    
-    # Location/radius search (simplified)
-    if search_params.get("location"):
-        query["location"] = {"$regex": search_params["location"], "$options": "i"}
-    
-    # Education level
-    if search_params.get("education_level"):
-        query["education"] = {"$regex": search_params["education_level"], "$options": "i"}
-    
-    # Salary range
-    if search_params.get("min_salary"):
-        query["expected_salary"] = {"$gte": search_params["min_salary"]}
-    if search_params.get("max_salary"):
-        if "expected_salary" in query:
-            query["expected_salary"]["$lte"] = search_params["max_salary"]
-        else:
-            query["expected_salary"] = {"$lte": search_params["max_salary"]}
-    
-    candidates = await db.candidates.find(query).limit(100).to_list(100)
-    
-    return {
-        "candidates": [CandidateUser(**candidate) for candidate in candidates],
-        "total_found": len(candidates),
-        "search_params": search_params
-    }
-
-# AI Candidate Sourcing
-@api_router.post("/candidates/ai-source")
-async def ai_candidate_sourcing(
-    sourcing_request: Dict[str, Any],
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """AI-powered candidate sourcing with natural language prompts"""
-    
-    job_requirements = sourcing_request.get("job_requirements", "")
-    search_params = sourcing_request.get("search_params", {})
-    
-    # Use AI to find candidates
-    sourced_candidates = await candidate_sourcing.find_candidates(job_requirements, search_params)
-    
-    # Save sourced candidates to database
-    for candidate_data in sourced_candidates:
-        candidate_data.update({
-            "id": str(uuid.uuid4()),
-            "company_id": current_recruiter.company_id,
-            "password_hash": hashlib.sha256("temp_password".encode()).hexdigest(),
-            "is_verified": False,
-            "created_at": datetime.now(timezone.utc)
-        })
-        
-        # Check if candidate already exists
-        existing = await db.candidates.find_one({"email": candidate_data["email"]})
-        if not existing:
-            await db.candidates.insert_one(candidate_data)
-            
-            # Log the sourcing activity  
-            source_log = CandidateSource(
-                candidate_id=candidate_data["id"],
-                source_type="ai_sourcing",
-                source_details={"prompt": job_requirements, "match_score": candidate_data.get("match_score", 0)},
-                recruiter_id=current_recruiter.id,
-                company_id=current_recruiter.company_id
-            )
-            await db.candidate_sources.insert_one(source_log.dict())
-    
-    return {
-        "message": f"Found {len(sourced_candidates)} candidates using AI",
-        "candidates": sourced_candidates,
-        "job_requirements": job_requirements
-    }
-
-# Email Automation Endpoints
-@api_router.post("/automation/email-sequences")
-async def create_email_sequence(
-    sequence_data: Dict[str, Any],
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Create automated email sequence"""
-    sequence_data.update({
-        "recruiter_id": current_recruiter.id,
-        "company_id": current_recruiter.company_id
-    })
-    
-    sequence_id = await email_service.create_email_sequence(sequence_data)
-    
-    return {
-        "message": "Email sequence created successfully",
-        "sequence_id": sequence_id
-    }
-
-@api_router.get("/automation/email-sequences")
-async def get_email_sequences(
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Get all email sequences for the company"""
-    sequences = await db.email_sequences.find({
-        "company_id": current_recruiter.company_id
-    }).to_list(100)
-    
-    return [EmailSequence(**seq) for seq in sequences]
-
-@api_router.post("/automation/email-campaigns")
-async def start_email_campaign(
-    campaign_data: Dict[str, Any],
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Start an email campaign"""
-    campaign_data.update({
-        "recruiter_id": current_recruiter.id,
-        "company_id": current_recruiter.company_id
-    })
-    
-    campaign_id = await email_service.start_campaign(campaign_data)
-    
-    return {
-        "message": "Email campaign started successfully",
-        "campaign_id": campaign_id
-    }
-
-@api_router.get("/automation/email-campaigns")
-async def get_email_campaigns(
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Get all email campaigns"""
-    campaigns = await db.email_campaigns.find({
-        "company_id": current_recruiter.company_id
-    }).to_list(100)
-    
-    return [EmailCampaign(**campaign) for campaign in campaigns]
-
-# Job Multiposting Endpoints
-@api_router.get("/job-boards")
-async def get_job_boards():
-    """Get list of available job boards"""
-    job_boards = await db.job_boards.find({"is_active": True}).to_list(1000)
-    
-    if not job_boards:
-        # Initialize with default job boards
-        default_boards = [
-            {"name": "Indeed", "website": "indeed.com", "category": "general", "posting_cost": 50.0},
-            {"name": "LinkedIn", "website": "linkedin.com", "category": "professional", "posting_cost": 100.0},
-            {"name": "Glassdoor", "website": "glassdoor.com", "category": "general", "posting_cost": 75.0},
-            {"name": "Monster", "website": "monster.com", "category": "general", "posting_cost": 60.0},
-            {"name": "CareerBuilder", "website": "careerbuilder.com", "category": "general", "posting_cost": 55.0},
-            {"name": "Dice", "website": "dice.com", "category": "tech", "posting_cost": 80.0},
-            {"name": "AngelList", "website": "angel.co", "category": "startup", "posting_cost": 40.0},
-            {"name": "Stack Overflow Jobs", "website": "stackoverflow.com", "category": "tech", "posting_cost": 90.0}
-        ]
-        
-        for board_data in default_boards:
-            board = JobBoard(**board_data)
-            await db.job_boards.insert_one(board.dict())
-        
-        job_boards = await db.job_boards.find({"is_active": True}).to_list(1000)
-    
-    return [JobBoard(**board) for board in job_boards]
-
-@api_router.post("/jobs/{job_id}/multipost")
-async def multipost_job(
-    job_id: str,
-    posting_data: Dict[str, Any],
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Post job to multiple job boards"""
-    
-    # Get job details
-    job = await db.jobs.find_one({"id": job_id, "company_id": current_recruiter.company_id})
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    
-    selected_boards = posting_data.get("job_boards", [])
-    
-    # Post to selected job boards
-    posting_results = await job_board_service.multipost_job(job, selected_boards)
-    
-    # Save posting records
-    for result in posting_results["results"]:
-        if result["status"] == "success":
-            posting = JobPosting(
-                job_id=job_id,
-                job_board_id=result.get("board_id", result["board"]),
-                external_id=result.get("external_id"),
-                cost=result.get("cost", 0.0)
-            )
-            await db.job_postings.insert_one(posting.dict())
-    
-    return {
-        "message": f"Job posted to {posting_results['total_posted']} job boards",
-        "results": posting_results["results"],
-        "total_posted": posting_results["total_posted"]
-    }
-
-# Candidate Hotlists Management
-@api_router.post("/candidates/hotlists")
-async def create_hotlist(
-    hotlist_data: Dict[str, Any],
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Create candidate hotlist/talent pool"""
-    hotlist_data.update({
-        "recruiter_id": current_recruiter.id,
-        "company_id": current_recruiter.company_id
-    })
-    
-    hotlist = CandidateHotlist(**hotlist_data)
-    await db.candidate_hotlists.insert_one(hotlist.dict())
-    
-    return {
-        "message": "Hotlist created successfully",
-        "hotlist": hotlist
-    }
-
-@api_router.get("/candidates/hotlists")
-async def get_hotlists(
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Get all hotlists for the company"""
-    hotlists = await db.candidate_hotlists.find({
-        "company_id": current_recruiter.company_id
-    }).to_list(100)
-    
-    return [CandidateHotlist(**hotlist) for hotlist in hotlists]
-
-@api_router.post("/candidates/hotlists/{hotlist_id}/add-candidates")
-async def add_candidates_to_hotlist(
-    hotlist_id: str,
-    candidate_data: Dict[str, Any],
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Add candidates to hotlist"""
-    candidate_ids = candidate_data.get("candidate_ids", [])
-    
-    await db.candidate_hotlists.update_one(
-        {"id": hotlist_id, "company_id": current_recruiter.company_id},
-        {"$addToSet": {"candidate_ids": {"$each": candidate_ids}}}
+    qs = QuestionSet(
+        company_id=current_recruiter.company_id,
+        name=str(data.get("name")),
+        description=data.get("description"),
+        questions=[InterviewQuestion(**q) for q in data.get("questions", [])]
     )
-    
-    return {
-        "message": f"Added {len(candidate_ids)} candidates to hotlist"
-    }
+    await db.question_sets.insert_one(qs.dict())
+    return qs
 
-# Deal Management Endpoints
-@api_router.post("/deals")
-async def create_deal(
-    deal_data: Dict[str, Any],
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Create new deal"""
-    deal_data.update({
-        "recruiter_id": current_recruiter.id,
-        "company_id": current_recruiter.company_id
-    })
-    
-    deal = Deal(**deal_data)
-    await db.deals.insert_one(deal.dict())
-    
-    return {
-        "message": "Deal created successfully",
-        "deal": deal
-    }
+@api_router.get("/question-sets", response_model=List[QuestionSet])
+async def list_question_sets(current_recruiter: Recruiter = Depends(get_current_recruiter)):
+    items = await db.question_sets.find({"company_id": current_recruiter.company_id}).to_list(1000)
+    return [QuestionSet(**{k: v for k, v in dict(it).items() if k != "_id"}) for it in items]
 
-@api_router.get("/deals")
-async def get_deals(
-    stage: Optional[str] = None,
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Get all deals with optional stage filter"""
-    query = {"company_id": current_recruiter.company_id}
-    if stage:
-        query["stage"] = stage
-    
-    deals = await db.deals.find(query).to_list(100)
-    
-    return [Deal(**deal) for deal in deals]
+@api_router.get("/question-sets/{qs_id}", response_model=QuestionSet)
+async def get_question_set_detail(qs_id: str, current_recruiter: Recruiter = Depends(get_current_recruiter)):
+    qs = await db.question_sets.find_one({"id": qs_id, "company_id": current_recruiter.company_id})
+    if not qs:
+        raise HTTPException(status_code=404, detail="Question set not found")
+    qs.pop("_id", None)
+    return QuestionSet(**qs)
 
-@api_router.put("/deals/{deal_id}")
-async def update_deal(
-    deal_id: str,
-    deal_updates: Dict[str, Any],
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Update deal"""
-    deal_updates["updated_at"] = datetime.now(timezone.utc)
-    
-    await db.deals.update_one(
-        {"id": deal_id, "company_id": current_recruiter.company_id},
-        {"$set": deal_updates}
-    )
-    
-    return {"message": "Deal updated successfully"}
+@api_router.put("/question-sets/{qs_id}", response_model=QuestionSet)
+async def update_question_set(qs_id: str, data: Dict[str, Any], current_recruiter: Recruiter = Depends(get_current_recruiter)):
+    qs = await db.question_sets.find_one({"id": qs_id, "company_id": current_recruiter.company_id})
+    if not qs:
+        raise HTTPException(status_code=404, detail="Question set not found")
+    update: Dict[str, Any] = {}
+    if "name" in data:
+        update["name"] = data["name"]
+    if "description" in data:
+        update["description"] = data["description"]
+    if "questions" in data:
+        update["questions"] = [InterviewQuestion(**q).dict() for q in data["questions"]]
+    update["updated_at"] = datetime.now(timezone.utc)
+    await db.question_sets.update_one({"id": qs_id}, {"$set": update})
+    new_doc = await db.question_sets.find_one({"id": qs_id})
+    new_doc.pop("_id", None)
+    return QuestionSet(**new_doc)
 
-# Client Portal Endpoints
-@api_router.post("/client-portal/submissions")
-async def create_client_submission(
-    submission_data: Dict[str, Any],
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Submit candidates to client portal"""
-    submission_data.update({
-        "recruiter_id": current_recruiter.id,
-        "company_id": current_recruiter.company_id
-    })
-    
-    submission = ClientPortalSubmission(**submission_data)
-    await db.client_submissions.insert_one(submission.dict())
-    
-    return {
-        "message": "Candidates submitted to client portal",
-        "submission": submission
-    }
+@api_router.delete("/question-sets/{qs_id}")
+async def delete_question_set(qs_id: str, current_recruiter: Recruiter = Depends(get_current_recruiter)):
+    result = await db.question_sets.delete_one({"id": qs_id, "company_id": current_recruiter.company_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Question set not found")
+    return {"message": "Question set deleted"}
 
-@api_router.get("/client-portal/submissions")
-async def get_client_submissions(
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Get all client submissions"""
-    submissions = await db.client_submissions.find({
-        "company_id": current_recruiter.company_id
-    }).to_list(100)
-    
-    return [ClientPortalSubmission(**submission) for submission in submissions]
+# Assign question set to an interview
+@api_router.post("/interviews/{interview_id}/assign-question-set")
+async def assign_question_set_to_interview(interview_id: str, question_set_id: str, current_recruiter: Recruiter = Depends(get_current_recruiter)):
+    interview = await db.interviews.find_one({"id": interview_id, "company_id": current_recruiter.company_id})
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    qs = await db.question_sets.find_one({"id": question_set_id, "company_id": current_recruiter.company_id})
+    if not qs:
+        raise HTTPException(status_code=404, detail="Question set not found")
+    await db.interviews.update_one({"id": interview_id}, {"$set": {"question_set_id": question_set_id}})
+    return {"message": "Question set assigned"}
 
-# Invoice Management
-@api_router.post("/invoices")
-async def create_invoice(
-    invoice_data: Dict[str, Any],
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Create invoice"""
-    invoice_data.update({
-        "recruiter_id": current_recruiter.id,
-        "company_id": current_recruiter.company_id,
-        "invoice_number": f"INV-{int(datetime.now().timestamp())}"
-    })
-    
-    invoice = Invoice(**invoice_data)
-    await db.invoices.insert_one(invoice.dict())
-    
-    return {
-        "message": "Invoice created successfully",
-        "invoice": invoice
-    }
-
-@api_router.get("/invoices")
-async def get_invoices(
-    status: Optional[str] = None,
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Get invoices with optional status filter"""
-    query = {"company_id": current_recruiter.company_id}
-    if status:
-        query["status"] = status
-    
-    invoices = await db.invoices.find(query).to_list(100)
-    
-    return [Invoice(**invoice) for invoice in invoices]
-
-# Calendar Integration
-@api_router.post("/calendar/events")
-async def create_calendar_event(
-    event_data: Dict[str, Any],
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Create calendar event"""
-    event_data.update({
-        "recruiter_id": current_recruiter.id,
-        "company_id": current_recruiter.company_id
-    })
-    
-    event = CalendarEvent(**event_data)
-    await db.calendar_events.insert_one(event.dict())
-    
-    return {
-        "message": "Calendar event created successfully",
-        "event": event
-    }
-
-@api_router.get("/calendar/events")
-async def get_calendar_events(
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Get calendar events with optional date range"""
-    query = {"company_id": current_recruiter.company_id}
-    
-    if start_date and end_date:
-        query["start_time"] = {
-            "$gte": datetime.fromisoformat(start_date),
-            "$lte": datetime.fromisoformat(end_date)
-        }
-    
-    events = await db.calendar_events.find(query).to_list(100)
-    
-    return [CalendarEvent(**event) for event in events]
-
-# Analytics and Reporting
-@api_router.get("/analytics/dashboard")
-async def get_analytics_dashboard(
-    period: str = "monthly",
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Get comprehensive analytics dashboard"""
-    
-    # Calculate date range based on period
-    now = datetime.now(timezone.utc)
-    if period == "weekly":
-        start_date = now - timedelta(days=7)
-    elif period == "monthly":
-        start_date = now - timedelta(days=30)
-    elif period == "quarterly":
-        start_date = now - timedelta(days=90)
+@api_router.get("/interviews/{interview_id}/question-set")
+async def get_interview_question_set(interview_id: str, credentials: HTTPAuthorizationCredentials = Depends(security)):
+    # Allow both candidate and recruiter to read assigned question set if authorized
+    try:
+        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=["HS256"])
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    interview = await db.interviews.find_one({"id": interview_id})
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    # Authorization: candidate owner or recruiter of same company
+    if payload.get("role") == "candidate":
+        if interview.get("candidate_id") != payload.get("user_id"):
+            raise HTTPException(status_code=403, detail="Forbidden")
+    elif payload.get("role") == "recruiter":
+        if interview.get("company_id") != payload.get("company_id"):
+            raise HTTPException(status_code=403, detail="Forbidden")
     else:
-        start_date = now - timedelta(days=365)
-    
-    # Get various metrics
-    analytics = {
-        "period": period,
-        "date_range": {"start": start_date, "end": now},
-        "metrics": {}
-    }
-    
-    # Total candidates
-    total_candidates = await db.candidates.count_documents({
-        "company_id": current_recruiter.company_id,
-        "created_at": {"$gte": start_date}
-    })
-    analytics["metrics"]["total_candidates"] = total_candidates
-    
-    # Total jobs
-    total_jobs = await db.jobs.count_documents({
-        "company_id": current_recruiter.company_id,
-        "created_at": {"$gte": start_date}
-    })
-    analytics["metrics"]["total_jobs"] = total_jobs
-    
-    # Total applications
-    total_applications = await db.candidate_applications.count_documents({
-        "company_id": current_recruiter.company_id,
-        "created_at": {"$gte": start_date}
-    })
-    analytics["metrics"]["total_applications"] = total_applications
-    
-    # Active deals value
-    deals = await db.deals.find({
-        "company_id": current_recruiter.company_id,
-        "stage": {"$nin": ["closed_won", "closed_lost"]}
-    }).to_list(1000)
-    
-    total_deal_value = sum(deal.get("value", 0) for deal in deals)
-    analytics["metrics"]["pipeline_value"] = total_deal_value
-    analytics["metrics"]["active_deals"] = len(deals)
-    
-    # Interview stats
-    interviews = await db.interviews.find({
-        "company_id": current_recruiter.company_id,
-        "scheduled_date": {"$gte": start_date}
-    }).to_list(1000)
-    
-    analytics["metrics"]["total_interviews"] = len(interviews)
-    analytics["metrics"]["completed_interviews"] = len([i for i in interviews if i.get("status") == "completed"])
-    
-    # Placement rate calculation
-    placements = await db.candidate_applications.count_documents({
-        "company_id": current_recruiter.company_id,
-        "stage": "hired",
-        "created_at": {"$gte": start_date}
-    })
-    
-    placement_rate = (placements / total_applications * 100) if total_applications > 0 else 0
-    analytics["metrics"]["placement_rate"] = round(placement_rate, 2)
-    analytics["metrics"]["total_placements"] = placements
-    
-    return analytics
+        raise HTTPException(status_code=403, detail="Forbidden")
+    qs_id = interview.get("question_set_id")
+    if not qs_id:
+        return {"questions": []}
+    qs = await db.question_sets.find_one({"id": qs_id})
+    if not qs:
+        return {"questions": []}
+    questions = qs.get("questions", [])
+    payload_qs = {k: v for k, v in dict(qs).items() if k != "_id"}
+    return {"question_set": payload_qs, "questions": questions}
 
-# Team Management
-@api_router.post("/team/members")
-async def add_team_member(
-    member_data: Dict[str, Any],
+# Recruiter Evaluations
+@api_router.post("/interviews/{interview_id}/evaluations", response_model=RecruiterEvaluation)
+async def submit_recruiter_evaluation(
+    interview_id: str,
+    data: Dict[str, Any],
     current_recruiter: Recruiter = Depends(get_current_recruiter)
 ):
-    """Add team member"""
-    member_data.update({
-        "company_id": current_recruiter.company_id
-    })
-    
-    team_member = TeamMember(**member_data)
-    await db.team_members.insert_one(team_member.dict())
-    
-    return {
-        "message": "Team member added successfully",
-        "member": team_member
-    }
-
-@api_router.get("/team/members")
-async def get_team_members(
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Get all team members"""
-    members = await db.team_members.find({
-        "company_id": current_recruiter.company_id,
-        "is_active": True
-    }).to_list(100)
-    
-    return [TeamMember(**member) for member in members]
-
-# Workflow Automation
-@api_router.post("/automation/workflows")
-async def create_workflow(
-    workflow_data: Dict[str, Any],
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Create no-code workflow automation"""
-    workflow_data.update({
-        "recruiter_id": current_recruiter.id,
-        "company_id": current_recruiter.company_id
-    })
-    
-    workflow = WorkflowAutomation(**workflow_data)
-    await db.workflow_automations.insert_one(workflow.dict())
-    
-    return {
-        "message": "Workflow automation created successfully",
-        "workflow": workflow
-    }
-
-@api_router.get("/automation/workflows")
-async def get_workflows(
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Get all workflow automations"""
-    workflows = await db.workflow_automations.find({
-        "company_id": current_recruiter.company_id
-    }).to_list(100)
-    
-    return [WorkflowAutomation(**workflow) for workflow in workflows]
-
-# Bulk Operations
-@api_router.post("/candidates/bulk-email")
-async def send_bulk_email(
-    email_data: Dict[str, Any],
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Send bulk personalized emails"""
-    candidate_ids = email_data.get("candidate_ids", [])
-    subject = email_data.get("subject", "")
-    body = email_data.get("body", "")
-    
-    sent_count = 0
-    errors = []
-    
-    for candidate_id in candidate_ids:
-        try:
-            candidate = await db.candidates.find_one({"id": candidate_id})
-            if candidate:
-                # Personalize email
-                personalized_body = body.replace("{candidate_name}", candidate.get("full_name", ""))
-                personalized_subject = subject.replace("{candidate_name}", candidate.get("full_name", ""))
-                
-                # Send email (mock implementation)
-                result = await email_service.send_sequence_email(
-                    candidate["email"],
-                    personalized_subject,
-                    personalized_body,
-                    current_recruiter.email
-                )
-                
-                if result["success"]:
-                    sent_count += 1
-                    
-                    # Log communication
-                    comm_log = CommunicationLog(
-                        sender_id=current_recruiter.id,
-                        recipient_id=candidate_id,
-                        recipient_type="candidate",
-                        communication_type="email",
-                        subject=personalized_subject,
-                        content=personalized_body,
-                        status="sent"
-                    )
-                    await db.communication_logs.insert_one(comm_log.dict())
-                else:
-                    errors.append(f"Failed to send to {candidate['email']}: {result['error']}")
-        except Exception as e:
-            errors.append(f"Error processing candidate {candidate_id}: {str(e)}")
-    
-    return {
-        "message": f"Bulk email completed. Sent: {sent_count}, Errors: {len(errors)}",
-        "sent_count": sent_count,
-        "error_count": len(errors),
-        "errors": errors[:10]  # Limit error messages
-    }
-
-# Data Enrichment
-@api_router.post("/candidates/{candidate_id}/enrich")
-async def enrich_candidate_data(
-    candidate_id: str,
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Enrich candidate data with verified emails, phone numbers, social profiles"""
-    
-    candidate = await db.candidates.find_one({
-        "id": candidate_id,
-        "company_id": current_recruiter.company_id
-    })
-    
-    if not candidate:
-        raise HTTPException(status_code=404, detail="Candidate not found")
-    
-    # Mock data enrichment - in production, integrate with services like Clearbit, Hunter, Apollo
-    enriched_data = {
-        "email_verified": True,
-        "phone_verified": False,
-        "social_profiles": {
-            "linkedin": f"https://linkedin.com/in/{candidate['full_name'].lower().replace(' ', '-')}",
-            "github": f"https://github.com/{candidate['full_name'].lower().replace(' ', '')}"
-        },
-        "employment_history": [
-            {
-                "company": candidate.get("current_company", "Unknown"),
-                "title": candidate.get("current_title", "Unknown"),
-                "duration": "2+ years",
-                "verified": False
-            }
-        ],
-        "skills_verified": candidate.get("skills", [])[:5],
-        "enrichment_source": "mock_service"
-    }
-    
-    enrichment = CandidateEnrichment(
-        candidate_id=candidate_id,
-        **enriched_data
-    )
-    
-    # Update or insert enrichment data
-    await db.candidate_enrichments.update_one(
-        {"candidate_id": candidate_id},
-        {"$set": enrichment.dict()},
-        upsert=True
-    )
-    
-    return {
-        "message": "Candidate data enriched successfully",
-        "enrichment": enrichment
-    }
-
-# Chrome Extension Support (Mock endpoint for sourcing)
-@api_router.post("/candidates/chrome-import")
-async def chrome_extension_import(
-    profile_data: Dict[str, Any],
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Import candidate from Chrome extension (LinkedIn, Xing, etc.)"""
-    
-    # Create candidate from Chrome extension data
-    candidate_data = {
-        "id": str(uuid.uuid4()),
-        "full_name": profile_data.get("name", "Unknown"),
-        "email": profile_data.get("email", ""),
-        "phone": profile_data.get("phone", ""),
-        "current_title": profile_data.get("title", ""),
-        "current_company": profile_data.get("company", ""),
-        "location": profile_data.get("location", ""),
-        "skills": profile_data.get("skills", []),
-        "bio": profile_data.get("summary", ""),
-        "linkedin_url": profile_data.get("linkedin_url", ""),
-        "experience_years": profile_data.get("experience_years", 0),
-        "company_id": current_recruiter.company_id,
-        "password_hash": hashlib.sha256("temp_password".encode()).hexdigest(),
-        "is_verified": False,
-        "created_at": datetime.now(timezone.utc)
-    }
-    
-    # Check if candidate already exists
-    existing = await db.candidates.find_one({"email": candidate_data["email"]})
-    if existing:
-        return {
-            "message": "Candidate already exists in database",
-            "candidate_id": existing["id"],
-            "duplicate": True
-        }
-    
-    # Insert new candidate
-    await db.candidates.insert_one(candidate_data)
-    
-    # Log the sourcing
-    source_log = CandidateSource(
-        candidate_id=candidate_data["id"],
-        source_type="chrome_extension",
-        source_details={
-            "platform": profile_data.get("platform", "unknown"),
-            "url": profile_data.get("source_url", "")
-        },
+    interview = await db.interviews.find_one({"id": interview_id, "company_id": current_recruiter.company_id})
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    eval_doc = RecruiterEvaluation(
+        interview_id=interview_id,
         recruiter_id=current_recruiter.id,
-        company_id=current_recruiter.company_id
+        rubric_scores=data.get("rubric_scores", {}),
+        overall_score=data.get("overall_score"),
+        notes=data.get("notes")
     )
-    await db.candidate_sources.insert_one(source_log.dict())
-    
-    return {
-        "message": "Candidate imported successfully from Chrome extension",
-        "candidate": CandidateUser(**candidate_data),
-        "duplicate": False
-    }
+    await db.evaluations.insert_one(eval_doc.dict())
+    return eval_doc
 
-# Advanced Analytics Endpoints
-@api_router.get("/analytics/performance")
-async def get_performance_analytics(
-    period: str = "monthly",
-    recruiter_id: Optional[str] = None,
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Get detailed performance analytics"""
-    
-    # Date range calculation
-    now = datetime.now(timezone.utc)
-    if period == "weekly":
-        start_date = now - timedelta(days=7)
-    elif period == "monthly":
-        start_date = now - timedelta(days=30)
-    elif period == "quarterly":
-        start_date = now - timedelta(days=90)
-    else:
-        start_date = now - timedelta(days=365)
-    
-    query_filter = {
-        "company_id": current_recruiter.company_id,
-        "created_at": {"$gte": start_date}
-    }
-    
-    if recruiter_id:
-        query_filter["recruiter_id"] = recruiter_id
-    
-    # Calculate various metrics
-    metrics = {}
-    
-    # Time to hire
-    hired_applications = await db.candidate_applications.find({
-        **query_filter,
-        "stage": "hired"
-    }).to_list(1000)
-    
-    if hired_applications:
-        time_to_hire_days = []
-        for app in hired_applications:
-            if app.get("hired_date") and app.get("created_at"):
-                days = (app["hired_date"] - app["created_at"]).days
-                time_to_hire_days.append(days)
-        
-        if time_to_hire_days:
-            metrics["average_time_to_hire"] = round(statistics.mean(time_to_hire_days), 1)
-            metrics["median_time_to_hire"] = round(statistics.median(time_to_hire_days), 1)
-        else:
-            metrics["average_time_to_hire"] = 0
-            metrics["median_time_to_hire"] = 0
-    
-    # Source effectiveness
-    sources = await db.candidate_sources.find(query_filter).to_list(1000)
-    source_stats = {}
-    for source in sources:
-        source_type = source.get("source_type", "unknown")
-        if source_type not in source_stats:
-            source_stats[source_type] = {"count": 0, "hired": 0}
-        source_stats[source_type]["count"] += 1
-        
-        # Check if this candidate was hired
-        hired = await db.candidate_applications.find_one({
-            "candidate_id": source["candidate_id"],
-            "stage": "hired"
-        })
-        if hired:
-            source_stats[source_type]["hired"] += 1
-    
-    # Calculate conversion rates
-    for source_type, stats in source_stats.items():
-        if stats["count"] > 0:
-            stats["conversion_rate"] = round(stats["hired"] / stats["count"] * 100, 2)
-        else:
-            stats["conversion_rate"] = 0
-    
-    metrics["source_effectiveness"] = source_stats
-    
-    # Interview statistics
-    interviews = await db.interviews.find(query_filter).to_list(1000)
-    interview_stats = {
-        "total": len(interviews),
-        "completed": len([i for i in interviews if i.get("status") == "completed"]),
-        "no_show": len([i for i in interviews if i.get("status") == "no_show"]),
-        "cancelled": len([i for i in interviews if i.get("status") == "cancelled"])
-    }
-    
-    if interview_stats["total"] > 0:
-        interview_stats["completion_rate"] = round(interview_stats["completed"] / interview_stats["total"] * 100, 2)
-        interview_stats["no_show_rate"] = round(interview_stats["no_show"] / interview_stats["total"] * 100, 2)
-    else:
-        interview_stats["completion_rate"] = 0
-        interview_stats["no_show_rate"] = 0
-    
-    metrics["interview_stats"] = interview_stats
-    
-    # Revenue metrics
-    deals = await db.deals.find({
-        "company_id": current_recruiter.company_id,
-        "created_at": {"$gte": start_date}
-    }).to_list(1000)
-    
-    revenue_stats = {
-        "total_deals": len(deals),
-        "won_deals": len([d for d in deals if d.get("stage") == "closed_won"]),
-        "lost_deals": len([d for d in deals if d.get("stage") == "closed_lost"]),
-        "pipeline_value": sum(d.get("value", 0) for d in deals if d.get("stage") not in ["closed_won", "closed_lost"]),
-        "won_value": sum(d.get("value", 0) for d in deals if d.get("stage") == "closed_won")
-    }
-    
-    if revenue_stats["total_deals"] > 0:
-        revenue_stats["win_rate"] = round(revenue_stats["won_deals"] / revenue_stats["total_deals"] * 100, 2)
-    else:
-        revenue_stats["win_rate"] = 0
-    
-    metrics["revenue_stats"] = revenue_stats
-    
-    return {
-        "period": period,
-        "date_range": {"start": start_date, "end": now},
-        "metrics": metrics
-    }
+@api_router.get("/interviews/{interview_id}/evaluations", response_model=List[RecruiterEvaluation])
+async def list_recruiter_evaluations(interview_id: str, current_recruiter: Recruiter = Depends(get_current_recruiter)):
+    interview = await db.interviews.find_one({"id": interview_id, "company_id": current_recruiter.company_id})
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    items = await db.evaluations.find({"interview_id": interview_id}).to_list(1000)
+    return [RecruiterEvaluation(**{k: v for k, v in dict(it).items() if k != "_id"}) for it in items]
 
-# Communication Tracking
-@api_router.get("/communications/log")
-async def get_communication_log(
-    recipient_id: Optional[str] = None,
-    communication_type: Optional[str] = None,
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Get communication log with filters"""
-    
-    query = {"sender_id": current_recruiter.id}
-    
-    if recipient_id:
-        query["recipient_id"] = recipient_id
-    
-    if communication_type:
-        query["communication_type"] = communication_type
-    
-    communications = await db.communication_logs.find(query).limit(100).to_list(100)
-    
-    return [CommunicationLog(**comm) for comm in communications]
-
-# Integration Hub (Mock endpoints for popular integrations)
-@api_router.get("/integrations/available")
-async def get_available_integrations():
-    """Get list of available integrations"""
-    integrations = [
-        {"name": "LinkedIn Recruiter", "type": "sourcing", "status": "available"},
-        {"name": "Indeed API", "type": "job_boards", "status": "available"},
-        {"name": "Zoom", "type": "video_calls", "status": "available"},
-        {"name": "Google Calendar", "type": "calendar", "status": "available"},
-        {"name": "Outlook Calendar", "type": "calendar", "status": "available"},
-        {"name": "Slack", "type": "communication", "status": "available"},
-        {"name": "Microsoft Teams", "type": "communication", "status": "available"},
-        {"name": "Zapier", "type": "automation", "status": "available"},
-        {"name": "Clearbit", "type": "data_enrichment", "status": "available"},
-        {"name": "HubSpot", "type": "crm", "status": "available"}
-    ]
-    
-    return integrations
-
-@api_router.post("/integrations/{integration_name}/connect")
-async def connect_integration(
-    integration_name: str,
-    connection_data: Dict[str, Any],
-    current_recruiter: Recruiter = Depends(get_current_recruiter)
-):
-    """Connect to external integration"""
-    
-    # Mock integration connection - in production, handle OAuth flows
-    connection_result = {
-        "integration": integration_name,
-        "status": "connected",
-        "connected_at": datetime.now(timezone.utc),
-        "account_info": connection_data.get("account_info", {}),
-        "features_enabled": connection_data.get("features", [])
+# Webhooks for integrations (placeholders)
+@api_router.post("/integrations/jobma/webhook")
+async def jobma_webhook(payload: Dict[str, Any], authorization: Optional[str] = None):
+    secret = os.getenv("JOBMA_WEBHOOK_SECRET")
+    # In a real implementation, verify signature from headers; here we just check a query/header equals secret
+    if secret and authorization and authorization != secret:
+        raise HTTPException(status_code=401, detail="Invalid signature")
+    event = {
+        "provider": "jobma",
+        "payload": payload,
+        "received_at": datetime.now(timezone.utc)
     }
-    
-    return {
-        "message": f"Successfully connected to {integration_name}",
-        "connection": connection_result
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
+    await db.integration_events.insert_one(event)
+    # Optionally: update interview/application based on event['type']
+    return {"status": "ok"}
+
+@api_router.post("/integrations/recruitcrm/webhook")
+async def recruitcrm_webhook(payload: Dict[str, Any], authorization: Optional[str] = None):
+    # Similar placeholder verification
+    event = {
+        "provider": "recruitcrm",
+        "payload": payload,
+        "received_at": datetime.now(timezone.utc)
     }
+    await db.integration_events.insert_one(event)
+    return {"status": "ok"}
+
+# ----------------------
+# Video Submissions (Firebase URLs)
+# ----------------------
+
+@api_router.post("/video-submissions")
+async def create_video_submission(payload: Dict[str, Any]):
+    # Accept both camelCase and snake_case keys for convenience
+    data = {
+        "candidate_id": payload.get("candidateId") or payload.get("candidate_id"),
+        "candidate_email": payload.get("candidateEmail") or payload.get("candidate_email"),
+        "full_name": payload.get("fullName") or payload.get("full_name"),
+        "job_id": payload.get("jobId") or payload.get("job_id"),
+        "company_id": payload.get("companyId") or payload.get("company_id"),
+        "video_url": payload.get("videoUrl") or payload.get("video_url"),
+        "size_bytes": payload.get("sizeBytes") or payload.get("size_bytes"),
+        "duration_sec": payload.get("durationSec") or payload.get("duration_sec"),
+    }
+    if not data.get("candidate_id"):
+        raise HTTPException(status_code=400, detail="candidateId required")
+    if not data.get("video_url"):
+        raise HTTPException(status_code=400, detail="videoUrl required")
+
+    doc = VideoSubmission(**data)
+    await db.video_submissions.insert_one(doc.dict())
+    return {"ok": True, "submission": doc}
+
+@api_router.get("/video-submissions")
+async def list_video_submissions(companyId: Optional[str] = None, jobId: Optional[str] = None, candidateId: Optional[str] = None):
+    query: Dict[str, Any] = {}
+    if companyId:
+        query["company_id"] = companyId
+    if jobId:
+        query["job_id"] = jobId
+    if candidateId:
+        query["candidate_id"] = candidateId
+    items = await db.video_submissions.find(query).sort("created_at", -1).to_list(1000)
+    for it in items:
+        it.pop("_id", None)
+    return {"items": items}
 
 # Include the router in the main app
 app.include_router(api_router)
 
-<<<<<<< HEAD
-=======
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
->>>>>>> 1eba1f71b2a668a347798e56e2106694e0fb7a30
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,

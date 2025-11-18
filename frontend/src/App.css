@@ -588,3 +588,14 @@ input:focus, textarea:focus, select:focus {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
+
+/* Hide any residual Emergent watermark/badge injected by templates or scripts */
+#emergent-badge,
+a[href*="emergent.sh"],
+a[title*="Emergent"],
+[aria-label*="Emergent"],
+div:has(> p:contains("Made with Emergent")),
+div:has(> span:contains("Made with Emergent")) {
+  display: none !important;
+  visibility: hidden !important;
+}

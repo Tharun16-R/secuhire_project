@@ -121,6 +121,7 @@ const OverviewMetrics = ({ analytics, period }) => {
   if (!analytics) return null;
 
   const metrics = analytics.metrics || {};
+  const interviews = analytics.interviews || [];
   
   return (
     <div className="space-y-6">
@@ -155,6 +156,73 @@ const OverviewMetrics = ({ analytics, period }) => {
           trend={15}
         />
       </div>
+
+      {/* Aptitude Interview Summary */}
+      {interviews.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Aptitude Interview Performance</span>
+              <span className="text-xs text-gray-500">Last {Math.min(interviews.length, 10)} interviews</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-xs">
+                <thead>
+                  <tr className="text-left text-gray-500 border-b">
+                    <th className="py-2 pr-4">Candidate</th>
+                    <th className="py-2 pr-4">Job</th>
+                    <th className="py-2 pr-4">Final Status</th>
+                    <th className="py-2 pr-4">Rounds</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {interviews.slice(0, 10).map((it) => {
+                    const rounds = it.rounds || [];
+                    const jobIdShort = (it.job_id || '').slice(0, 8) || '-';
+                    const finalStatus = it.finalStatus || '-';
+                    return (
+                      <tr key={it.interview_id} className="border-b last:border-0">
+                        <td className="py-1.5 pr-4 whitespace-nowrap">{it.candidate_name || it.candidate_id || '-'}</td>
+                        <td className="py-1.5 pr-4 text-gray-600 whitespace-nowrap">{jobIdShort}</td>
+                        <td className="py-1.5 pr-4 whitespace-nowrap">
+                          <span className={finalStatus === 'Selected' ? 'text-green-700 font-semibold' : finalStatus === 'Rejected' ? 'text-red-700 font-semibold' : 'text-slate-700'}>
+                            {finalStatus}
+                          </span>
+                        </td>
+                        <td className="py-1.5 pr-4">
+                          {rounds.length === 0 ? (
+                            <span className="text-gray-400">No rounds</span>
+                          ) : (
+                            <div className="flex flex-wrap gap-1">
+                              {rounds.map((r) => (
+                                <span
+                                  key={r.round}
+                                  className={`px-1.5 py-0.5 rounded-full border text-[10px] ${
+                                    r.roundStatus === 'Passed'
+                                      ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                                      : r.roundStatus === 'Failed'
+                                      ? 'border-red-300 bg-red-50 text-red-800'
+                                      : 'border-slate-200 bg-slate-50 text-slate-700'
+                                  }`}
+                                >
+                                  R{r.round}: {typeof r.percentage === 'number' ? `${r.percentage.toFixed(1)}%` : '-'}
+                                  {r.roundStatus ? ` · ${r.roundStatus}` : ''}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Performance Indicators */}
       <div className="grid md:grid-cols-3 gap-4">

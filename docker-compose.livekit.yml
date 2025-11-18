@@ -1,0 +1,67 @@
+version: "3.9"
+
+services:
+  livekit:
+    image: livekit/livekit-server:v1.6.2
+    command: >
+      --dev
+      --node-ip=0.0.0.0
+      --bind 0.0.0.0
+      --rtc.port=7881
+      --ws-port=7880
+      --ws-tls=false
+      --keys ${LIVEKIT_API_KEY}:${LIVEKIT_API_SECRET}
+      --turn.enabled=true
+      --turn.domain=${TURN_DOMAIN}
+      --turn.external-ip=${TURN_EXTERNAL_IP}
+      --turn.user=${TURN_USERNAME}
+      --turn.password=${TURN_PASSWORD}
+      --egress.filepath=/recordings
+    environment:
+      - LIVEKIT_KEYS=${LIVEKIT_API_KEY}:${LIVEKIT_API_SECRET}
+    volumes:
+      - livekit_recordings:/recordings
+    ports:
+      - "7880:7880"
+      - "7881:7881/tcp"
+      - "7881:7881/udp"
+
+  # coturn service disabled for Option A (use livekit built-in TURN)
+  #coturn:
+  #  image: coturn/coturn:4.6.2
+  #  command:
+  #    - -n
+  #    - --log-file=stdout
+  #    - --min-port=49160
+  #    - --max-port=49200
+  #    - --realm=${TURN_DOMAIN}
+  #    - --use-auth-secret
+  #    - --static-auth-secret=${TURN_STATIC_SECRET}
+  #    - --no-cli
+  #    - --no-tls
+  #    - --no-dtls
+  #  ports:
+  #    - "3478:3478/udp"
+  #    - "3478:3478/tcp"
+
+  egress:
+    build:
+      context: ./egress-service
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+      - LIVEKIT_WS_URL=${LIVEKIT_WS_URL:-http://livekit:7880}
+      - RECORDINGS_DIR=/recordings
+      - EGRESS_BIND=0.0.0.0
+      - EGRESS_PORT=3001
+    volumes:
+      - livekit_recordings:/recordings
+    ports:
+      - "3001:3001"
+    depends_on:
+      - livekit
+
+volumes:
+  livekit_recordings:

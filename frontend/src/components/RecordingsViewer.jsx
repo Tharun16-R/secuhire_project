@@ -19,6 +19,53 @@ export default function RecordingsViewer() {
   const [selectedRecordingUrl, setSelectedRecordingUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [aiDecision, setAiDecision] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  // Helper: authenticated resume download
+  const downloadResume = async (candidateId, candidateName) => {
+    try {
+      const resp = await axios.get(`${API}/candidates/${candidateId}/resume`, {
+        responseType: 'blob',
+        headers: { Authorization: `Bearer ${localStorage.getItem('secuhire_token')}` },
+      });
+      const blob = new Blob([resp.data]);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${candidateName || 'candidate'}_resume`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      const msg = e.response?.data?.detail || (e.response?.status === 403 ? 'Forbidden: resume accessible only for related applications' : 'Resume not available');
+      setError(msg);
+    }
+  };
+
+  const runEvaluation = async () => {
+    try {
+      setAiLoading(true);
+      const headers = { Authorization: `Bearer ${localStorage.getItem('secuhire_token')}` };
+      const res = await axios.post(`${API}/ai/evaluate/${interviewId}`, null, { headers });
+      setAiDecision(res.data);
+    } catch (e) {
+      setError(e.response?.data?.detail || e.message);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const refreshDecision = async () => {
+    try {
+      const headers = { Authorization: `Bearer ${localStorage.getItem('secuhire_token')}` };
+      const res = await axios.get(`${API}/ai/evaluate/${interviewId}`, { headers });
+      setAiDecision(res.data);
+    } catch (e) {
+      setError(e.response?.data?.detail || e.message);
+    }
+  };
 
   useEffect(() => {
     const headers = {
@@ -30,7 +77,8 @@ export default function RecordingsViewer() {
         setLoading(true);
         // Get recordings list
         const recRes = await axios.get(`${API}/secure-interview/${interviewId}/recordings`, { headers });
-        setRecordings(recRes.data || []);
+        const filtered = (recRes.data || []).filter(r => !!r.kind && (r.size_bytes ?? 0) >= 0);
+        setRecordings(filtered);
         // Fetch interview monitoring snapshot (candidate info, violations, live status)
         const [monRes, sumRes] = await Promise.all([
           axios.get(`${API}/interviews/${interviewId}/monitoring`, { headers }),
@@ -38,6 +86,14 @@ export default function RecordingsViewer() {
         ]);
         setMonitoring(monRes.data || null);
         setSummary(sumRes.data || null);
+
+        // Try to load AI decision if exists
+        try {
+          const decRes = await axios.get(`${API}/ai/evaluate/${interviewId}`, { headers });
+          setAiDecision(decRes.data || null);
+        } catch (e) {
+          // ignore if not found
+        }
 
         // Submission (answers) is optional; handle 404 without throwing
         try {
@@ -61,16 +117,44 @@ export default function RecordingsViewer() {
 
   const playRecording = async (recId) => {
     try {
+      // Fetch with auth, then create a blob URL for <video>
       const url = `${API}/secure-interview/recordings/${recId}`;
-      setSelectedRecordingUrl(url);
+      const resp = await axios.get(url, {
+        responseType: 'blob',
+        headers: { Authorization: `Bearer ${localStorage.getItem('secuhire_token')}` },
+      });
+      const blob = new Blob([resp.data], { type: resp.headers['content-type'] || 'video/webm' });
+      const objectUrl = window.URL.createObjectURL(blob);
+      setSelectedRecordingUrl((prev) => {
+        if (prev && prev.startsWith('blob:')) {
+          try { window.URL.revokeObjectURL(prev); } catch {}
+        }
+        return objectUrl;
+      });
     } catch (e) {
       setError(e.response?.data?.detail || e.message);
     }
   };
 
-  const downloadRecording = (recId) => {
-    const url = `${API}/secure-interview/recordings/${recId}`;
-    window.open(url, '_blank');
+  const downloadRecording = async (recId) => {
+    try {
+      const url = `${API}/secure-interview/recordings/${recId}`;
+      const resp = await axios.get(url, {
+        responseType: 'blob',
+        headers: { Authorization: `Bearer ${localStorage.getItem('secuhire_token')}` },
+      });
+      const blob = new Blob([resp.data], { type: resp.headers['content-type'] || 'application/octet-stream' });
+      const objectUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = `recording_${recId}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (e) {
+      setError(e.response?.data?.detail || e.message);
+    }
   };
 
   if (loading) {
@@ -126,7 +210,7 @@ export default function RecordingsViewer() {
                 </div>
                 <div className="flex items-center space-x-2">
                   {monitoring.candidate?.id && (
-                    <Button size="sm" onClick={() => window.open(`${API}/candidates/${monitoring.candidate.id}/resume`, '_blank')}>
+                    <Button size="sm" onClick={() => downloadResume(monitoring.candidate.id, monitoring.candidate?.full_name)}>
                       <Download className="w-4 h-4 mr-1" /> Resume
                     </Button>
                   )}

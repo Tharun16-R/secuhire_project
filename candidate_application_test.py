@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""
-Targeted test for candidate application endpoint to fix "[object Object]" error
-Focus: POST /api/candidates/applications with JSON payload
-"""
+
 
 import requests
 import json

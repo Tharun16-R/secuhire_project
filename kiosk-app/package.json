@@ -1,0 +1,40 @@
+{
+  "name": "secuhire-test-app",
+  "version": "0.1.0",
+  "description": "SecuHire Test App - Electron-based kiosk browser for secure interviews",
+  "main": "main.js",
+  "author": "SecuHire",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "cross-env KIOSK_START_URL=http://localhost:3000 electron .",
+    "build": "electron-builder --win --x64",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.6.4",
+    "cross-env": "^7.0.3"
+  },
+  "build": {
+    "appId": "com.secuhire.kiosk",
+    "productName": "SecuHire Test App",
+    "files": [
+      "**/*",
+      "!node_modules/.cache/**"
+    ],
+    "directories": {
+      "buildResources": "build"
+    },
+    "win": {
+      "target": ["nsis"],
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": false
+    }
+  }
+}
