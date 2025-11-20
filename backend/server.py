@@ -7,6 +7,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
+import uvicorn
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional, Dict, Any
 import uuid
@@ -29,13 +30,18 @@ ROOT_DIR = Path(__file__).resolve().parent
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
-mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
-client = AsyncIOMotorClient(mongo_url)
-db_name = os.getenv('DB_NAME', 'secuhire_db')
-db = client[db_name]
+# Prefer MONGO_URI (Atlas or other deployments); fallback to local Compass-style URI
+mongo_uri = os.getenv("MONGO_URI") or "mongodb://127.0.0.1:27017/secuhire_db"
+client = AsyncIOMotorClient(mongo_uri)
+db = client.get_default_database()
 
 # Create the main app without a prefix
 app = FastAPI()
+
+# Health check endpoint for Render / uptime monitoring
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -4398,3 +4404,7 @@ logger = logging.getLogger(__name__)
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    uvicorn.run("server:app", host="0.0.0.0", port=port)

@@ -6,8 +6,8 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Download, Play, Shield, ArrowLeft } from 'lucide-react';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
-const API = `${BACKEND_URL}/api`;
+const API_BASE = process.env.REACT_APP_API_URL || 'https://secuhire-project.onrender.com';
+const API = `${API_BASE}/api`;
 
 export default function RecordingsViewer() {
   const { interviewId } = useParams();

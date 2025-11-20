@@ -8,7 +8,17 @@ import aptitudeRouter from './routes/aptitude.js';
 dotenv.config();
 
 const app = express();
-app.use(cors());
+
+const CORS_ORIGINS = process.env.CORS_ORIGINS || '*';
+let corsOptions = {};
+if (CORS_ORIGINS === '*') {
+  corsOptions = { origin: '*' };
+} else {
+  const origins = CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean);
+  corsOptions = { origin: origins, credentials: true };
+}
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(morgan('dev'));
 
@@ -20,7 +30,9 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/secuhire_a
 
 async function start() {
   await mongoose.connect(MONGO_URI);
-  app.listen(PORT, () => console.log(`Aptitude backend on :${PORT}`));
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Aptitude service running on port ${PORT}`);
+  });
 }
 
 start().catch((e) => {

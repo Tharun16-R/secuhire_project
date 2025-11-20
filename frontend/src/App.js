@@ -35,8 +35,8 @@ import VideoUpload from "./components/VideoUpload";
 import VideoList from "./components/VideoList";
 import AptitudeApp from "./modules/aptitude/AptitudeApp";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
-const API = `${BACKEND_URL}/api`;
+const API_BASE = process.env.REACT_APP_API_URL || 'https://secuhire-project.onrender.com';
+const API = `${API_BASE}/api`;
 
 // Auth Context for Both Recruiters and Candidates
 const AuthContext = React.createContext();

@@ -7,7 +7,7 @@ export default function VideoList({ filters = {} }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const backendUrl = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
+  const backendUrl = process.env.REACT_APP_API_URL || "https://secuhire-project.onrender.com";
 
   useEffect(() => {
     const fetchItems = async () => {

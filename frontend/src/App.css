@@ -599,3 +599,104 @@ div:has(> span:contains("Made with Emergent")) {
   display: none !important;
   visibility: hidden !important;
 }
+/* Mobile-first refinements for very small screens (320px–576px)
+   These rules only apply on small phones and do NOT affect desktop. */
+@media (max-width: 576px) {
+  /* Tighten global section spacing & horizontal padding 
+     so content doesn't feel too zoomed out on narrow screens. */
+  .section-spacing {
+    padding-top: 3.5rem;   /* was 6rem; reduce vertical padding */
+    padding-bottom: 3.5rem;
+    padding-left: 1.25rem; /* add horizontal padding for safe gutters */
+    padding-right: 1.25rem;
+  }
+
+  .content-spacing {
+    margin-bottom: 2rem;   /* slightly tighter vertical rhythm on mobile */
+  }
+
+  /* Container adjustments so cards don't hug edges too tightly */
+  .dashboard-container {
+    padding-left: 1rem;    /* was 0 2rem; friendlier on small screens */
+    padding-right: 1rem;
+  }
+
+  .dashboard-header {
+    padding: 1rem 0;       /* reduce header height on mobile */
+    margin-bottom: 1.5rem;
+  }
+
+  .dashboard-content {
+    gap: 1.25rem;          /* reduce card gaps so more fits on screen */
+  }
+
+  /* Typography: keep hierarchy but scale down slightly on small phones */
+  .secuhire-title {
+    font-size: 2rem;       /* was 2.5rem; better fit on 320–375px */
+    line-height: 1.25;
+  }
+
+  .secuhire-subtitle {
+    font-size: 1.25rem;    /* was 1.5rem; avoid wrapping into 3+ lines */
+  }
+
+  .secuhire-body {
+    font-size: 0.95rem;    /* very subtle tweak to improve readability */
+    line-height: 1.6;
+  }
+
+  /* Ensure stacked layouts actually stack full-width on small screens */
+  .mobile-stack {
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+  }
+
+  .mobile-stack > * {
+    width: 100% !important;   /* child cards/columns take full width */
+  }
+
+  /* Cards and form sections: tighten padding so forms fit without scrolling too much */
+  .secuhire-form-section {
+    padding: 1.25rem;         /* was 2rem; smaller but still spacious */
+    margin-bottom: 1.5rem;
+    border-radius: 12px;      /* slightly smaller radius to match scale */
+  }
+
+  .secuhire-form-input {
+    padding: 0.85rem;         /* slightly smaller input padding on phones */
+    font-size: 0.95rem;
+  }
+
+  /* Make primary/secondary CTA buttons easier to tap on mobile */
+  .btn-primary-gradient,
+  .btn-secondary-gradient,
+  .secuhire-form-section button {
+    width: 100%;              /* full-width CTAs */
+    max-width: 100%;
+    justify-content: center;
+  }
+
+  /* Badge & pipeline labels: center-align and avoid overflowing text */
+  .status-badge,
+  .pipeline-stage {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  /* Hero titles coming from Tailwind components */
+  .hero-title {
+    font-size: 1.8rem !important;  /* slightly below your 2rem @640px rule */
+    line-height: 1.25 !important;
+  }
+
+  /* Ensure scroll/shadow-heavy interactive cards don't feel too "bouncy" */
+  .card-hover:hover,
+  .interactive-element:hover {
+    transform: translateY(-1px);   /* subtler hover on touch devices */
+    box-shadow: 0 8px 20px rgba(168, 85, 247, 0.15);
+  }
+}
