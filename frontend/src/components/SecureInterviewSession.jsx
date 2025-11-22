@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-const API_BASE = process.env.REACT_APP_API_URL || 'https://secuhire-project.onrender.com';
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 const API = `${API_BASE}/api`;
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -45,6 +45,7 @@ const SecureInterviewSession = ({ interview, company, job, onEnd, onClose }) => 
   const [showNextRoundInstructions, setShowNextRoundInstructions] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [showThankYou, setShowThankYou] = useState(false);
+  const [monitoringStream, setMonitoringStream] = useState(null);
   
   const videoRef = useRef(null);
   const screenRef = useRef(null);
@@ -275,6 +276,9 @@ const SecureInterviewSession = ({ interview, company, job, onEnd, onClose }) => 
         videoRef.current.srcObject = cameraStream;
         mediaStreamRef.current = cameraStream;
       }
+
+      // Expose the same camera stream to AI monitoring so analytics follow the live webcam
+      setMonitoringStream(cameraStream);
 
       if (screenRef.current) {
         screenRef.current.srcObject = screenStream;
@@ -1094,16 +1098,22 @@ const SecureInterviewSession = ({ interview, company, job, onEnd, onClose }) => 
           {/* Main Interview Area */}
           <div className="flex-1 p-6 overflow-y-auto min-w-0">
             <div className="grid grid-cols-2 gap-4">
-              {/* Video Feed (hidden from candidate; used only for recording refs) */}
-              <Card className="h-full hidden">
-                <CardHeader>
+              {/* Webcam preview above questions (uses same stream as recording/analytics) */}
+              <Card className="col-span-2 mb-2">
+                <CardHeader className="pb-2">
                   <CardTitle className="flex items-center space-x-2">
                     <Camera className="w-5 h-5" />
-                    <span>Your Video</span>
+                    <span>Your Webcam</span>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-2">
-                  <video ref={videoRef} autoPlay muted className="w-full h-64 bg-gray-900 rounded-lg" />
+                <CardContent className="pt-0 flex justify-center">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    muted
+                    className="bg-gray-900 rounded-lg"
+                    style={{ width: '360px', height: '220px', objectFit: 'cover' }}
+                  />
                 </CardContent>
               </Card>
 

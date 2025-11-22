@@ -6,7 +6,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Download, Play, Shield, ArrowLeft } from 'lucide-react';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'https://secuhire-project.onrender.com';
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 const API = `${API_BASE}/api`;
 
 export default function RecordingsViewer() {

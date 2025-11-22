@@ -24,9 +24,12 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
   const [isRecording, setIsRecording] = useState(false);
   
   const videoRef = useRef(null);
+  const webcamPreviewRef = useRef(null);
   const canvasRef = useRef(null);
   const audioContextRef = useRef(null);
   const analysisIntervalRef = useRef(null);
+  const ownsStreamRef = useRef(false);
+  const frameRafRef = useRef(null);
   const faceMeshRef = useRef(null);
   const faceReadyRef = useRef(false);
   const lastLandmarksRef = useRef(null);
@@ -41,6 +44,7 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
   const [pose, setPose] = useState({ yaw: 0, pitch: 0 });
   const analyserRef = useRef(null);
   const [vu, setVu] = useState(0);
+  const tabSwitchRef = useRef({ detected: false, count: 0, lastSwitch: null });
 
   // Load MediaPipe FaceMesh dynamically (no bundler config needed)
   const loadFaceMesh = async () => {
@@ -245,9 +249,9 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
     const noiseLevel = 0.0;
     const voiceClarity = 1.0;
 
-    // Disable simulated tab/environment violations; rely on real tab/key events instead
-    const tabSwitching = false;
-    const tabCount = 0;
+    // Use real tab switch data from visibility handler
+    const tabSwitching = !!tabSwitchRef.current.detected;
+    const tabCount = tabSwitchRef.current.count || 0;
 
     const environmentStable = true;
     const environmentChanges = 0;
@@ -277,7 +281,7 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
       tabSwitching: { 
         detected: tabSwitching, 
         count: tabCount, 
-        lastSwitch: tabSwitching ? new Date() : null 
+        lastSwitch: tabSwitchRef.current.lastSwitch || null,
       },
       environment: { 
         stable: environmentStable, 
@@ -296,15 +300,16 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
 
   const startMonitoring = async () => {
     try {
-      // Request camera and microphone access
+      // Always request our own camera + microphone stream for monitoring
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          width: 1280, 
+        video: {
+          width: 1280,
           height: 720,
-          facingMode: 'user'
+          facingMode: 'user',
         },
-        audio: true
+        audio: true,
       });
+      ownsStreamRef.current = true;
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -318,17 +323,22 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
           videoRef.current.onloadedmetadata = () => res();
         });
       }
-      if (faceMeshRef.current && window.Camera && videoRef.current) {
-        const camera = new window.Camera(videoRef.current, {
-          onFrame: async () => {
-            try {
-              await faceMeshRef.current.send({ image: videoRef.current });
-            } catch (e) {}
-          },
-          width: 640,
-          height: 360
-        });
-        camera.start();
+
+      // Explicit requestAnimationFrame loop to drive FaceMesh with live frames
+      if (faceMeshRef.current && videoRef.current) {
+        const processFrame = async () => {
+          if (!videoRef.current || !faceMeshRef.current) {
+            frameRafRef.current = requestAnimationFrame(processFrame);
+            return;
+          }
+          try {
+            await faceMeshRef.current.send({ image: videoRef.current });
+          } catch (e) {
+            // Swallow FaceMesh errors to keep loop alive
+          }
+          frameRafRef.current = requestAnimationFrame(processFrame);
+        };
+        frameRafRef.current = requestAnimationFrame(processFrame);
       }
 
       // Set up audio analysis
@@ -382,7 +392,12 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
       clearInterval(analysisIntervalRef.current);
     }
 
-    if (videoRef.current && videoRef.current.srcObject) {
+    if (frameRafRef.current) {
+      cancelAnimationFrame(frameRafRef.current);
+      frameRafRef.current = null;
+    }
+
+    if (videoRef.current && videoRef.current.srcObject && ownsStreamRef.current) {
       videoRef.current.srcObject.getTracks().forEach(track => track.stop());
     }
 
@@ -396,12 +411,20 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
 
   const handleVisibilityChange = () => {
     if (document.hidden && isMonitoring) {
+      const now = new Date();
+      // Update tab switch tracking
+      tabSwitchRef.current = {
+        detected: true,
+        count: (tabSwitchRef.current.count || 0) + 1,
+        lastSwitch: now,
+      };
+
       const violation = {
-        id: Date.now(),
+        id: now.getTime(),
         type: 'tab_switch',
         severity: 'critical',
         message: 'Tab switching detected during interview',
-        timestamp: new Date()
+        timestamp: now,
       };
       setViolations(prev => [...prev, violation]);
       onViolation?.([violation]);
@@ -411,7 +434,7 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
   const handleKeyDown = (event) => {
     if (!isMonitoring) return;
 
-    // Detect common cheating shortcuts
+    // Detect common cheating shortcuts (including DevTools keys)
     const cheatingKeys = ['F12', 'F11', 'F10'];
     const keyCombo = event.ctrlKey || event.altKey || event.shiftKey;
     
@@ -740,6 +763,7 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
           </CardContent>
         </Card>
       )}
+
     </div>
   );
 };

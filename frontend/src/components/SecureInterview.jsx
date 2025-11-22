@@ -11,7 +11,7 @@ import {
 import QRForPhoneJoin from './QRForPhoneJoin';
 import { createSession } from '../lib/proctorApi';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'https://secuhire-project.onrender.com';
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 const API = `${API_BASE}/api`;
 
 const SecureInterview = ({ interview, onClose }) => {

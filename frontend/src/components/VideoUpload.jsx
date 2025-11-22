@@ -10,7 +10,7 @@ export default function VideoUpload({ candidateId, candidateEmail, fullName, job
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
-  const backendUrl = process.env.REACT_APP_API_URL || "https://secuhire-project.onrender.com";
+  const backendUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
   const onFileChange = (e) => {
     const f = e.target.files?.[0];

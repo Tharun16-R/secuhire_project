@@ -103,48 +103,18 @@ async def require_seb(request: Request):
         raise HTTPException(status_code=403, detail="SEB validation failed")
     return True
 
-# CORS configuration
-# Prefer CORS_ORIGINS, fallback to ALLOWED_ORIGINS (legacy), default to localhost:3000
-_cors_env = os.getenv("CORS_ORIGINS") or os.getenv("ALLOWED_ORIGINS") or "http://localhost:3000"
-_origins_list = [o.strip() for o in _cors_env.split(",") if o.strip()]
+# CORS configuration (localhost-only for development)
+_origins_list = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
 
-# Always include common local dev origins
-for _extra in ["http://localhost:3000", "http://127.0.0.1:3000"]:
-    if _extra not in _origins_list:
-        _origins_list.append(_extra)
-
-# Include FRONTEND_BASE_URL origin automatically if provided
-_frontend_base = os.getenv("FRONTEND_BASE_URL")
-if _frontend_base:
-    _fb = _frontend_base.strip()
-    if _fb and _fb not in _origins_list:
-        _origins_list.append(_fb)
-
-# If wildcard is used, disable credentials per CORS spec
-_allow_credentials = True
-if _cors_env.strip() == "*" or _origins_list == ["*"]:
-    _origins_list = ["*"]
-    _allow_credentials = False
-
-# Include FRONTEND_BASE_URL origin automatically if provided
-_frontend_base = os.getenv("FRONTEND_BASE_URL")
-if _frontend_base:
-    _fb = _frontend_base.strip()
-    if _fb and _fb not in _origins_list:
-        _origins_list.append(_fb)
-
-# If wildcard is used, disable credentials per CORS spec
-_allow_credentials = True
-if _cors_env.strip() == "*" or _origins_list == ["*"]:
-    _origins_list = ["*"]
-    _allow_credentials = False
-
-logging.info(f"CORS configured - origins: {_origins_list}, allow_credentials: {_allow_credentials}")
+logging.info(f"CORS configured - origins: {_origins_list}, allow_credentials: True")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_origins_list,
-    allow_credentials=_allow_credentials,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
