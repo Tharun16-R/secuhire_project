@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
@@ -14,6 +14,54 @@ const PreInterviewOnboarding = ({ interview, company, job, onProceed, onCancel }
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [isReady, setIsReady] = useState(false);
+  const [isTestingMedia, setIsTestingMedia] = useState(false);
+  const [mediaTestStatus, setMediaTestStatus] = useState(null); // 'success' | 'error' | null
+  const [mediaTestError, setMediaTestError] = useState('');
+  const mediaPreviewRef = useRef(null);
+  const mediaStreamRef = useRef(null);
+
+  const handleTestMedia = async () => {
+    setIsTestingMedia(true);
+    setMediaTestStatus(null);
+    setMediaTestError('');
+
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('Your browser does not support camera/microphone access. Please use a modern browser like Chrome.');
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 640, height: 360, facingMode: 'user' },
+        audio: true,
+      });
+
+      if (mediaPreviewRef.current) {
+        const videoEl = mediaPreviewRef.current;
+        videoEl.srcObject = stream;
+        // Some browsers require an explicit play() after assigning srcObject
+        videoEl.play?.().catch(() => {
+          // Ignore autoplay errors; user interaction already happened via button click
+        });
+      }
+      mediaStreamRef.current = stream;
+      setMediaTestStatus('success');
+    } catch (err) {
+      console.error('Media test failed', err);
+      setMediaTestStatus('error');
+      setMediaTestError(err?.message || 'Unable to access camera or microphone. Please check your browser permissions and device.');
+    } finally {
+      setIsTestingMedia(false);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(t => t.stop());
+        mediaStreamRef.current = null;
+      }
+    };
+  }, []);
 
   const interviewDate = new Date(interview.scheduled_date);
   const timeUntilInterview = Math.max(0, interviewDate.getTime() - Date.now());
@@ -228,10 +276,49 @@ const PreInterviewOnboarding = ({ interview, company, job, onProceed, onCancel }
             <p className="text-blue-800 text-sm mb-3">
               Before starting the interview, we'll test your camera, microphone, and internet connection.
             </p>
-            <Button variant="outline" size="sm" className="border-blue-300 text-blue-700">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-blue-300 text-blue-700"
+              onClick={handleTestMedia}
+              disabled={isTestingMedia}
+            >
               <Video className="w-4 h-4 mr-2" />
-              Test Camera & Microphone
+              {isTestingMedia ? 'Testing...' : 'Test Camera & Microphone'}
             </Button>
+            {mediaTestStatus === 'success' && (
+              <div className="mt-4 flex items-start space-x-4">
+                <video
+                  ref={mediaPreviewRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="w-40 h-28 bg-black rounded-md border border-blue-200 object-cover"
+                />
+                <div className="text-sm text-blue-900 space-y-1">
+                  <p className="font-medium flex items-center">
+                    <CheckCircle className="w-4 h-4 text-green-600 mr-2" />
+                    Camera and microphone look good.
+                  </p>
+                  <p className="text-blue-800">
+                    If you can see yourself and the icon shows access granted, you are ready to start.
+                  </p>
+                  <Button
+                    size="sm"
+                    className="mt-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                    onClick={onProceed}
+                  >
+                    Start Secure Interview
+                  </Button>
+                </div>
+              </div>
+            )}
+            {mediaTestStatus === 'error' && (
+              <div className="mt-3 text-sm text-red-700 flex items-start space-x-2">
+                <AlertTriangle className="w-4 h-4 mt-0.5" />
+                <p>{mediaTestError}</p>
+              </div>
+            )}
           </div>
         </div>
       )

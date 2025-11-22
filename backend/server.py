@@ -2468,6 +2468,42 @@ async def get_company_jobs(current_recruiter: Recruiter = Depends(get_current_re
     jobs = await db.jobs.find({"company_id": current_recruiter.company_id}).to_list(1000)
     return [Job(**job) for job in jobs]
 
+@api_router.post("/jobs", response_model=Job)
+async def create_job(job_data: Dict[str, Any], current_recruiter: Recruiter = Depends(get_current_recruiter)):
+    base_fields = {
+        "title": job_data.get("title", "").strip(),
+        "description": job_data.get("description", "").strip(),
+        "requirements": job_data.get("requirements") or [],
+        "location": job_data.get("location") or "Remote",
+        "job_type": job_data.get("job_type") or "Full-time",
+        "skills": job_data.get("skills") or ["General"],
+        "department": job_data.get("department") or "Engineering",
+        "experience_level": job_data.get("experience_level") or "Mid",
+        "salary_min": job_data.get("salary_min"),
+        "salary_max": job_data.get("salary_max"),
+        "status": job_data.get("status") or JobStatus.DRAFT,
+    }
+
+    if not base_fields["title"] or not base_fields["description"]:
+        raise HTTPException(status_code=400, detail="Title and description are required")
+
+    doc: Dict[str, Any] = {
+        **base_fields,
+        "company_id": current_recruiter.company_id,
+        "recruiter_id": current_recruiter.id,
+        "technical_requirements": job_data.get("technical_requirements") or [],
+        "soft_skills": job_data.get("soft_skills") or [],
+        "certifications": job_data.get("certifications") or [],
+        "education_requirements": job_data.get("education_requirements") or "",
+        "work_environment": job_data.get("work_environment") or "",
+        "benefits": job_data.get("benefits") or [],
+        "interview_process": job_data.get("interview_process") or [],
+    }
+
+    job = Job(**doc)
+    await db.jobs.insert_one(job.dict())
+    return job
+
 @api_router.put("/jobs/{job_id}", response_model=Job)
 async def update_job(job_id: str, job_data: Dict[str, Any], current_recruiter: Recruiter = Depends(get_current_recruiter)):
     # Verify job belongs to company

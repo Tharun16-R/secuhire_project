@@ -65,6 +65,158 @@ const downloadResume = async (candidateId, candidateName) => {
   }
 };
 
+// Dedicated Pricing Page
+const PricingPage = () => {
+  const navigate = useNavigate();
+
+  const handleChoosePlan = (plan) => {
+    try {
+      // Placeholder: integrate Sentra payment modal and subscription flow here.
+      alert(`Selected plan: ${plan.label} (₹${plan.amount})`);
+    } catch (e) {
+      console.error('Plan selection error:', e);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-purple-50/40">
+      {/* Header */}
+      <header className="px-6 py-4 border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="relative">
+              <Shield className="w-8 h-8 text-purple-600" />
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-orange-400 to-pink-500 rounded-full animate-pulse"></div>
+            </div>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 via-teal-600 to-orange-500 bg-clip-text text-transparent">SecuHire</h1>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Button
+              variant="outline"
+              className="border-slate-300 text-slate-700 hover:bg-slate-50"
+              onClick={() => navigate('/')}
+            >
+              Back to Home
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      {/* Pricing Section */}
+      <section className="py-20 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-14">
+            <h2 className="text-4xl font-bold text-slate-900 mb-3">Simple, Transparent Pricing</h2>
+            <p className="text-slate-600 max-w-2xl mx-auto">
+              Choose the plan that fits your hiring or interview needs. Upgrade anytime as your volume grows.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* 3 Months Basic */}
+            <div className="relative group bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-200 hover:-translate-y-1">
+              <div className="p-6 flex flex-col h-full">
+                <div className="mb-2">
+                  <h3 className="text-lg font-semibold text-slate-900">3 Months Basic</h3>
+                  <p className="text-sm text-slate-500">For trying secure AI interviews</p>
+                </div>
+                <div className="mt-4 mb-6">
+                  <span className="text-3xl font-bold text-slate-900">₹499</span>
+                  <span className="text-sm text-slate-500 ml-1">/ 3 months</span>
+                </div>
+                <ul className="space-y-2 text-sm text-slate-600 flex-1">
+                  <li>• 3 AI Interview Sessions</li>
+                  <li>• Basic Monitoring (face + tab switch)</li>
+                  <li>• Email Report Only</li>
+                </ul>
+                <Button
+                  className="mt-6 w-full bg-slate-900 text-white hover:bg-slate-800"
+                  onClick={() => handleChoosePlan({
+                    planName: 'Basic',
+                    label: '3 Months Basic',
+                    amount: 499,
+                    validityDays: 90,
+                  })}
+                >
+                  Choose Plan
+                </Button>
+              </div>
+            </div>
+
+            {/* 6 Months Standard (Recommended) */}
+            <div className="relative group bg-gradient-to-b from-purple-600 to-teal-600 text-white rounded-2xl shadow-2xl transform hover:-translate-y-2 transition-all duration-200 border border-purple-500/40">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-white text-purple-700 shadow-md">
+                  Recommended
+                </span>
+              </div>
+              <div className="p-6 pt-8 flex flex-col h-full">
+                <div className="mb-2">
+                  <h3 className="text-lg font-semibold">6 Months Standard</h3>
+                  <p className="text-sm text-purple-100">Best for active hiring pipelines</p>
+                </div>
+                <div className="mt-4 mb-6">
+                  <span className="text-3xl font-bold">₹899</span>
+                  <span className="text-sm text-purple-100 ml-1">/ 6 months</span>
+                </div>
+                <ul className="space-y-2 text-sm text-purple-50 flex-1">
+                  <li>• 10 AI Interview Sessions</li>
+                  <li>• Full Monitoring (face + gaze + head + tab switch)</li>
+                  <li>• Priority Report</li>
+                  <li>• Email + Dashboard Results</li>
+                </ul>
+                <Button
+                  className="mt-6 w-full bg-white text-purple-700 hover:bg-purple-50"
+                  onClick={() => handleChoosePlan({
+                    planName: 'Standard',
+                    label: '6 Months Standard',
+                    amount: 899,
+                    validityDays: 180,
+                  })}
+                >
+                  Choose Plan
+                </Button>
+              </div>
+            </div>
+
+            {/* 1 Year Premium */}
+            <div className="relative group bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-200 hover:-translate-y-1">
+              <div className="p-6 flex flex-col h-full">
+                <div className="mb-2">
+                  <h3 className="text-lg font-semibold text-slate-900">1 Year Premium</h3>
+                  <p className="text-sm text-slate-500">For teams standardizing on SecuHire</p>
+                </div>
+                <div className="mt-4 mb-6">
+                  <span className="text-3xl font-bold text-slate-900">₹1499</span>
+                  <span className="text-sm text-slate-500 ml-1">/ year</span>
+                </div>
+                <ul className="space-y-2 text-sm text-slate-600 flex-1">
+                  <li>• Unlimited Sessions</li>
+                  <li>• Full Monitoring Suite</li>
+                  <li>• Voice Analysis</li>
+                  <li>• Priority Support</li>
+                  <li>• Admin Level Dashboard Access</li>
+                </ul>
+                <Button
+                  className="mt-6 w-full bg-slate-900 text-white hover:bg-slate-800"
+                  onClick={() => handleChoosePlan({
+                    planName: 'Premium',
+                    label: '1 Year Premium',
+                    amount: 1499,
+                    validityDays: 365,
+                  })}
+                >
+                  Choose Plan
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+};
+
 const useAuth = () => {
   const context = React.useContext(AuthContext);
   if (!context) {
@@ -122,6 +274,7 @@ const AuthProvider = ({ children }) => {
 // Landing Page for SecuHire with Dual Options
 const LandingPage = () => {
   const { user, userRole, token, logout } = useAuth();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-teal-50">
       {/* Header */}
@@ -136,7 +289,13 @@ const LandingPage = () => {
           </div>
           <div className="flex items-center space-x-4">
             <Button variant="ghost" className="text-slate-600 hover:text-purple-600 hover:bg-purple-50">Features</Button>
-            <Button variant="ghost" className="text-slate-600 hover:text-teal-600 hover:bg-teal-50">Pricing</Button>
+            <Button
+              variant="ghost"
+              className="text-slate-600 hover:text-teal-600 hover:bg-teal-50"
+              onClick={() => { window.location.href = '/pricing'; }}
+            >
+              Pricing
+            </Button>
             {token && userRole === 'candidate' ? (
               <>
                 <span className="text-slate-700 font-medium">{user?.full_name || user?.email || 'Candidate'}</span>
@@ -3026,6 +3185,183 @@ const ATSDashboard = () => {
               </div>
             </TabsContent>
 
+            {/* Question Sets Manager */}
+            <TabsContent value="question-sets" className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-3xl font-bold text-slate-800">Question Sets</h2>
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                    onClick={resetQsForm}
+                  >
+                    Clear Form
+                  </Button>
+                  <Button
+                    className="bg-gradient-to-r from-purple-600 to-teal-600 hover:from-purple-700 hover:to-teal-700 text-white"
+                    onClick={saveQuestionSet}
+                    disabled={qsLoading}
+                  >
+                    {qsEditingId ? 'Update Set' : 'Create Set'}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Existing Sets List */}
+                <Card className="border-0 shadow-lg bg-white">
+                  <CardHeader>
+                    <CardTitle className="text-slate-800">Existing Question Sets</CardTitle>
+                    <CardDescription>Manage question banks used for aptitude rounds and interviews.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {qsLoading ? (
+                      <p className="text-slate-500 text-sm">Loading question sets...</p>
+                    ) : qsSets.length === 0 ? (
+                      <p className="text-slate-500 text-sm">No question sets yet. Create your first set on the right.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {qsSets.map((qs) => (
+                          <div
+                            key={qs.id}
+                            className="flex items-start justify-between p-3 rounded-lg border border-slate-100 hover:border-purple-200 hover:bg-purple-50/40 transition-colors"
+                          >
+                            <div>
+                              <div className="flex items-center space-x-2">
+                                <h3 className="font-semibold text-slate-800">{qs.name}</h3>
+                                <Badge className="bg-purple-100 text-purple-800 border-purple-200 text-xs">
+                                  {(qs.questions || []).length} questions
+                                </Badge>
+                              </div>
+                              {qs.description && (
+                                <p className="text-xs text-slate-500 mt-1 line-clamp-2">{qs.description}</p>
+                              )}
+                            </div>
+                            <div className="flex space-x-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => editQuestionSet(qs)}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600 border-red-200 hover:bg-red-50"
+                                onClick={() => deleteQuestionSet(qs.id)}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Create / Edit Form */}
+                <Card className="border-0 shadow-lg bg-white">
+                  <CardHeader>
+                    <CardTitle className="text-slate-800">
+                      {qsEditingId ? 'Edit Question Set' : 'Create Question Set'}
+                    </CardTitle>
+                    <CardDescription>
+                      Define a set of questions with optional per-question time limits.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label className="text-slate-700">Name</Label>
+                      <Input
+                        value={qsForm.name}
+                        onChange={(e) => setQsForm({ ...qsForm, name: e.target.value })}
+                        placeholder="e.g. General Aptitude Round 1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-slate-700">Description</Label>
+                      <Textarea
+                        value={qsForm.description}
+                        onChange={(e) => setQsForm({ ...qsForm, description: e.target.value })}
+                        placeholder="Optional notes about this question set"
+                      />
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-slate-700">Questions</Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={addQuestionRow}
+                        >
+                          <Plus className="w-4 h-4 mr-1" /> Add Question
+                        </Button>
+                      </div>
+
+                      <div className="space-y-3 max-h-72 overflow-y-auto pr-2">
+                        {qsForm.questions.map((q, idx) => (
+                          <div
+                            key={idx}
+                            className="p-3 rounded-lg border border-slate-200 bg-slate-50/60 space-y-2"
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs font-medium text-slate-500">Question {idx + 1}</span>
+                              {qsForm.questions.length > 1 && (
+                                <button
+                                  type="button"
+                                  className="text-xs text-red-600 hover:underline"
+                                  onClick={() => removeQuestionRow(idx)}
+                                >
+                                  Remove
+                                </button>
+                              )}
+                            </div>
+                            <Textarea
+                              value={q.text}
+                              onChange={(e) => updateQuestionRow(idx, 'text', e.target.value)}
+                              placeholder="Enter question text"
+                              className="text-sm"
+                            />
+                            <div className="grid grid-cols-2 gap-3 items-center">
+                              <div>
+                                <Label className="text-xs text-slate-600">Type</Label>
+                                <Select
+                                  value={q.type}
+                                  onValueChange={(val) => updateQuestionRow(idx, 'type', val)}
+                                >
+                                  <SelectTrigger className="h-8 text-xs">
+                                    <SelectValue placeholder="Select type" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="text">Text</SelectItem>
+                                    <SelectItem value="mcq">MCQ</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label className="text-xs text-slate-600">Max Duration (sec)</Label>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  value={q.max_duration_sec}
+                                  onChange={(e) => updateQuestionRow(idx, 'max_duration_sec', e.target.value)}
+                                  className="h-8 text-xs"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
             {/* AI Monitoring */}
             <TabsContent value="ai-monitoring" className="space-y-6">
               <div className="flex items-center justify-between">
@@ -3620,6 +3956,7 @@ function App() {
     <div className="App">
         <Routes>
           <Route path="/" element={token ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+          <Route path="/pricing" element={token ? <Navigate to="/dashboard" replace /> : <PricingPage />} />
           <Route path="/auth" element={token ? <Navigate to="/dashboard" replace /> : <AuthPage />} />
           {/* Proctoring routes */}
           <Route path="/proctor/setup" element={<ProctorSetup />} />

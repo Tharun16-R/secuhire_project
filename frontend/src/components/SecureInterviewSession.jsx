@@ -33,7 +33,7 @@ const SecureInterviewSession = ({ interview, company, job, onEnd, onClose }) => 
   });
   
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [isAnswering, setIsAnswering] = useState(false);
+  const [isAnswering, setIsAnswering] = useState(false); // used mainly for descriptive questions
   const [answer, setAnswer] = useState('');
   // Multi-round state
   const [currentRound, setCurrentRound] = useState(1);
@@ -350,6 +350,7 @@ const SecureInterviewSession = ({ interview, company, job, onEnd, onClose }) => 
       // Enable answering for MCQ by default
       const q = interviewQuestions[0];
       if (q && q.type === 'multiple_choice') {
+        // MCQs are always directly answerable
         setIsAnswering(true);
       }
       questionStartRef.current = Date.now();
@@ -741,7 +742,17 @@ const SecureInterviewSession = ({ interview, company, job, onEnd, onClose }) => 
       logViolation({ type: newViolation.type, severity: newViolation.severity, description: newViolation.message });
     } catch {}
 
-    // Auto-complete after MAX_WARNINGS
+    // Hard enforcement for some violations
+    if (newViolation.type === 'multiple_faces') {
+      // Immediately fail the interview when multiple faces are detected
+      try {
+        alert('Multiple faces detected. The interview will be ended.');
+      } catch {}
+      try { endInterview(); } catch {}
+      return;
+    }
+
+    // Auto-complete after MAX_WARNINGS for hard violations
     const total = (sessionData?.violations?.length || 0) + 1;
     if (total >= MAX_WARNINGS) {
       try {
@@ -792,6 +803,7 @@ const SecureInterviewSession = ({ interview, company, job, onEnd, onClose }) => 
       setCurrentQuestion(nextIndex);
       const nextQ = interviewQuestions[nextIndex];
       if (nextQ.type === 'multiple_choice') {
+        // MCQs should be immediately answerable
         setIsAnswering(true);
       }
       questionStartRef.current = Date.now();

@@ -17,7 +17,7 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
     facialExpressions: { score: 0, stressLevel: 0, attention: 0 },
     audioAnalysis: { score: 0, noiseLevel: 0, voiceClarity: 0 },
     tabSwitching: { detected: false, count: 0, lastSwitch: null },
-    environment: { stable: true, changes: 0, suspiciousActivity: false }
+    environment: { stable: true, changes: 0, suspiciousActivity: false, peopleCount: 0, multipleFaces: false }
   });
   
   const [violations, setViolations] = useState([]);
@@ -33,6 +33,7 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
   const faceMeshRef = useRef(null);
   const faceReadyRef = useRef(false);
   const lastLandmarksRef = useRef(null);
+  const faceCountRef = useRef(0);
   const recordingRef = useRef(null);
   const rafCanvasCountRef = useRef(0);
   // smoothing state
@@ -73,14 +74,18 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
       const fm = new window.FaceMesh({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}` });
       fm.setOptions({ maxNumFaces: 2, refineLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
       fm.onResults((results) => {
-        if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
+        const faces = results.multiFaceLandmarks || [];
+        const count = faces.length;
+        faceCountRef.current = count;
+
+        if (count === 0) {
           lastLandmarksRef.current = null;
           faceReadyRef.current = false;
           return;
         }
 
         // Multiple faces detection: only raise a violation when more than one distinct face is present
-        if (results.multiFaceLandmarks.length > 1) {
+        if (count > 1) {
           const violation = {
             id: Date.now(),
             type: 'multiple_faces',
@@ -93,7 +98,7 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
         }
 
         faceReadyRef.current = true;
-        lastLandmarksRef.current = results.multiFaceLandmarks[0];
+        lastLandmarksRef.current = faces[0];
         // Draw overlay
         if (canvasRef.current && videoRef.current) {
           const canvas = canvasRef.current;
@@ -256,6 +261,8 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
     const environmentStable = true;
     const environmentChanges = 0;
     const suspiciousActivity = false;
+    const peopleCount = faceCountRef.current || 0;
+    const multipleFaces = peopleCount > 1;
 
     const newAnalysisData = {
       gazeTracking: { 
@@ -286,7 +293,9 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
       environment: { 
         stable: environmentStable, 
         changes: environmentChanges, 
-        suspiciousActivity: suspiciousActivity 
+        suspiciousActivity: suspiciousActivity,
+        peopleCount,
+        multipleFaces,
       }
     };
 
@@ -722,6 +731,12 @@ const AIMonitoringSystem = ({ onViolation, onAnalysisUpdate, autoStart }) => {
             </div>
             <div className="text-sm text-gray-600">
               Changes: {analysisData.environment.changes}
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-600">People in Frame</span>
+              <Badge className={analysisData.environment.multipleFaces ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}>
+                {analysisData.environment.peopleCount || 0}
+              </Badge>
             </div>
             {analysisData.environment.suspiciousActivity && (
               <div className="text-sm text-red-600 font-medium">
