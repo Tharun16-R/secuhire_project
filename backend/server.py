@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, WebSocket, WebSocketDisconnect, Request
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, UploadFile, File, Form, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
@@ -3027,15 +3027,20 @@ async def list_recordings(
         raise HTTPException(status_code=403, detail="Forbidden")
 
     recs = await db.interview_recordings.find({"interview_id": interview_id}).to_list(1000)
-    return [
-        {
-            "id": r.get("id"),
+    # Always expose a stable string id to the frontend. For older docs that
+    # don't have an explicit 'id', fall back to MongoDB's '_id'.
+    result = []
+    for r in recs:
+        rid = r.get("id")
+        if not rid and r.get("_id") is not None:
+            rid = str(r["_id"])
+        result.append({
+            "id": rid,
             "kind": r.get("kind"),
             "size_bytes": r.get("size_bytes"),
             "created_at": r.get("created_at"),
-        }
-        for r in recs
-    ]
+        })
+    return result
 
 
 @api_router.get("/secure-interview/recordings/{recording_id}")
@@ -3044,7 +3049,14 @@ async def get_recording_file(
     current_recruiter: Recruiter = Depends(get_current_recruiter)
 ):
     """Serve a recording file to authorized recruiters."""
+    # Try lookup by explicit 'id' first, then fall back to Mongo's '_id'
     rec = await db.interview_recordings.find_one({"id": recording_id})
+    if not rec:
+        try:
+            from bson import ObjectId
+            rec = await db.interview_recordings.find_one({"_id": ObjectId(recording_id)})
+        except Exception:
+            rec = None
     if not rec:
         raise HTTPException(status_code=404, detail="Recording not found")
     interview = await db.interviews.find_one({"id": rec["interview_id"]})
@@ -3285,7 +3297,7 @@ async def start_interview_recording(
 @api_router.post("/interviews/{interview_id}/upload-recording")
 async def upload_interview_recording(
     interview_id: str,
-    recording_type: str,  # webcam, screen, audio
+    recording_type: str = Form(...),  # webcam, screen, audio
     file: UploadFile = File(...),
     current_candidate: CandidateUser = Depends(get_current_candidate),
     seb_ok: bool = Depends(require_seb)
@@ -3326,7 +3338,9 @@ async def upload_interview_recording(
     )
     # Also insert a per-file document to match the listing/streaming schema (kind/path/size_bytes)
     try:
-        await db.interview_recordings.insert_one({
+        per_file_doc = {
+            # explicit string id so frontend can reference recordings by id
+            "id": str(uuid.uuid4()),
             "interview_id": interview_id,
             "candidate_id": current_candidate.id,
             "recruiter_id": recording.get("recruiter_id") if isinstance(recording, dict) else getattr(recording, "recruiter_id", None),
@@ -3334,7 +3348,8 @@ async def upload_interview_recording(
             "path": str(file_path),
             "size_bytes": len(content),
             "created_at": datetime.now(timezone.utc),
-        })
+        }
+        await db.interview_recordings.insert_one(per_file_doc)
     except Exception as e:
         logging.warning(f"Failed to insert per-file recording doc: {e}")
 

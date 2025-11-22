@@ -12,8 +12,6 @@ import {
   Clock, Users, Smartphone, Laptop, Headphones, Zap
 } from 'lucide-react';
 import AIMonitoringSystem from './AIMonitoringSystem';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { app } from '../firebase';
 import QRForPhoneJoin from './QRForPhoneJoin';
 import { createSession } from '../lib/proctorApi';
 import PreInterviewOnboarding from './PreInterviewOnboarding';
@@ -75,8 +73,6 @@ const SecureInterviewSession = ({ interview, company, job, onEnd, onClose }) => 
   // Proctoring QR state
   const [phoneJoinToken, setPhoneJoinToken] = useState("");
   const [qrError, setQrError] = useState("");
-
-  const storage = getStorage(app);
 
   // Manual QR generation (in case auto call failed)
   const generatePhoneQR = async () => {
@@ -921,29 +917,11 @@ const SecureInterviewSession = ({ interview, company, job, onEnd, onClose }) => 
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const uploadVideoToFirebase = async (blob, candidateId, type) => {
-    if (!blob) return null;
-    const safeCandidate = candidateId || 'unknown';
-    const ts = Date.now();
-    const path = `interviews/${safeCandidate}/${type}_${ts}.webm`;
-    const storageRef = ref(storage, path);
-
-    let attempts = 0;
-    // simple retry up to 3 attempts
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      try {
-        await uploadBytes(storageRef, blob);
-        const url = await getDownloadURL(storageRef);
-        return url;
-      } catch (e) {
-        attempts += 1;
-        if (attempts >= 3) {
-          console.warn('Firebase upload failed for', type, e);
-          return null;
-        }
-      }
-    }
+  // Stubbed upload: Firebase Storage is disabled in this deployment.
+  // We rely only on backend upload endpoints so interviews can complete
+  // without requiring Firebase billing or CORS.
+  const uploadVideoToFirebase = async (_blob, _candidateId, _type) => {
+    return null;
   };
 
   const finalizeInterview = async () => {

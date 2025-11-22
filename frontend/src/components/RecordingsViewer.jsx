@@ -44,6 +44,27 @@ export default function RecordingsViewer() {
     }
   };
 
+  // Derive human-readable status using AI decision when available
+  const computeStatusLabel = () => {
+    if (aiDecision?.decision) {
+      const dec = (aiDecision.decision || '').toLowerCase();
+      if (dec === 'pass' || dec === 'hire') return 'Pass';
+      if (dec === 'fail' || dec === 'reject') return 'Fail';
+    }
+    if (monitoring?.is_live) return 'Live';
+    if (monitoring) return 'Completed';
+    return 'Unknown';
+  };
+
+  const computeStatusBadgeClass = () => {
+    if (aiDecision?.decision) {
+      const dec = (aiDecision.decision || '').toLowerCase();
+      if (dec === 'pass' || dec === 'hire') return 'bg-green-100 text-green-800';
+      if (dec === 'fail' || dec === 'reject') return 'bg-red-100 text-red-800';
+    }
+    return monitoring?.is_live ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-800';
+  };
+
   const runEvaluation = async () => {
     try {
       setAiLoading(true);
@@ -204,8 +225,8 @@ export default function RecordingsViewer() {
                 </div>
                 <div>
                   <div className="text-slate-500">Interview Status</div>
-                  <Badge className={monitoring.is_live ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-800'}>
-                    {monitoring.is_live ? 'Live' : 'Completed/Not Live'}
+                  <Badge className={computeStatusBadgeClass()}>
+                    {computeStatusLabel()}
                   </Badge>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -219,52 +240,6 @@ export default function RecordingsViewer() {
               </div>
             ) : (
               <div className="text-sm text-slate-500">No monitoring data available.</div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Analytics summary */}
-        <Card className="col-span-3">
-          <CardHeader>
-            <CardTitle>Interview Analytics</CardTitle>
-            <CardDescription>Facial, Voice, and Screen summaries</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {summary ? (
-              <div className="grid md:grid-cols-3 gap-6 text-sm">
-                <div>
-                  <div className="font-medium mb-2">Facial</div>
-                  <div className="space-y-1 text-slate-700">
-                    <div>Eye Movement: {summary.facial_summary?.avg_eye_movement != null ? (summary.facial_summary.avg_eye_movement).toFixed(2) : '-'}</div>
-                    <div>Head Movement: {summary.facial_summary?.avg_head_movement != null ? (summary.facial_summary.avg_head_movement).toFixed(2) : '-'}</div>
-                    <div>Facial Expression: {summary.facial_summary?.avg_facial_expression != null ? (summary.facial_summary.avg_facial_expression).toFixed(2) : '-'}</div>
-                    <div>Attention: {summary.facial_summary?.avg_attention != null ? (summary.facial_summary.avg_attention).toFixed(2) : '-'}</div>
-                    <div className="text-xs text-slate-500">Records: {summary.facial_summary?.records || 0}</div>
-                  </div>
-                </div>
-                <div>
-                  <div className="font-medium mb-2">Voice</div>
-                  <div className="space-y-1 text-slate-700">
-                    <div>Clarity: {summary.voice_summary?.avg_voice_clarity != null ? (summary.voice_summary.avg_voice_clarity).toFixed(2) : '-'}</div>
-                    <div>Speech Pattern: {summary.voice_summary?.avg_speech_pattern != null ? (summary.voice_summary.avg_speech_pattern).toFixed(2) : '-'}</div>
-                    <div>Background Noise: {summary.voice_summary?.avg_background_noise != null ? (summary.voice_summary.avg_background_noise).toFixed(2) : '-'}</div>
-                    <div>Authenticity: {summary.voice_summary?.avg_voice_authenticity != null ? (summary.voice_summary.avg_voice_authenticity).toFixed(2) : '-'}</div>
-                    <div className="text-xs text-slate-500">Records: {summary.voice_summary?.records || 0}</div>
-                  </div>
-                </div>
-                <div>
-                  <div className="font-medium mb-2">Screen</div>
-                  <div className="space-y-1 text-slate-700">
-                    <div>Sharing Quality: {summary.screen_summary?.avg_sharing_quality != null ? (summary.screen_summary.avg_sharing_quality).toFixed(2) : '-'}</div>
-                    <div>Focus: {summary.screen_summary?.avg_focus != null ? (summary.screen_summary.avg_focus).toFixed(2) : '-'}</div>
-                    <div>Tab Switches: {summary.screen_summary?.tab_switch_events ?? 0}</div>
-                    <div>Unauthorized Apps: {summary.screen_summary?.unauthorized_apps_events ?? 0}</div>
-                    <div className="text-xs text-slate-500">Records: {summary.screen_summary?.records || 0}</div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-sm text-slate-500">No analytics summary available yet.</div>
             )}
           </CardContent>
         </Card>
